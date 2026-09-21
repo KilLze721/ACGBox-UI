@@ -2157,13 +2157,197 @@ svg {
 }
 
 .option-list {
-  display: grid;
-  max-height: 196px;
-  gap: 2px;
-  padding: 0;
+  display: flex;
+  max-height: 260px;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px;
   margin: 0;
   overflow-y: auto;
   list-style: none;
+}
+
+.option-list > li {
+  max-width: 100%;
+  flex: 0 0 auto;
+}
+
+.tag-dropdown-panel.open {
+  display: flex;
+  max-height: 320px;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tag-dropdown-panel .dropdown-search {
+  flex: 0 0 auto;
+}
+
+.tag-option {
+  display: inline-flex;
+  width: auto;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 11px;
+  color: var(--ink-soft);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition:
+    color 130ms ease,
+    background 130ms ease,
+    border-color 130ms ease;
+}
+
+.tag-option:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: rgba(217, 95, 134, 0.3);
+}
+
+.tag-option.selected {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.tag-match-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tag-match-control button {
+  min-height: 24px;
+  padding: 0 7px;
+  color: var(--ink-faint);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tag-match-control button:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.tag-match-control button.active {
+  color: var(--accent-strong);
+  background: var(--surface-solid);
+  border-color: rgba(217, 95, 134, 0.26);
+  box-shadow: 0 2px 6px rgba(38, 34, 61, 0.07);
+}
+
+.archive-select {
+  position: relative;
+  width: 100%;
+}
+
+.archive-select-trigger {
+  display: flex;
+  width: 100%;
+  height: 40px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 11px;
+  color: var(--ink);
+  background: var(--surface-solid);
+  border: 1px solid var(--line-strong);
+  border-radius: 11px;
+  font-size: 11px;
+  text-align: left;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
+}
+
+.archive-select-trigger:hover,
+.archive-select.open .archive-select-trigger {
+  border-color: rgba(217, 95, 134, 0.36);
+  background: var(--surface-hover);
+}
+
+.archive-select.open .archive-select-trigger {
+  box-shadow: var(--focus);
+}
+
+.archive-select-trigger .placeholder {
+  color: var(--ink-faint);
+}
+
+.archive-select-chevron {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  font-size: 13px;
+  transition: transform 150ms ease;
+}
+
+.archive-select.open .archive-select-chevron {
+  transform: rotate(180deg);
+}
+
+.archive-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  z-index: 110;
+  display: grid;
+  gap: 3px;
+  max-height: 240px;
+  padding: 6px;
+  overflow-y: auto;
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  box-shadow: 0 12px 30px rgba(38, 34, 61, 0.14);
+  animation: dropdown-in 150ms ease both;
+}
+
+.archive-select-option {
+  display: flex;
+  width: 100%;
+  min-height: 32px;
+  align-items: center;
+  padding: 0 9px;
+  color: var(--ink-soft);
+  background: var(--surface-solid);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 550;
+  line-height: 1.35;
+  text-align: left;
+  transition:
+    color 130ms ease,
+    background 130ms ease,
+    border-color 130ms ease;
+}
+
+.archive-select-option:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.archive-select-option.selected {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: rgba(217, 95, 134, 0.24);
+  font-weight: 700;
 }
 
 .option-item {

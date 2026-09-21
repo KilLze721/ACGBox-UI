@@ -77,6 +77,28 @@ describe('动画管理分页查询页面', () => {
 
     expect(wrapper.text()).toContain('葬送的芙莉莲')
     expect(wrapper.text()).toContain('共 15 条记录')
+    expect(wrapper.find('.tag-match-control').text()).toContain('全部满足')
+    expect(wrapper.find('.tag-match-control').text()).toContain('满足其一')
+
+    await wrapper.find('.multi-select-trigger').trigger('click')
+    expect(wrapper.findAll('.tag-option')).toHaveLength(1)
+
+    await wrapper.find('.dropdown-search').setValue('不存在')
+    expect(wrapper.findAll('.tag-option')).toHaveLength(0)
+
+    await wrapper.find('.dropdown-search').setValue('奇幻')
+    const tagOption = wrapper.find('.tag-option')
+    await tagOption.trigger('click')
+    expect(tagOption.classes()).toContain('selected')
+    expect(tagOption.text()).toBe('奇幻')
+
+    await wrapper.find('#status').trigger('click')
+    const completedOption = wrapper
+      .findAll('.archive-select-option')
+      .find((option) => option.text() === '已完结')
+    expect(completedOption).toBeDefined()
+    await completedOption?.trigger('click')
+    expect(wrapper.find('#status').text()).toContain('已完结')
 
     await wrapper.find('input[placeholder="输入动画名称、别名或系列"]').setValue('芙莉莲')
     await wrapper.find('form').trigger('submit')
@@ -88,6 +110,7 @@ describe('动画管理分页查询页面', () => {
     expect(animeRequests.some((url) => url.includes('keyword=%E8%8A%99%E8%8E%89%E8%8E%B2'))).toBe(
       true,
     )
+    expect(animeRequests.some((url) => url.includes('status=3'))).toBe(true)
 
     wrapper.unmount()
   })

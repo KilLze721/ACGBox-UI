@@ -19,6 +19,7 @@ import type {
   TagMatchMode,
 } from '@/types/api'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 
 interface AnimeFilters {
   keyword: string
@@ -51,6 +52,11 @@ const statusNames: Record<number, string> = {
   3: '已完结',
   4: '其他',
 }
+
+const statusOptions: NamedOption[] = Object.entries(statusNames).map(([id, name]) => ({
+  id: Number(id),
+  name,
+}))
 
 const createDefaultFilters = (): AnimeFilters => ({
   keyword: '',
@@ -665,20 +671,26 @@ function getCoverGradient(id: number) {
           <div class="field">
             <div class="tag-field-head">
               <span class="field-label">标签</span>
-              <label class="tag-match-switch">
-                <span class="tag-match-mode">ALL</span>
-                <input
-                  :checked="form.tagMatchMode === 'ANY'"
-                  type="checkbox"
-                  role="switch"
-                  aria-label="切换标签匹配模式"
-                  @change="form.tagMatchMode = form.tagMatchMode === 'ALL' ? 'ANY' : 'ALL'"
-                />
-                <span class="tag-match-track" aria-hidden="true"
-                  ><span class="tag-match-thumb"></span
-                ></span>
-                <span class="tag-match-mode">ANY</span>
-              </label>
+              <div class="tag-match-control" role="group" aria-label="标签匹配方式">
+                <button
+                  type="button"
+                  :class="{ active: form.tagMatchMode === 'ALL' }"
+                  :aria-pressed="form.tagMatchMode === 'ALL'"
+                  title="同时包含所有已选标签"
+                  @click="form.tagMatchMode = 'ALL'"
+                >
+                  全部满足
+                </button>
+                <button
+                  type="button"
+                  :class="{ active: form.tagMatchMode === 'ANY' }"
+                  :aria-pressed="form.tagMatchMode === 'ANY'"
+                  title="包含任意一个已选标签"
+                  @click="form.tagMatchMode = 'ANY'"
+                >
+                  满足其一
+                </button>
+              </div>
             </div>
             <button
               class="multi-select-trigger"
@@ -692,7 +704,7 @@ function getCoverGradient(id: number) {
                 <path d="m7 10 5 5 5-5" />
               </svg>
             </button>
-            <div class="dropdown-panel" :class="{ open: showTagDropdown }">
+            <div class="dropdown-panel tag-dropdown-panel" :class="{ open: showTagDropdown }">
               <input
                 v-model="tagSearch"
                 class="dropdown-search"
@@ -704,14 +716,14 @@ function getCoverGradient(id: number) {
                 <li v-if="!filteredTags.length" class="option-empty">没有可选标签</li>
                 <li v-for="tag in filteredTags" :key="tag.id">
                   <button
+                    class="tag-option"
                     type="button"
                     role="option"
                     :aria-selected="form.tagIds.includes(tag.id)"
                     :class="{ selected: form.tagIds.includes(tag.id) }"
                     @click="toggleTag(tag.id)"
                   >
-                    <span>{{ tag.name }}</span
-                    ><span aria-hidden="true">{{ form.tagIds.includes(tag.id) ? '✓' : '' }}</span>
+                    {{ tag.name }}
                   </button>
                 </li>
               </ul>
@@ -772,40 +784,43 @@ function getCoverGradient(id: number) {
             <div class="advanced-grid">
               <div class="field">
                 <label for="status">动画状态</label>
-                <select id="status" v-model="form.status">
-                  <option value="">全部状态</option>
-                  <option value="1">未放送</option>
-                  <option value="2">放送中</option>
-                  <option value="3">已完结</option>
-                  <option value="4">其他</option>
-                </select>
+                <ArchiveSelect
+                  id="status"
+                  v-model="form.status"
+                  label="动画状态"
+                  placeholder="全部状态"
+                  :options="statusOptions"
+                />
               </div>
               <div class="field">
                 <label for="broadcastTypeId">放送类型</label>
-                <select id="broadcastTypeId" v-model="form.broadcastTypeId">
-                  <option value="">全部类型</option>
-                  <option v-for="item in broadcastTypes" :key="item.id" :value="String(item.id)">
-                    {{ item.name }}
-                  </option>
-                </select>
+                <ArchiveSelect
+                  id="broadcastTypeId"
+                  v-model="form.broadcastTypeId"
+                  label="放送类型"
+                  placeholder="全部类型"
+                  :options="broadcastTypes"
+                />
               </div>
               <div class="field">
                 <label for="adaptationTypeId">改编类型</label>
-                <select id="adaptationTypeId" v-model="form.adaptationTypeId">
-                  <option value="">全部来源</option>
-                  <option v-for="item in adaptationTypes" :key="item.id" :value="String(item.id)">
-                    {{ item.name }}
-                  </option>
-                </select>
+                <ArchiveSelect
+                  id="adaptationTypeId"
+                  v-model="form.adaptationTypeId"
+                  label="改编类型"
+                  placeholder="全部来源"
+                  :options="adaptationTypes"
+                />
               </div>
               <div class="field">
                 <label for="regionId">地区</label>
-                <select id="regionId" v-model="form.regionId">
-                  <option value="">全部地区</option>
-                  <option v-for="item in regions" :key="item.id" :value="String(item.id)">
-                    {{ item.name }}
-                  </option>
-                </select>
+                <ArchiveSelect
+                  id="regionId"
+                  v-model="form.regionId"
+                  label="地区"
+                  placeholder="全部地区"
+                  :options="regions"
+                />
               </div>
 
               <div
