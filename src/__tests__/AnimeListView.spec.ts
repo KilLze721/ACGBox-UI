@@ -100,6 +100,13 @@ describe('动画管理分页查询页面', () => {
     await completedOption?.trigger('click')
     expect(wrapper.find('#status').text()).toContain('已完结')
 
+    await wrapper.find('.date-filter-group input[type="checkbox"]').setValue(true)
+    await wrapper.find('#broadcastStartDate').setValue('2020')
+    await wrapper.find('#broadcastStartDate').trigger('blur')
+    await wrapper.find('#broadcastEndDate').setValue('2026-9')
+    await wrapper.find('#broadcastEndDate').trigger('blur')
+    expect((wrapper.find('#broadcastEndDate').element as HTMLInputElement).value).toBe('2026-09')
+
     await wrapper.find('input[placeholder="输入动画名称、别名或系列"]').setValue('芙莉莲')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
@@ -111,6 +118,18 @@ describe('动画管理分页查询页面', () => {
       true,
     )
     expect(animeRequests.some((url) => url.includes('status=3'))).toBe(true)
+    expect(animeRequests.some((url) => url.includes('broadcastStartDate=2020'))).toBe(true)
+    expect(animeRequests.some((url) => url.includes('broadcastEndDate=2026-09'))).toBe(true)
+
+    const requestCount = animeRequests.length
+    await wrapper.find('#broadcastStartDate').setValue('2027')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('#broadcastEndDateError').text()).toContain('结束日期不能早于开始日期')
+    const requestsAfterInvalidRange = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).includes('/anime/page'),
+    )
+    expect(requestsAfterInvalidRange).toHaveLength(requestCount)
 
     wrapper.unmount()
   })

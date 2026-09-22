@@ -19,7 +19,9 @@ import type {
   TagMatchMode,
 } from '@/types/api'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import ArchiveDateInput from '@/components/admin/ArchiveDateInput.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
+import { getArchiveDateBound, validateArchiveDate } from '@/utils/archiveDate'
 
 interface AnimeFilters {
   keyword: string
@@ -83,6 +85,10 @@ const jumpPage = ref(1)
 const loading = ref(false)
 const errorMessage = ref('')
 const validationMessage = ref('')
+const dateErrors = reactive({
+  broadcastStartDate: '',
+  broadcastEndDate: '',
+})
 const catalogWarning = ref('')
 const showAdvancedFilters = ref(false)
 const showCompanySuggestions = ref(false)
@@ -131,7 +137,7 @@ const advancedFilterCount = computed(
       form.broadcastEndDate,
       form.ratingMin,
       form.ratingMax,
-    ].filter(Boolean).length,
+    ].filter(Boolean).length
 )
 
 const activeFilterCount = computed(() => {
@@ -334,7 +340,7 @@ async function getAllTags(signal: AbortSignal) {
   if (firstPage.pages <= 1) return firstPage.rows
 
   const remainingPages = await Promise.all(
-    Array.from({ length: firstPage.pages - 1 }, (_, index) => getTags(index + 2, 100, signal)),
+    Array.from({ length: firstPage.pages - 1 }, (_, index) => getTags(index + 2, 100, signal))
   )
   return firstPage.rows.concat(remainingPages.flatMap((item) => item.rows))
 }
@@ -361,25 +367,7 @@ async function loadStats() {
 }
 
 function validateFilters() {
-  const datePattern = /^\d{4}(?:-(?:0[1-9]|1[0-2]))?$/
   const scorePattern = /^(?:10(?:\.0)?|\d(?:\.\d)?)$/
-
-  if (
-    (form.broadcastStartDate && !datePattern.test(form.broadcastStartDate)) ||
-    (form.broadcastEndDate && !datePattern.test(form.broadcastEndDate))
-  ) {
-    return '放送日期必须使用 yyyy 或 yyyy-MM 格式。'
-  }
-
-  const startDate = form.broadcastStartDate.includes('-')
-    ? form.broadcastStartDate
-    : `${form.broadcastStartDate}-01`
-  const endDate = form.broadcastEndDate.includes('-')
-    ? form.broadcastEndDate
-    : `${form.broadcastEndDate}-12`
-  if (form.broadcastStartDate && form.broadcastEndDate && startDate > endDate) {
-    return '放送开始日期不能晚于结束日期。'
-  }
 
   if (
     (form.ratingMin && !scorePattern.test(form.ratingMin)) ||
@@ -399,7 +387,60 @@ function validateFilters() {
   return ''
 }
 
+type BroadcastDateField = 'broadcastStartDate' | 'broadcastEndDate'
+
+function clearDateError(field: BroadcastDateField) {
+  dateErrors[field] = ''
+}
+
+function validateDateField(field: BroadcastDateField) {
+  if (field === 'broadcastEndDate' && !dateRangeEnabled.value) {
+    dateErrors.broadcastEndDate = ''
+    return true
+  }
+
+  const result = validateArchiveDate(form[field])
+  dateErrors[field] = result.error
+  if (result.error) return false
+
+  if (result.value) form[field] = result.value.normalized
+  else form[field] = ''
+  return true
+}
+
+function validateDateRange() {
+  const startValid = validateDateField('broadcastStartDate')
+  const endValid = validateDateField('broadcastEndDate')
+  if (!startValid || !endValid || !dateRangeEnabled.value) return startValid && endValid
+
+  const startValue = validateArchiveDate(form.broadcastStartDate).value
+  const endValue = validateArchiveDate(form.broadcastEndDate).value
+  if (
+    startValue &&
+    endValue &&
+    getArchiveDateBound(startValue, false) > getArchiveDateBound(endValue, true)
+  ) {
+    dateErrors.broadcastEndDate = '结束日期不能早于开始日期。'
+    return false
+  }
+  return true
+}
+
+function handleDateBlur(field: BroadcastDateField) {
+  if (!validateDateField(field)) return
+  if (dateRangeEnabled.value) validateDateRange()
+}
+
+function handleDateRangeModeChange() {
+  dateErrors.broadcastStartDate = ''
+  dateErrors.broadcastEndDate = ''
+}
+
 function submitQuery() {
+  if (!validateDateRange()) {
+    validationMessage.value = ''
+    return
+  }
   validationMessage.value = validateFilters()
   if (validationMessage.value) return
 
@@ -414,6 +455,8 @@ function resetFilters() {
   Object.assign(form, createDefaultFilters())
   appliedFilters.value = createDefaultFilters()
   validationMessage.value = ''
+  dateErrors.broadcastStartDate = ''
+  dateErrors.broadcastEndDate = ''
   companySuggestions.value = []
   dateRangeEnabled.value = false
   ratingRangeEnabled.value = false
@@ -504,6 +547,9 @@ function clearFilter(key: string) {
     const filterKey = key as keyof AnimeFilters
     if (filterKey === 'tagIds') form.tagIds = []
     else (form[filterKey] as string) = ''
+  }
+  if (key === 'broadcastStartDate' || key === 'broadcastEndDate') {
+    dateErrors[key] = ''
   }
   submitQuery()
 }
@@ -872,48 +918,63 @@ function getCoverGradient(id: number) {
                   <div class="date-filter-title">
                     <span>放送日期</span
                     ><span class="date-filter-mode">{{
-                      dateRangeEnabled ? '日期范围' : '固定日期'
+                      dateRangeEnabled ? '范围查询' : '固定查询'
                     }}</span>
                   </div>
                   <label class="date-mode-switch"
                     ><span>范围选择</span
-                    ><input v-model="dateRangeEnabled" type="checkbox" role="switch" /><span
-                      class="date-mode-track"
+                    ><input
+                      v-model="dateRangeEnabled"
+                      type="checkbox"
+                      role="switch"
+                      @change="handleDateRangeModeChange" /><span class="date-mode-track"
                       ><span class="date-mode-thumb"></span></span
                   ></label>
                 </div>
                 <div class="date-filter-inputs">
-                  <div class="field">
+                  <div class="field" :class="{ 'has-error': dateErrors.broadcastStartDate }">
                     <label for="broadcastStartDate"
-                      ><span>{{ dateRangeEnabled ? '开始放送日期' : '固定放送日期' }}</span
-                      ><span class="field-label-note">年月</span></label
+                      ><span>{{ dateRangeEnabled ? '起始日期' : '固定日期' }}</span
+                      ><span class="field-label-note">年 / 年月</span></label
                     >
-                    <div class="input-shell date-input-shell">
-                      <input
-                        id="broadcastStartDate"
-                        v-model="form.broadcastStartDate"
-                        type="month"
-                      />
-                      <span class="date-picker-trigger" aria-hidden="true"
-                        ><AdminIcon name="calendar"
-                      /></span>
-                    </div>
+                    <ArchiveDateInput
+                      id="broadcastStartDate"
+                      v-model="form.broadcastStartDate"
+                      :label="dateRangeEnabled ? '起始日期' : '固定日期'"
+                      placeholder="例如 2024 或 2024-10"
+                      :invalid="Boolean(dateErrors.broadcastStartDate)"
+                      described-by="broadcastStartDateError"
+                      @typing="clearDateError('broadcastStartDate')"
+                      @blur="handleDateBlur('broadcastStartDate')"
+                      @commit="handleDateBlur('broadcastStartDate')"
+                    />
+                    <p id="broadcastStartDateError" class="field-error">
+                      {{ dateErrors.broadcastStartDate }}
+                    </p>
                   </div>
-                  <div class="field range-end-date">
-                    <label for="broadcastEndDate"
-                      >结束放送日期 <span class="field-label-note">年月</span></label
+                  <div
+                    class="field range-end-date"
+                    :class="{ 'has-error': dateErrors.broadcastEndDate }"
+                  >
+                    <label for="broadcastEndDate">
+                      截止日期 <span class="field-label-note">年 / 年月</span></label
                     >
-                    <div class="input-shell date-input-shell date-picker--end">
-                      <input
-                        id="broadcastEndDate"
-                        v-model="form.broadcastEndDate"
-                        type="month"
-                        :disabled="!dateRangeEnabled"
-                      />
-                      <span class="date-picker-trigger" aria-hidden="true"
-                        ><AdminIcon name="calendar"
-                      /></span>
-                    </div>
+                    <ArchiveDateInput
+                      id="broadcastEndDate"
+                      v-model="form.broadcastEndDate"
+                      label="截止日期"
+                      placeholder="例如 2026 或 2026-07"
+                      :disabled="!dateRangeEnabled"
+                      align-end
+                      :invalid="Boolean(dateErrors.broadcastEndDate)"
+                      described-by="broadcastEndDateError"
+                      @typing="clearDateError('broadcastEndDate')"
+                      @blur="handleDateBlur('broadcastEndDate')"
+                      @commit="handleDateBlur('broadcastEndDate')"
+                    />
+                    <p id="broadcastEndDateError" class="field-error">
+                      {{ dateErrors.broadcastEndDate }}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -923,7 +984,7 @@ function getCoverGradient(id: number) {
                   <div class="date-filter-title">
                     <span>个人评分</span
                     ><span class="date-filter-mode">{{
-                      ratingRangeEnabled ? '评分范围' : '固定评分'
+                      ratingRangeEnabled ? '范围查询' : '固定查询'
                     }}</span>
                   </div>
                   <label class="date-mode-switch"
@@ -1294,7 +1355,9 @@ function getCoverGradient(id: number) {
             ><strong>{{ deleteTarget?.name || '—' }}</strong
             ><span>{{
               deleteTarget
-                ? `${deleteTarget.broadcastType?.name || '未知类型'} · ${deleteTarget.airDate || '日期待定'}`
+                ? `${deleteTarget.broadcastType?.name || '未知类型'} · ${
+                    deleteTarget.airDate || '日期待定'
+                  }`
                 : '—'
             }}</span></span
           >
