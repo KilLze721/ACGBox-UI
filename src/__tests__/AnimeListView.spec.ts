@@ -133,4 +133,137 @@ describe('动画管理分页查询页面', () => {
 
     wrapper.unmount()
   })
+
+  it('按整数评分执行精确查询与范围查询并阻止非法评分', async () => {
+    const fetchMock = vi
+      .fn<
+        (input: string | URL | Request) => Promise<{
+          ok: boolean
+          status: number
+          json: () => Promise<unknown>
+        }>
+      >()
+      .mockImplementation(async (input) => {
+        const url = new URL(String(input), 'http://localhost')
+        const data = url.pathname.endsWith('/anime/page')
+          ? {
+              pageNum: Number(url.searchParams.get('pageNum')),
+              pageSize: Number(url.searchParams.get('pageSize')),
+              total: 1,
+              pages: 1,
+              rows: [animeRow],
+            }
+          : url.pathname.endsWith('/tags/page')
+            ? { pageNum: 1, pageSize: 100, total: 1, pages: 1, rows: animeRow.tags }
+            : []
+
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ code: 200, message: '操作成功', data }),
+        }
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const wrapper = mount(AnimeListView, {
+      global: {
+        stubs: {
+          RouterLink: {
+            props: ['to'],
+            template: '<a :href="to"><slot /></a>',
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    const ratingGroup = wrapper.find('.rating-filter-group')
+    const ratingMode = ratingGroup.find('input[type="checkbox"]')
+    const ratingMin = wrapper.find('#ratingMin')
+    const ratingMax = wrapper.find('#ratingMax')
+    const animeRequestUrls = () =>
+      fetchMock.mock.calls
+        .map((call) => String(call[0]))
+        .filter((url) => url.includes('/anime/page'))
+    const lastAnimeRequest = () => {
+      const requests = animeRequestUrls()
+      return new URL(requests[requests.length - 1]!, 'http://localhost')
+    }
+
+    expect(ratingGroup.text()).toContain('固定评分')
+    expect(ratingGroup.text()).not.toContain('ratingMin')
+    expect(wrapper.findAll('.score-input-suffix')).toHaveLength(2)
+    expect(wrapper.findAll('.score-picker-trigger')).toHaveLength(0)
+
+    await ratingMin.setValue('8')
+    await ratingMin.trigger('blur')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(lastAnimeRequest().searchParams.get('ratingMin')).toBe('8')
+    expect(lastAnimeRequest().searchParams.get('ratingMax')).toBe('8')
+
+    await ratingMode.setValue(true)
+    expect(ratingGroup.text()).toContain('最低评分')
+    expect(ratingGroup.text()).toContain('最高评分')
+    await ratingMin.setValue('6')
+    await ratingMax.setValue('8')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(lastAnimeRequest().searchParams.get('ratingMin')).toBe('6')
+    expect(lastAnimeRequest().searchParams.get('ratingMax')).toBe('8')
+
+    await ratingMax.setValue('')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(lastAnimeRequest().searchParams.get('ratingMin')).toBe('6')
+    expect(lastAnimeRequest().searchParams.has('ratingMax')).toBe(false)
+
+    await ratingMin.setValue('')
+    await ratingMax.setValue('6')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(lastAnimeRequest().searchParams.has('ratingMin')).toBe(false)
+    expect(lastAnimeRequest().searchParams.get('ratingMax')).toBe('6')
+
+    await ratingMin.setValue('6')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(lastAnimeRequest().searchParams.get('ratingMin')).toBe('6')
+    expect(lastAnimeRequest().searchParams.get('ratingMax')).toBe('6')
+
+    const requestCount = animeRequestUrls().length
+    await ratingMin.setValue('6.5')
+    await ratingMin.trigger('blur')
+    expect(wrapper.find('#ratingMinError').text()).toContain('仅支持整数')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(animeRequestUrls()).toHaveLength(requestCount)
+
+    await ratingMin.setValue('8')
+    await ratingMax.setValue('6')
+    await ratingMax.trigger('blur')
+    expect(wrapper.find('#ratingMaxError').text()).toContain('最高评分不能低于最低评分')
+
+    await ratingMin.setValue('abc')
+    await ratingMin.trigger('blur')
+    expect(wrapper.find('#ratingMinError').text()).toContain('评分格式不正确')
+
+    await ratingMin.setValue('-1')
+    await ratingMin.trigger('blur')
+    expect(wrapper.find('#ratingMinError').text()).toContain('不能低于 0')
+
+    await ratingMin.setValue('11')
+    await ratingMin.trigger('blur')
+    expect(wrapper.find('#ratingMinError').text()).toContain('不能超过 10')
+
+    await ratingMode.setValue(false)
+    expect((ratingMax.element as HTMLInputElement).value).toBe('')
+    await ratingMin.setValue('0')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(lastAnimeRequest().searchParams.get('ratingMin')).toBe('0')
+    expect(lastAnimeRequest().searchParams.get('ratingMax')).toBe('0')
+
+    wrapper.unmount()
+  })
 })

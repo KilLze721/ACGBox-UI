@@ -60,6 +60,11 @@ const statusOptions: NamedOption[] = Object.entries(statusNames).map(([id, name]
   name,
 }))
 
+const pageSizeOptions: NamedOption[] = [5, 10, 20, 50].map((value) => ({
+  id: value,
+  name: `${value} 条`,
+}))
+
 const createDefaultFilters = (): AnimeFilters => ({
   keyword: '',
   tagIds: [],
@@ -81,6 +86,15 @@ const createDefaultFilters = (): AnimeFilters => ({
 const form = reactive<AnimeFilters>(createDefaultFilters())
 const appliedFilters = ref<AnimeFilters>(createDefaultFilters())
 const pageSize = ref(10)
+const pageSizeModel = computed({
+  get: () => String(pageSize.value),
+  set: (value: string) => {
+    const nextPageSize = Number(value)
+    if (nextPageSize === pageSize.value) return
+    pageSize.value = nextPageSize
+    changePageSize()
+  },
+})
 const jumpPage = ref(1)
 const loading = ref(false)
 const errorMessage = ref('')
@@ -89,6 +103,10 @@ const dateErrors = reactive({
   broadcastStartDate: '',
   broadcastEndDate: '',
 })
+const ratingErrors = reactive({
+  ratingMin: '',
+  ratingMax: '',
+})
 const catalogWarning = ref('')
 const showAdvancedFilters = ref(false)
 const showCompanySuggestions = ref(false)
@@ -96,6 +114,7 @@ const showTagDropdown = ref(false)
 const tagSearch = ref('')
 const dateRangeEnabled = ref(false)
 const ratingRangeEnabled = ref(false)
+const appliedRatingRangeEnabled = ref(false)
 const deleteTarget = ref<AnimePageItem | null>(null)
 const deleteSubmitting = ref(false)
 const toast = ref<{ title: string; message: string; type: 'success' | 'error' } | null>(null)
@@ -213,9 +232,9 @@ const activeFilterChips = computed(() => {
   if (filters.ratingMin)
     chips.push({
       key: 'ratingMin',
-      label: `${ratingRangeEnabled.value ? '评分 ≥' : '评分：'}${filters.ratingMin}`,
+      label: `${appliedRatingRangeEnabled.value ? '评分 ≥' : '评分：'}${filters.ratingMin}`,
     })
-  if (ratingRangeEnabled.value && filters.ratingMax)
+  if (appliedRatingRangeEnabled.value && filters.ratingMax)
     chips.push({ key: 'ratingMax', label: `评分 ≤ ${filters.ratingMax}` })
   return chips
 })
@@ -288,7 +307,9 @@ function createQuery(pageNum: number): AnimePageQuery {
     regionId: optionalNumber(filters.regionId),
     companyId: optionalNumber(filters.companyId),
     ratingMin: optionalNumber(filters.ratingMin),
-    ratingMax: optionalNumber(ratingRangeEnabled.value ? filters.ratingMax : filters.ratingMin),
+    ratingMax: optionalNumber(
+      appliedRatingRangeEnabled.value ? filters.ratingMax : filters.ratingMin
+    ),
     sortBy: filters.sortBy,
     sortDirection: filters.sortDirection,
   }
@@ -367,19 +388,6 @@ async function loadStats() {
 }
 
 function validateFilters() {
-  const scorePattern = /^(?:10(?:\.0)?|\d(?:\.\d)?)$/
-
-  if (
-    (form.ratingMin && !scorePattern.test(form.ratingMin)) ||
-    (form.ratingMax && !scorePattern.test(form.ratingMax))
-  ) {
-    return '个人评分必须处于 0.0 至 10.0，且最多保留一位小数。'
-  }
-
-  if (form.ratingMin && form.ratingMax && Number(form.ratingMin) > Number(form.ratingMax)) {
-    return '最低个人评分不能大于最高个人评分。'
-  }
-
   if (form.companyKeyword.trim() && !form.companyId) {
     return '请从联想结果中选择制作公司。'
   }
@@ -436,8 +444,80 @@ function handleDateRangeModeChange() {
   dateErrors.broadcastEndDate = ''
 }
 
+type RatingField = 'ratingMin' | 'ratingMax'
+
+function clearRatingError(field: RatingField) {
+  ratingErrors[field] = ''
+}
+
+function validateRatingField(field: RatingField) {
+  if (field === 'ratingMax' && !ratingRangeEnabled.value) {
+    ratingErrors.ratingMax = ''
+    return true
+  }
+
+  const value = form[field].trim()
+  if (!value) {
+    form[field] = ''
+    ratingErrors[field] = ''
+    return true
+  }
+
+  if (/^-\d+$/.test(value)) {
+    ratingErrors[field] = '评分不能低于 0 分。'
+    return false
+  }
+  if (/^-?\d+\.\d+$/.test(value)) {
+    ratingErrors[field] = '评分仅支持整数。'
+    return false
+  }
+  if (!/^\d+$/.test(value)) {
+    ratingErrors[field] = '评分格式不正确，请输入 0 至 10 的整数。'
+    return false
+  }
+
+  const score = Number(value)
+  if (score > 10) {
+    ratingErrors[field] = '评分不能超过 10 分。'
+    return false
+  }
+
+  form[field] = String(score)
+  ratingErrors[field] = ''
+  return true
+}
+
+function validateRatingRange() {
+  const minValid = validateRatingField('ratingMin')
+  const maxValid = validateRatingField('ratingMax')
+  if (!minValid || !maxValid || !ratingRangeEnabled.value) return minValid && maxValid
+
+  if (
+    form.ratingMin !== '' &&
+    form.ratingMax !== '' &&
+    Number(form.ratingMin) > Number(form.ratingMax)
+  ) {
+    ratingErrors.ratingMax = '最高评分不能低于最低评分。'
+    return false
+  }
+  return true
+}
+
+function handleRatingBlur(field: RatingField) {
+  if (!validateRatingField(field)) return
+  if (ratingRangeEnabled.value) validateRatingRange()
+}
+
+function handleRatingRangeModeChange() {
+  ratingErrors.ratingMin = ''
+  ratingErrors.ratingMax = ''
+  if (!ratingRangeEnabled.value) form.ratingMax = ''
+}
+
 function submitQuery() {
-  if (!validateDateRange()) {
+  const datesValid = validateDateRange()
+  const ratingsValid = validateRatingRange()
+  if (!datesValid || !ratingsValid) {
     validationMessage.value = ''
     return
   }
@@ -446,8 +526,10 @@ function submitQuery() {
 
   appliedFilters.value = {
     ...form,
+    ratingMax: ratingRangeEnabled.value ? form.ratingMax : '',
     tagIds: [...form.tagIds],
   }
+  appliedRatingRangeEnabled.value = ratingRangeEnabled.value
   void loadPage(1)
 }
 
@@ -457,9 +539,12 @@ function resetFilters() {
   validationMessage.value = ''
   dateErrors.broadcastStartDate = ''
   dateErrors.broadcastEndDate = ''
+  ratingErrors.ratingMin = ''
+  ratingErrors.ratingMax = ''
   companySuggestions.value = []
   dateRangeEnabled.value = false
   ratingRangeEnabled.value = false
+  appliedRatingRangeEnabled.value = false
   showTagDropdown.value = false
   void loadPage(1)
 }
@@ -918,7 +1003,7 @@ function getCoverGradient(id: number) {
                   <div class="date-filter-title">
                     <span>放送日期</span
                     ><span class="date-filter-mode">{{
-                      dateRangeEnabled ? '范围查询' : '固定查询'
+                      dateRangeEnabled ? '范围查询' : '精确查询'
                     }}</span>
                   </div>
                   <label class="date-mode-switch"
@@ -941,7 +1026,7 @@ function getCoverGradient(id: number) {
                       id="broadcastStartDate"
                       v-model="form.broadcastStartDate"
                       :label="dateRangeEnabled ? '起始日期' : '固定日期'"
-                      placeholder="例如 2024 或 2024-10"
+                      placeholder="输入日期"
                       :invalid="Boolean(dateErrors.broadcastStartDate)"
                       described-by="broadcastStartDateError"
                       @typing="clearDateError('broadcastStartDate')"
@@ -963,7 +1048,7 @@ function getCoverGradient(id: number) {
                       id="broadcastEndDate"
                       v-model="form.broadcastEndDate"
                       label="截止日期"
-                      placeholder="例如 2026 或 2026-07"
+                      placeholder="输入日期"
                       :disabled="!dateRangeEnabled"
                       align-end
                       :invalid="Boolean(dateErrors.broadcastEndDate)"
@@ -984,56 +1069,63 @@ function getCoverGradient(id: number) {
                   <div class="date-filter-title">
                     <span>个人评分</span
                     ><span class="date-filter-mode">{{
-                      ratingRangeEnabled ? '范围查询' : '固定查询'
+                      ratingRangeEnabled ? '范围查询' : '精确查询'
                     }}</span>
                   </div>
                   <label class="date-mode-switch"
-                    ><span>范围选择</span
-                    ><input v-model="ratingRangeEnabled" type="checkbox" role="switch" /><span
-                      class="date-mode-track"
+                    ><span>范围筛选</span
+                    ><input
+                      v-model="ratingRangeEnabled"
+                      type="checkbox"
+                      role="switch"
+                      @change="handleRatingRangeModeChange" /><span class="date-mode-track"
                       ><span class="date-mode-thumb"></span></span
                   ></label>
                 </div>
                 <div class="rating-filter-inputs">
-                  <div class="field">
+                  <div class="field" :class="{ 'has-error': ratingErrors.ratingMin }">
                     <label for="ratingMin"
-                      ><span>{{ ratingRangeEnabled ? '最低个人评分' : '固定个人评分' }}</span
-                      ><span class="field-label-note">ratingMin</span></label
+                      ><span>{{ ratingRangeEnabled ? '最低评分' : '固定评分' }}</span></label
                     >
                     <div class="input-shell score-input-shell">
                       <input
                         id="ratingMin"
                         v-model="form.ratingMin"
-                        type="number"
-                        min="0"
-                        max="10"
-                        step="0.1"
-                        placeholder="输入 0–10"
+                        type="text"
+                        inputmode="numeric"
+                        placeholder="输入评分"
+                        autocomplete="off"
+                        :aria-invalid="Boolean(ratingErrors.ratingMin)"
+                        aria-describedby="ratingMinError"
+                        @input="clearRatingError('ratingMin')"
+                        @blur="handleRatingBlur('ratingMin')"
                       />
-                      <span class="score-picker-trigger" aria-hidden="true"
-                        ><AdminIcon name="star"
-                      /></span>
+                      <span class="score-input-suffix" aria-hidden="true">/ 10</span>
                     </div>
+                    <p id="ratingMinError" class="field-error">{{ ratingErrors.ratingMin }}</p>
                   </div>
-                  <div class="field range-rating-field">
-                    <label for="ratingMax"
-                      >最高个人评分 <span class="field-label-note">ratingMax</span></label
-                    >
-                    <div class="input-shell score-input-shell score-picker--end">
+                  <div
+                    class="field range-rating-field"
+                    :class="{ 'has-error': ratingErrors.ratingMax }"
+                  >
+                    <label for="ratingMax">最高评分</label>
+                    <div class="input-shell score-input-shell">
                       <input
                         id="ratingMax"
                         v-model="form.ratingMax"
-                        type="number"
-                        min="0"
-                        max="10"
-                        step="0.1"
-                        placeholder="输入 0–10"
+                        type="text"
+                        inputmode="numeric"
+                        placeholder="输入评分"
+                        autocomplete="off"
                         :disabled="!ratingRangeEnabled"
+                        :aria-invalid="Boolean(ratingErrors.ratingMax)"
+                        aria-describedby="ratingMaxError"
+                        @input="clearRatingError('ratingMax')"
+                        @blur="handleRatingBlur('ratingMax')"
                       />
-                      <span class="score-picker-trigger" aria-hidden="true"
-                        ><AdminIcon name="star"
-                      /></span>
+                      <span class="score-input-suffix" aria-hidden="true">/ 10</span>
                     </div>
+                    <p id="ratingMaxError" class="field-error">{{ ratingErrors.ratingMax }}</p>
                   </div>
                 </div>
               </div>
@@ -1053,7 +1145,7 @@ function getCoverGradient(id: number) {
                 :aria-label="`移除 ${chip.label}`"
                 @click="clearFilter(chip.key)"
               >
-                ×
+                <AdminIcon name="close" />
               </button>
             </span>
           </div>
@@ -1285,14 +1377,19 @@ function getCoverGradient(id: number) {
           <strong>{{ page.total }}</strong> 条 · {{ page.pageNum }}/{{ page.pages }} 页
         </div>
         <div class="page-controls">
-          <label class="page-size-wrap"
-            >每页<select v-model.number="pageSize" aria-label="每页数量" @change="changePageSize">
-              <option :value="5">5 条</option>
-              <option :value="10">10 条</option>
-              <option :value="20">20 条</option>
-              <option :value="50">50 条</option>
-            </select></label
-          >
+          <label class="page-size-wrap">
+            <span>每页</span>
+            <ArchiveSelect
+              id="pageSize"
+              v-model="pageSizeModel"
+              class="page-size-select"
+              label="每页数量"
+              placeholder="选择数量"
+              placement="top"
+              :show-placeholder-option="false"
+              :options="pageSizeOptions"
+            />
+          </label>
           <button
             class="page-button"
             type="button"

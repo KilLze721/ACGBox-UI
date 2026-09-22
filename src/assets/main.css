@@ -552,10 +552,12 @@ svg {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
+  padding: 0;
   place-items: center;
   color: var(--ink-faint);
   background: transparent;
   border-radius: 6px;
+  line-height: 0;
   opacity: 0;
   transition:
     color 140ms ease,
@@ -575,7 +577,9 @@ svg {
 }
 
 .workspace-tab-close svg {
-  font-size: 11px;
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
 }
 
 .workspace-tab-controls {
@@ -1810,7 +1814,28 @@ svg {
 }
 
 .score-input-shell input {
-  padding-right: 42px !important;
+  padding-right: 48px !important;
+}
+
+.score-input-suffix {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  color: var(--ink-faint);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.field.has-error .score-input-suffix {
+  color: var(--danger);
+}
+
+.score-input-shell input:disabled + .score-input-suffix {
+  opacity: 0.5;
 }
 
 .score-picker-trigger {
@@ -2309,6 +2334,14 @@ svg {
   transform: rotate(180deg);
 }
 
+.archive-select.placement-top .archive-select-chevron {
+  transform: rotate(180deg);
+}
+
+.archive-select.placement-top.open .archive-select-chevron {
+  transform: rotate(0);
+}
+
 .archive-select-menu {
   position: absolute;
   top: calc(100% + 4px);
@@ -2325,6 +2358,11 @@ svg {
   border-radius: 11px;
   box-shadow: 0 12px 30px rgba(38, 34, 61, 0.14);
   animation: dropdown-in 150ms ease both;
+}
+
+.archive-select.placement-top .archive-select-menu {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 
 .archive-select-option {
@@ -2541,11 +2579,18 @@ svg {
   display: grid;
   width: 16px;
   height: 16px;
+  padding: 0;
   place-items: center;
   color: inherit;
   background: transparent;
   border-radius: 50%;
-  font-size: 11px;
+  line-height: 0;
+}
+
+.filter-chip button svg {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
 }
 
 .filter-chip button:hover {
@@ -3198,7 +3243,6 @@ svg {
   font-size: 9px;
 }
 
-.page-size-wrap select,
 .jump-wrap input {
   height: 32px;
   color: var(--ink);
@@ -3208,8 +3252,21 @@ svg {
   outline: none;
 }
 
-.page-size-wrap select {
-  padding: 0 25px 0 8px;
+.page-size-select {
+  width: 72px;
+}
+
+.page-size-select .archive-select-trigger {
+  height: 32px;
+  padding: 0 9px;
+  border-color: var(--line);
+  border-radius: 10px;
+  font-size: 10px;
+}
+
+.page-size-select .archive-select-menu {
+  border-radius: 11px;
+  box-shadow: 0 10px 24px rgba(38, 34, 61, 0.13);
 }
 
 .jump-wrap input {

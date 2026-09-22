@@ -2,13 +2,21 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { NamedOption } from '@/types/api'
 
-const props = defineProps<{
-  id: string
-  modelValue: string
-  options: NamedOption[]
-  placeholder: string
-  label: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    id: string
+    modelValue: string
+    options: NamedOption[]
+    placeholder: string
+    label: string
+    placement?: 'top' | 'bottom'
+    showPlaceholderOption?: boolean
+  }>(),
+  {
+    placement: 'bottom',
+    showPlaceholderOption: true,
+  },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -39,7 +47,12 @@ function handleKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div ref="root" class="archive-select" :class="{ open }" @keydown="handleKeydown">
+  <div
+    ref="root"
+    class="archive-select"
+    :class="{ open, 'placement-top': placement === 'top' }"
+    @keydown="handleKeydown"
+  >
     <button
       :id="id"
       class="archive-select-trigger"
@@ -58,6 +71,7 @@ function handleKeydown(event: KeyboardEvent) {
 
     <div v-if="open" class="archive-select-menu" role="listbox" :aria-label="`${label}选项`">
       <button
+        v-if="showPlaceholderOption"
         class="archive-select-option"
         :class="{ selected: modelValue === '' }"
         type="button"
