@@ -156,7 +156,7 @@ const advancedFilterCount = computed(
       form.broadcastEndDate,
       form.ratingMin,
       form.ratingMax,
-    ].filter(Boolean).length
+    ].filter(Boolean).length,
 )
 
 const activeFilterCount = computed(() => {
@@ -308,7 +308,7 @@ function createQuery(pageNum: number): AnimePageQuery {
     companyId: optionalNumber(filters.companyId),
     ratingMin: optionalNumber(filters.ratingMin),
     ratingMax: optionalNumber(
-      appliedRatingRangeEnabled.value ? filters.ratingMax : filters.ratingMin
+      appliedRatingRangeEnabled.value ? filters.ratingMax : filters.ratingMin,
     ),
     sortBy: filters.sortBy,
     sortDirection: filters.sortDirection,
@@ -361,7 +361,7 @@ async function getAllTags(signal: AbortSignal) {
   if (firstPage.pages <= 1) return firstPage.rows
 
   const remainingPages = await Promise.all(
-    Array.from({ length: firstPage.pages - 1 }, (_, index) => getTags(index + 2, 100, signal))
+    Array.from({ length: firstPage.pages - 1 }, (_, index) => getTags(index + 2, 100, signal)),
   )
   return firstPage.rows.concat(remainingPages.flatMap((item) => item.rows))
 }
@@ -984,12 +984,12 @@ function getCoverGradient(id: number) {
                   <button
                     v-for="company in companySuggestions"
                     :key="company.id"
+                    class="company-suggestion-item"
                     type="button"
                     role="option"
                     @mousedown.prevent="selectCompany(company)"
                   >
-                    <strong>{{ company.name }}</strong
-                    ><span>{{ company.description || '暂无公司说明' }}</span>
+                    {{ company.name }}
                   </button>
                 </div>
                 <div class="selected-company" :class="{ visible: form.companyId }">
@@ -1678,11 +1678,11 @@ function getCoverGradient(id: number) {
               <button
                 v-for="company in companySuggestions"
                 :key="company.id"
+                class="company-suggestion-item"
                 type="button"
                 @mousedown.prevent="selectCompany(company)"
               >
-                <strong>{{ company.name }}</strong>
-                <small>{{ company.description || '暂无公司简介' }}</small>
+                {{ company.name }}
               </button>
             </div>
           </div>

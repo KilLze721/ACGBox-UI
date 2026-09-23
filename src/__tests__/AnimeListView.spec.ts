@@ -21,6 +21,7 @@ const animeRow = {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -50,7 +51,13 @@ describe('动画管理分页查询页面', () => {
         } else if (url.pathname.endsWith('/tags/page')) {
           data = { pageNum: 1, pageSize: 100, total: 1, pages: 1, rows: animeRow.tags }
         } else if (url.pathname.endsWith('/companies/page')) {
-          data = { pageNum: 1, pageSize: 10, total: 0, pages: 0, rows: [] }
+          data = {
+            pageNum: 1,
+            pageSize: 10,
+            total: 1,
+            pages: 1,
+            rows: [{ id: 5, name: 'MADHOUSE', description: '日本动画制作公司' }],
+          }
         } else {
           data = []
         }
@@ -100,6 +107,16 @@ describe('动画管理分页查询页面', () => {
     await completedOption?.trigger('click')
     expect(wrapper.find('#status').text()).toContain('已完结')
 
+    vi.useFakeTimers()
+    await wrapper.find('#companyKeyword').setValue('mad')
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+    expect(wrapper.find('.company-suggestion-item').text()).toBe('MADHOUSE')
+    expect(wrapper.find('.suggestion-panel').text()).not.toContain('日本动画制作公司')
+    await wrapper.find('.company-suggestion-item').trigger('mousedown')
+    vi.useRealTimers()
+    expect(wrapper.find('.selected-company').text()).toContain('已选择 MADHOUSE')
+
     await wrapper.find('.date-filter-group input[type="checkbox"]').setValue(true)
     await wrapper.find('#broadcastStartDate').setValue('2020')
     await wrapper.find('#broadcastStartDate').trigger('blur')
@@ -120,6 +137,7 @@ describe('动画管理分页查询页面', () => {
     expect(animeRequests.some((url) => url.includes('status=3'))).toBe(true)
     expect(animeRequests.some((url) => url.includes('broadcastStartDate=2020'))).toBe(true)
     expect(animeRequests.some((url) => url.includes('broadcastEndDate=2026-09'))).toBe(true)
+    expect(animeRequests.some((url) => url.includes('companyId=5'))).toBe(true)
 
     const requestCount = animeRequests.length
     await wrapper.find('#broadcastStartDate').setValue('2027')

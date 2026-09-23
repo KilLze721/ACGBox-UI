@@ -127,12 +127,34 @@ const router = createRouter({
         {
           path: 'types',
           name: 'admin-types',
-          component: () => import('@/views/admin/TypesView.vue'),
+          redirect: '/admin/broadcast-types',
           meta: {
             title: '类型管理',
-            menuName: '类型管理',
-            icon: 'types',
+            showInMenu: false,
+          },
+        },
+        {
+          path: 'broadcast-types',
+          name: 'admin-broadcast-types',
+          component: () => import('@/views/admin/BroadcastTypesView.vue'),
+          meta: {
+            title: '放送类型管理',
+            menuName: '放送类型管理',
+            icon: 'broadcast-types',
             order: 60,
+            section: '内容管理',
+            showInMenu: true,
+          },
+        },
+        {
+          path: 'adaptation-types',
+          name: 'admin-adaptation-types',
+          component: () => import('@/views/admin/AdaptationTypesView.vue'),
+          meta: {
+            title: '改编类型管理',
+            menuName: '改编类型管理',
+            icon: 'adaptation-types',
+            order: 61,
             section: '内容管理',
             showInMenu: true,
           },

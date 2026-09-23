@@ -321,7 +321,7 @@ function toggleTheme() {
             <AdminIcon name="right" />
           </button>
           <button
-            class="workspace-tab-control"
+            class="workspace-tab-control close-other-tabs-control"
             type="button"
             aria-label="关闭其他页面标签"
             title="关闭其他标签"

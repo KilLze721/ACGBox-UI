@@ -29,6 +29,14 @@ defineProps<{
       <rect x="3" y="15" width="7" height="6" rx="2" />
       <rect x="14" y="15" width="7" height="6" rx="2" />
     </g>
+    <g v-else-if="name === 'broadcast-types'">
+      <rect x="3" y="5" width="18" height="14" rx="3" />
+      <path d="m10 9 5 3-5 3V9Z" />
+    </g>
+    <g v-else-if="name === 'adaptation-types'">
+      <path d="M5 4h6a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3 1V4Z" />
+      <path d="M19 4h-2a3 3 0 0 0-3 3v13h2a3 3 0 0 1 3 1V4Z" />
+    </g>
     <g v-else-if="name === 'regions'">
       <circle cx="12" cy="12" r="9" />
       <path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" />
@@ -51,8 +59,9 @@ defineProps<{
     <path v-else-if="name === 'right'" d="m9 18 6-6-6-6" />
     <path v-else-if="name === 'close'" d="m7 7 10 10M17 7 7 17" />
     <g v-else-if="name === 'close-tabs'">
-      <rect x="4" y="5" width="16" height="14" rx="3" />
-      <path d="m9 10 6 5m0-5-6 5" />
+      <path d="M8 7h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" />
+      <path d="M8 7V6a2 2 0 0 1 2-2h7" />
+      <path d="m11 11 4 4m0-4-4 4" />
     </g>
     <path v-else-if="name === 'back'" d="m15 18-6-6 6-6" />
     <circle v-else-if="name === 'search'" cx="11" cy="11" r="7" />

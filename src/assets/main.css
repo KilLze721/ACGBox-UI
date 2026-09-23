@@ -618,6 +618,12 @@ svg {
   font-size: 13px;
 }
 
+.close-other-tabs-control svg {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+}
+
 .topbar-left,
 .topbar-actions {
   display: flex;
@@ -2419,26 +2425,37 @@ svg {
 }
 
 .suggestion-panel {
+  max-height: 240px;
   padding: 6px;
+  overflow-y: auto;
 }
 
-.suggestion-item {
+.company-suggestion-item {
   display: flex;
   width: 100%;
-  min-height: 42px;
+  min-height: 32px;
   align-items: center;
-  gap: 10px;
-  padding: 7px 9px;
-  color: var(--ink);
-  background: transparent;
+  padding: 0 10px;
+  color: var(--ink-soft);
+  background: var(--surface-solid);
+  border: 1px solid transparent;
   border-radius: 8px;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.35;
   text-align: left;
-  transition: background 130ms ease;
+  transition:
+    color 130ms ease,
+    background 130ms ease,
+    border-color 130ms ease;
 }
 
-.suggestion-item:hover,
-.suggestion-item.active {
-  background: var(--surface-hover);
+.company-suggestion-item:hover,
+.company-suggestion-item:focus-visible {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: rgba(217, 95, 134, 0.3);
+  outline: none;
 }
 
 .company-logo {

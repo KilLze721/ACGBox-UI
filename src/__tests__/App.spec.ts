@@ -32,8 +32,9 @@ describe('App', () => {
     })
 
     const menuItems = wrapper.findAll('.nav-item')
-    expect(menuItems).toHaveLength(8)
-    expect(wrapper.find('a[href="/admin/types"]').text()).toContain('类型管理')
+    expect(menuItems).toHaveLength(9)
+    expect(wrapper.find('a[href="/admin/broadcast-types"]').text()).toContain('放送类型管理')
+    expect(wrapper.find('a[href="/admin/adaptation-types"]').text()).toContain('改编类型管理')
     expect(wrapper.find('a[href="/admin/regions"]').text()).toContain('地区管理')
 
     const seriesLink = wrapper.find('a[href="/admin/series"]')
@@ -47,6 +48,13 @@ describe('App', () => {
     expect(wrapper.text()).toContain('维护动画系列关系')
 
     wrapper.unmount()
+  })
+
+  it('旧类型管理地址跳转到放送类型管理', async () => {
+    await router.push('/admin/types')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/admin/broadcast-types')
   })
 
   it('页面标签随路由打开、切换并关闭', async () => {
