@@ -119,6 +119,7 @@ const appliedRatingRangeEnabled = ref(false)
 const deleteTarget = ref<AnimePageItem | null>(null)
 const deleteSubmitting = ref(false)
 const deleteConfirmed = ref(false)
+const deleteConfirmationMessage = ref('')
 const drawerMode = ref<'detail' | 'edit' | null>(null)
 const drawerAnime = ref<AnimePageItem | null>(null)
 const toast = ref<{ title: string; message: string; type: 'success' | 'error' } | null>(null)
@@ -654,17 +655,24 @@ function showToast(title: string, message: string, type: 'success' | 'error' = '
 function openDeleteModal(anime: AnimePageItem) {
   deleteTarget.value = anime
   deleteConfirmed.value = false
+  deleteConfirmationMessage.value = ''
 }
 
 function closeDeleteModal() {
   if (!deleteSubmitting.value) {
     deleteTarget.value = null
     deleteConfirmed.value = false
+    deleteConfirmationMessage.value = ''
   }
 }
 
 async function confirmDelete() {
-  if (!deleteTarget.value || !deleteConfirmed.value) return
+  if (!deleteTarget.value) return
+  if (!deleteConfirmed.value) {
+    deleteConfirmationMessage.value = '请先勾选确认框，再删除动画。'
+    return
+  }
+  deleteConfirmationMessage.value = ''
   deleteSubmitting.value = true
   const target = deleteTarget.value
   try {
@@ -1491,8 +1499,15 @@ function getCoverGradient(id: number) {
         <h2 id="deleteDialogTitle">确认删除这条动画？</h2>
         <p>删除后将从动画资料库中移除，且无法通过页面撤销。</p>
         <div class="delete-target">
-          <span class="delete-target-cover" aria-hidden="true"></span
-          ><span
+          <div class="delete-target-cover">
+            <img
+              v-if="deleteTarget?.coverImageUrl"
+              :src="deleteTarget.coverImageUrl"
+              :alt="`${deleteTarget.name}封面`"
+            />
+            <span v-else aria-hidden="true">{{ deleteTarget?.name.slice(0, 1) || 'A' }}</span>
+          </div>
+          <span
             ><strong>{{ deleteTarget?.name || '—' }}</strong
             ><span>{{
               deleteTarget
@@ -1504,9 +1519,16 @@ function getCoverGradient(id: number) {
           >
         </div>
         <label class="dialog-delete-confirm">
-          <input v-model="deleteConfirmed" type="checkbox" />
+          <input
+            v-model="deleteConfirmed"
+            type="checkbox"
+            @change="deleteConfirmationMessage = ''"
+          />
           <span>我已确认删除这条动画档案及其关联数据。</span>
         </label>
+        <p v-if="deleteConfirmationMessage" class="dialog-checkbox-error" role="alert">
+          {{ deleteConfirmationMessage }}
+        </p>
         <div class="dialog-note">
           <span aria-hidden="true">!</span
           ><span>关联的别名、标签关系、公司关系与个人评分将由后端业务规则一并处理。</span>
@@ -1522,7 +1544,7 @@ function getCoverGradient(id: number) {
           ><button
             class="danger-button"
             type="button"
-            :disabled="deleteSubmitting || !deleteConfirmed"
+            :disabled="deleteSubmitting"
             @click="confirmDelete"
           >
             {{ deleteSubmitting ? '正在删除…' : '确认删除' }}

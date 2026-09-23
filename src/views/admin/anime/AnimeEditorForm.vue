@@ -11,6 +11,8 @@ import {
 import { getSeriesPage } from '@/api/series'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
+import AnimeAirDateInput from '@/components/admin/AnimeAirDateInput.vue'
+import AnimeSuggestionInput from '@/components/admin/AnimeSuggestionInput.vue'
 import type {
   AnimeDetail,
   AnimePayload,
@@ -59,6 +61,7 @@ const companies = ref<CompanyOption[]>([])
 const series = ref<SeriesSummary[]>([])
 const loading = ref(true)
 const submitting = ref(false)
+const confirmationAction = ref<'save' | 'reset' | 'cancel' | null>(null)
 const errorMessage = ref('')
 const errors = reactive<Record<string, string>>({})
 let loadController: AbortController | undefined
@@ -69,7 +72,8 @@ const statusOptions: NamedOption[] = [
   { id: 3, name: '已完结' },
   { id: 4, name: '其他' },
 ]
-const companyRoles = ['制作', '动画制作', '出品', '协力']
+const companyRoles = ['动画制作', '制作协力', '3DCG', '制作', '出品', '企划', '协力']
+const linkTitleSuggestions = ['官网', 'Bilibili', 'Bangumi', '豆瓣', '官方网站']
 
 function createDefaultForm(): AnimeForm {
   return {
@@ -112,7 +116,7 @@ function applyAnime(anime: AnimeDetail) {
     airDate: anime.airDate,
     episodeCount: anime.episodeCount === null ? '' : String(anime.episodeCount),
     personalRatingScore:
-      anime.personalRatingScore === null ? '' : String(anime.personalRatingScore),
+      anime.personalRatingScore === null ? '' : String(Math.round(anime.personalRatingScore)),
     coverImageUrl: anime.coverImageUrl ?? '',
     description: anime.description ?? '',
     aliasNames: [...(anime.aliasNames ?? [])],
@@ -221,9 +225,9 @@ function validateForm() {
       !Number.isFinite(score) ||
       score < 0 ||
       score > 10 ||
-      !/^\d{1,2}(\.\d)?$/.test(form.personalRatingScore)
+      !/^\d{1,2}$/.test(form.personalRatingScore)
     ) {
-      setError('personalRatingScore', '评分请输入 0 至 10 之间、最多一位小数的数字。')
+      setError('personalRatingScore', '评分请输入 0 至 10 之间的整数。')
     }
   }
   if (form.coverImageUrl && !isHttpUrl(form.coverImageUrl)) {
@@ -280,8 +284,12 @@ function buildPayload(): AnimePayload {
   }
 }
 
-async function submitForm() {
+function requestSave() {
   if (submitting.value || !validateForm()) return
+  confirmationAction.value = 'save'
+}
+
+async function saveForm() {
   submitting.value = true
   errorMessage.value = ''
   try {
@@ -302,6 +310,24 @@ function resetForm() {
   Object.assign(form, createDefaultForm())
   Object.keys(errors).forEach((key) => delete errors[key])
 }
+
+function requestReset() {
+  confirmationAction.value = 'reset'
+}
+
+function requestCancel() {
+  confirmationAction.value = 'cancel'
+}
+
+defineExpose({ requestCancel })
+
+async function confirmAction() {
+  const action = confirmationAction.value
+  confirmationAction.value = null
+  if (action === 'save') await saveForm()
+  else if (action === 'reset') resetForm()
+  else if (action === 'cancel') emit('cancelled')
+}
 </script>
 
 <template>
@@ -310,7 +336,7 @@ function resetForm() {
     <div v-else-if="errorMessage && !broadcastTypes.length" class="anime-form-state error">
       {{ errorMessage }}
     </div>
-    <form v-else class="anime-editor-content" @submit.prevent="submitForm">
+    <form v-else class="anime-editor-content" @submit.prevent="requestSave">
       <header class="anime-editor-hero">
         <div>
           <p class="eyebrow">
@@ -324,7 +350,7 @@ function resetForm() {
             v-if="mode === 'create'"
             class="secondary-button"
             type="button"
-            @click="resetForm"
+            @click="requestReset"
           >
             重置表单
           </button>
@@ -364,6 +390,7 @@ function resetForm() {
               label="放送类型"
               placeholder="请选择放送类型"
               :options="broadcastTypes"
+              :show-placeholder-option="false"
             />
             <small v-if="errors.broadcastTypeId" class="field-error">{{
               errors.broadcastTypeId
@@ -377,6 +404,7 @@ function resetForm() {
               label="改编类型"
               placeholder="请选择改编类型"
               :options="adaptationTypes"
+              :show-placeholder-option="false"
             />
             <small v-if="errors.adaptationTypeId" class="field-error">{{
               errors.adaptationTypeId
@@ -390,6 +418,7 @@ function resetForm() {
               label="地区"
               placeholder="请选择地区"
               :options="regions"
+              :show-placeholder-option="false"
             />
             <small v-if="errors.regionId" class="field-error">{{ errors.regionId }}</small>
           </div>
@@ -401,14 +430,20 @@ function resetForm() {
               label="动画状态"
               placeholder="请选择状态"
               :options="statusOptions"
+              :show-placeholder-option="false"
             />
             <small v-if="errors.status" class="field-error">{{ errors.status }}</small>
           </div>
-          <label class="field" :class="{ 'has-error': errors.airDate }">
+          <div class="field" :class="{ 'has-error': errors.airDate }">
             <span>开始放送日期 <b class="required-mark">*</b></span>
-            <input v-model="form.airDate" type="date" @input="errors.airDate = ''" />
+            <AnimeAirDateInput
+              id="animeAirDate"
+              v-model="form.airDate"
+              :invalid="!!errors.airDate"
+              @update:model-value="errors.airDate = ''"
+            />
             <small v-if="errors.airDate" class="field-error">{{ errors.airDate }}</small>
-          </label>
+          </div>
           <label class="field" :class="{ 'has-error': errors.episodeCount }">
             <span>总集数</span>
             <div class="anime-input-suffix">
@@ -423,23 +458,32 @@ function resetForm() {
             </div>
             <small v-if="errors.episodeCount" class="field-error">{{ errors.episodeCount }}</small>
           </label>
-          <label class="field" :class="{ 'has-error': errors.personalRatingScore }">
+          <div class="field" :class="{ 'has-error': errors.personalRatingScore }">
             <span>个人评分</span>
-            <div class="anime-input-suffix">
-              <input
-                v-model="form.personalRatingScore"
-                type="number"
-                min="0"
-                max="10"
-                step="0.1"
-                placeholder="未评分"
-                @input="errors.personalRatingScore = ''"
-              /><i>/ 10</i>
+            <div class="anime-rating-control" role="radiogroup" aria-label="个人评分，1 至 10 分">
+              <button
+                v-for="score in 10"
+                :key="score"
+                class="anime-rating-star"
+                :class="{ selected: Number(form.personalRatingScore) >= score }"
+                type="button"
+                role="radio"
+                :aria-label="`${score} 分`"
+                :aria-checked="form.personalRatingScore === String(score)"
+                @click="form.personalRatingScore = String(score); errors.personalRatingScore = ''"
+              >★</button>
+              <span class="anime-rating-value">{{ form.personalRatingScore === '' ? '未评分' : form.personalRatingScore }} / 10</span>
+              <button
+                v-if="form.personalRatingScore"
+                class="anime-rating-clear"
+                type="button"
+                @click="form.personalRatingScore = ''; errors.personalRatingScore = ''"
+              >清除</button>
             </div>
             <small v-if="errors.personalRatingScore" class="field-error">{{
               errors.personalRatingScore
             }}</small>
-          </label>
+          </div>
           <label class="field full" :class="{ 'has-error': errors.coverImageUrl }">
             <span>封面图片 URL</span>
             <div class="anime-cover-field">
@@ -550,10 +594,15 @@ function resetForm() {
                   label="制作公司"
                   placeholder="选择公司"
                   :options="companies"
+                  :show-placeholder-option="false"
                 />
-                <select v-model="company.role" aria-label="公司职责">
-                  <option v-for="role in companyRoles" :key="role" :value="role">{{ role }}</option>
-                </select>
+                <AnimeSuggestionInput
+                  :id="`animeCompanyRole-${index}`"
+                  v-model="company.role"
+                  label="公司职责"
+                  placeholder="公司职责"
+                  :suggestions="companyRoles"
+                />
                 <button
                   class="anime-remove-button"
                   type="button"
@@ -593,7 +642,14 @@ function resetForm() {
             </div>
             <label v-if="mode === 'create'" class="anime-switch-row">
               <span><strong>无系列时自动创建</strong><small>使用动画名称创建同名系列</small></span>
-              <input v-model="form.autoCreateSeries" type="checkbox" role="switch" />
+              <button
+                class="anime-switch"
+                type="button"
+                role="switch"
+                :aria-checked="form.autoCreateSeries"
+                aria-label="无系列时自动创建"
+                @click="form.autoCreateSeries = !form.autoCreateSeries"
+              ><span></span></button>
             </label>
           </div>
           <div class="field full">
@@ -605,7 +661,13 @@ function resetForm() {
                 class="anime-repeat-row anime-link-row"
                 :class="{ invalid: errors[`external-${index}`] }"
               >
-                <input v-model="link.title" type="text" placeholder="来源标题" />
+                <AnimeSuggestionInput
+                  :id="`animeExternalTitle-${index}`"
+                  v-model="link.title"
+                  label="来源标题"
+                  placeholder="来源标题"
+                  :suggestions="linkTitleSuggestions"
+                />
                 <input
                   v-model="link.url"
                   type="url"
@@ -642,7 +704,7 @@ function resetForm() {
 
       <p v-if="errorMessage" class="anime-save-error" role="alert">{{ errorMessage }}</p>
       <footer class="anime-editor-footer">
-        <button class="secondary-button" type="button" @click="emit('cancelled')">取消</button>
+        <button class="secondary-button" type="button" @click="requestCancel">取消</button>
         <button class="primary-button" type="submit" :disabled="submitting">
           <AdminIcon name="check" />{{
             submitting ? '正在保存…' : mode === 'create' ? '保存动画' : '保存修改'
@@ -650,6 +712,17 @@ function resetForm() {
         </button>
       </footer>
     </form>
+    <div v-if="confirmationAction" class="anime-confirm-backdrop" @click.self="confirmationAction = null">
+      <section class="anime-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="animeConfirmTitle">
+        <span class="anime-confirm-mark" aria-hidden="true">?</span>
+        <h2 id="animeConfirmTitle">{{ confirmationAction === 'save' ? '确认保存动画？' : confirmationAction === 'reset' ? '确认重置表单？' : '确认取消编辑？' }}</h2>
+        <p>{{ confirmationAction === 'save' ? '请确认当前动画资料无误后继续保存。' : confirmationAction === 'reset' ? '当前填写的内容将被清空，是否继续？' : '尚未保存的修改将会丢失，是否离开？' }}</p>
+        <div class="anime-confirm-actions">
+          <button class="secondary-button" type="button" @click="confirmationAction = null">返回</button>
+          <button class="primary-button" type="button" :disabled="submitting" @click="confirmAction">{{ confirmationAction === 'save' ? '确认保存' : confirmationAction === 'reset' ? '确认重置' : '确认离开' }}</button>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -891,12 +964,19 @@ function resetForm() {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 0 0;
+  min-height: 30px;
+  padding: 0 9px;
   color: var(--accent-strong);
-  background: transparent;
-  border: 0;
+  background: var(--surface-solid);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  border-radius: 8px;
   font-size: 9px;
   font-weight: 700;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.anime-inline-button:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
 }
 .anime-inline-button svg {
   width: 13px;
@@ -941,10 +1021,117 @@ function resetForm() {
   color: var(--ink-faint);
   font-size: 9px;
 }
-.anime-switch-row input {
+.anime-switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: 0 0 auto;
+  padding: 2px;
+  background: var(--line-strong);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.anime-switch span {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(25, 22, 42, 0.2);
+  transition: transform 140ms ease;
+}
+.anime-switch[aria-checked='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.anime-switch[aria-checked='true'] span {
+  transform: translateX(16px);
+}
+.anime-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.anime-rating-control {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.anime-rating-star {
+  padding: 1px 2px;
+  color: var(--line-strong);
+  background: transparent;
+  border: 0;
+  font-size: 19px;
+  line-height: 1;
+  transition: color 120ms ease, transform 120ms ease;
+}
+.anime-rating-star:hover,
+.anime-rating-star.selected {
+  color: var(--yellow);
+}
+.anime-rating-star:hover {
+  transform: translateY(-1px);
+}
+.anime-rating-value {
+  margin-left: 7px;
+  color: var(--ink-faint);
+  font-size: 9px;
+  white-space: nowrap;
+}
+.anime-rating-clear {
+  padding: 3px 5px;
+  color: var(--accent-strong);
+  background: transparent;
+  border: 0;
+  font-size: 9px;
+}
+.anime-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(18, 17, 30, 0.42);
+  backdrop-filter: blur(3px);
+}
+.anime-confirm-dialog {
+  width: min(390px, 100%);
+  padding: 22px;
+  color: var(--ink);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 22px 60px rgba(20, 17, 40, 0.22);
+}
+.anime-confirm-mark {
+  display: grid;
   width: 34px;
-  height: 19px;
-  accent-color: var(--accent);
+  height: 34px;
+  place-items: center;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: 11px;
+  font-weight: 800;
+}
+.anime-confirm-dialog h2 {
+  margin: 13px 0 6px;
+  font: 700 15px var(--font-display);
+}
+.anime-confirm-dialog p {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 10px;
+  line-height: 1.7;
+}
+.anime-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
 }
 .anime-link-row {
   grid-template-columns: minmax(110px, 0.8fr) minmax(180px, 1.5fr) 74px 32px;

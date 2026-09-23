@@ -21,6 +21,7 @@ const emit = defineEmits<{
 const detail = ref<AnimeDetail | null>(null)
 const loading = ref(true)
 const errorMessage = ref('')
+const editorForm = ref<InstanceType<typeof AnimeEditorForm> | null>(null)
 let controller: AbortController | undefined
 
 const statusNames: Record<number, string> = {
@@ -49,6 +50,11 @@ function openEdit() {
   emit('edit')
 }
 
+function requestClose() {
+  if (props.mode === 'edit') editorForm.value?.requestCancel()
+  else emit('close')
+}
+
 function getSafeExternalUrl(value: string) {
   try {
     const url = new URL(value)
@@ -61,7 +67,7 @@ function getSafeExternalUrl(value: string) {
 
 <template>
   <Teleport to="body">
-    <div class="anime-crud-backdrop" @click.self="emit('close')">
+    <div class="anime-crud-backdrop" @click.self="requestClose">
       <aside
         class="anime-crud-drawer"
         role="dialog"
@@ -72,12 +78,13 @@ function getSafeExternalUrl(value: string) {
           class="anime-crud-drawer-close"
           type="button"
           aria-label="关闭侧栏"
-          @click="emit('close')"
+          @click="requestClose"
         >
           <AdminIcon name="close" />
         </button>
         <AnimeEditorForm
           v-if="mode === 'edit'"
+          ref="editorForm"
           mode="edit"
           :anime-id="animeId"
           @saved="emit('saved', $event)"
@@ -86,7 +93,7 @@ function getSafeExternalUrl(value: string) {
         <div v-else class="anime-detail-panel">
           <header class="anime-detail-hero">
             <div>
-              <p class="eyebrow">ANIME ARCHIVE / FILE NO. {{ String(animeId).padStart(5, '0') }}</p>
+              <p class="eyebrow">ANIME ARCHIVE / WORK PROFILE</p>
               <h1>动画详情 <span>· 作品档案卡</span></h1>
               <p>从动画管理列表当前记录打开的只读资料侧栏。</p>
             </div>
@@ -116,7 +123,7 @@ function getSafeExternalUrl(value: string) {
                 <span v-else aria-hidden="true">{{ detail.name.slice(0, 1) }}</span>
               </div>
               <div class="anime-detail-title-copy">
-                <p class="eyebrow">ANIME / #{{ detail.id }}</p>
+                <p class="eyebrow">ANIME ARCHIVE / WORK PROFILE</p>
                 <h2>{{ detail.name }}</h2>
                 <p class="anime-detail-alias">
                   {{ detail.aliasNames?.join('　·　') || '暂无别名' }}
@@ -153,9 +160,6 @@ function getSafeExternalUrl(value: string) {
               </div>
               <div class="anime-detail-grid">
                 <div>
-                  <span>动画 ID</span><strong>{{ detail.id }}</strong>
-                </div>
-                <div>
                   <span>总集数</span
                   ><strong>{{
                     detail.episodeCount === null ? '—' : `${detail.episodeCount} 集`
@@ -189,10 +193,6 @@ function getSafeExternalUrl(value: string) {
                       ? '未评分'
                       : `${detail.personalRatingScore} / 10`
                   }}</strong>
-                </div>
-                <div class="wide">
-                  <span>封面图片</span
-                  ><strong class="detail-url">{{ detail.coverImageUrl || '未设置' }}</strong>
                 </div>
               </div>
             </section>
@@ -246,8 +246,7 @@ function getSafeExternalUrl(value: string) {
                   <span>所属系列</span>
                   <div class="anime-detail-chips">
                     <span v-if="detail.seriesId !== null"
-                      >{{ anime.series?.name || `#${detail.seriesId}` }} · 顺序
-                      {{ detail.seriesSortOrder ?? '未设置' }}</span
+                      >{{ anime.series?.name || `#${detail.seriesId}` }}</span
                     ><i v-else>未关联系列</i>
                   </div>
                 </div>
@@ -276,7 +275,7 @@ function getSafeExternalUrl(value: string) {
               <p v-else class="anime-detail-description">暂无外部链接</p>
             </section>
             <footer class="anime-detail-footer">
-              <span>动画 ID #{{ detail.id }}</span>
+              <span>动画档案</span>
               <button class="secondary-button" type="button" @click="emit('close')">
                 关闭详情
               </button>
