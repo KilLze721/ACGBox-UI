@@ -102,7 +102,7 @@ describe('动画分页接口', () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe('/api/anime/delete')
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       method: 'POST',
-      body: JSON.stringify({ ids: [17, 18] }),
+      body: JSON.stringify([17, 18]),
     })
   })
 })

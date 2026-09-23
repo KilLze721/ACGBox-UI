@@ -55,6 +55,47 @@ export interface AnimePageItem {
   series: SeriesSummary | null
 }
 
+export interface AnimeDetail {
+  id: number
+  name: string
+  episodeCount: number | null
+  broadcastTypeId: number
+  adaptationTypeId: number
+  regionId: number
+  airDate: string
+  coverImageUrl: string | null
+  status: number
+  description: string | null
+  aliasNames: string[]
+  companies: Array<{ companyId: number; role: string | null }>
+  externalLinks: ExternalLink[]
+  tagIds: number[]
+  seriesId: number | null
+  seriesSortOrder: number | null
+  personalRatingScore: number | null
+}
+
+export interface AnimePayload {
+  id?: number
+  name: string
+  episodeCount?: number | null
+  broadcastTypeId: number
+  adaptationTypeId: number
+  regionId: number
+  airDate: string
+  coverImageUrl?: string | null
+  status: number
+  description?: string | null
+  aliasNames?: string[]
+  companies?: Array<{ companyId: number; role: string | null }>
+  externalLinks?: ExternalLink[]
+  tagIds?: number[]
+  seriesId?: number | null
+  seriesSortOrder?: number | null
+  autoCreateSeries?: boolean
+  personalRatingScore?: number | null
+}
+
 export type TagMatchMode = 'ALL' | 'ANY'
 export type AnimeSortField = 'BROADCAST_DATE' | 'PERSONAL_RATING'
 export type SortDirection = 'ASC' | 'DESC'

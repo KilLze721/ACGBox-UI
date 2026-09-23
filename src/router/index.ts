@@ -64,8 +64,7 @@ const router = createRouter({
         {
           path: 'anime/:id',
           name: 'admin-anime-detail',
-          component: () => import('@/views/admin/anime/AnimeDetailView.vue'),
-          props: true,
+          redirect: '/admin/anime',
           meta: {
             title: '动画详情',
             section: '动画管理',
@@ -76,8 +75,7 @@ const router = createRouter({
         {
           path: 'anime/:id/edit',
           name: 'admin-anime-edit',
-          component: () => import('@/views/admin/anime/AnimeEditView.vue'),
-          props: true,
+          redirect: '/admin/anime',
           meta: {
             title: '编辑动画',
             section: '动画管理',

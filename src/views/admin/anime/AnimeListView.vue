@@ -22,6 +22,7 @@ import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveDateInput from '@/components/admin/ArchiveDateInput.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import { getArchiveDateBound, validateArchiveDate } from '@/utils/archiveDate'
+import AnimeCrudDrawer from './AnimeCrudDrawer.vue'
 
 interface AnimeFilters {
   keyword: string
@@ -117,6 +118,9 @@ const ratingRangeEnabled = ref(false)
 const appliedRatingRangeEnabled = ref(false)
 const deleteTarget = ref<AnimePageItem | null>(null)
 const deleteSubmitting = ref(false)
+const deleteConfirmed = ref(false)
+const drawerMode = ref<'detail' | 'edit' | null>(null)
+const drawerAnime = ref<AnimePageItem | null>(null)
 const toast = ref<{ title: string; message: string; type: 'success' | 'error' } | null>(null)
 const page = ref<PageResult<AnimePageItem>>({
   pageNum: 1,
@@ -649,14 +653,18 @@ function showToast(title: string, message: string, type: 'success' | 'error' = '
 
 function openDeleteModal(anime: AnimePageItem) {
   deleteTarget.value = anime
+  deleteConfirmed.value = false
 }
 
 function closeDeleteModal() {
-  if (!deleteSubmitting.value) deleteTarget.value = null
+  if (!deleteSubmitting.value) {
+    deleteTarget.value = null
+    deleteConfirmed.value = false
+  }
 }
 
 async function confirmDelete() {
-  if (!deleteTarget.value) return
+  if (!deleteTarget.value || !deleteConfirmed.value) return
   deleteSubmitting.value = true
   const target = deleteTarget.value
   try {
@@ -673,6 +681,26 @@ async function confirmDelete() {
   } finally {
     deleteSubmitting.value = false
   }
+}
+
+function openCrudDrawer(mode: 'detail' | 'edit', anime: AnimePageItem) {
+  drawerAnime.value = anime
+  drawerMode.value = mode
+}
+
+function closeCrudDrawer() {
+  drawerMode.value = null
+}
+
+async function handleAnimeSaved(anime: { id: number; name: string }) {
+  closeCrudDrawer()
+  showToast('保存成功', `“${anime.name}”的动画资料已更新。`)
+  await Promise.all([loadPage(page.value.pageNum), loadStats()])
+}
+
+function handleDrawerDelete(anime: AnimePageItem) {
+  closeCrudDrawer()
+  openDeleteModal(anime)
 }
 
 function refreshPage() {
@@ -1287,20 +1315,24 @@ function getCoverGradient(id: number) {
               </td>
               <td class="action-cell">
                 <div class="row-actions">
-                  <RouterLink
+                  <button
                     class="row-action"
-                    :to="`/admin/anime/${anime.id}`"
                     :aria-label="`查看 ${anime.name}`"
+                    type="button"
                     title="查看"
-                    ><AdminIcon name="view"
-                  /></RouterLink>
-                  <RouterLink
+                    @click="openCrudDrawer('detail', anime)"
+                  >
+                    <AdminIcon name="view" />
+                  </button>
+                  <button
                     class="row-action"
-                    :to="`/admin/anime/${anime.id}/edit`"
                     :aria-label="`编辑 ${anime.name}`"
+                    type="button"
                     title="编辑"
-                    ><AdminIcon name="edit"
-                  /></RouterLink>
+                    @click="openCrudDrawer('edit', anime)"
+                  >
+                    <AdminIcon name="edit" />
+                  </button>
                   <button
                     class="row-action danger"
                     type="button"
@@ -1434,6 +1466,18 @@ function getCoverGradient(id: number) {
       </div>
     </section>
 
+    <AnimeCrudDrawer
+      v-if="drawerMode && drawerAnime"
+      :key="`${drawerMode}-${drawerAnime.id}`"
+      :mode="drawerMode"
+      :anime-id="drawerAnime.id"
+      :anime="drawerAnime"
+      @close="closeCrudDrawer"
+      @saved="handleAnimeSaved"
+      @edit="drawerMode = 'edit'"
+      @delete="handleDrawerDelete"
+    />
+
     <div
       class="modal-layer"
       :class="{ open: deleteTarget }"
@@ -1459,6 +1503,10 @@ function getCoverGradient(id: number) {
             }}</span></span
           >
         </div>
+        <label class="dialog-delete-confirm">
+          <input v-model="deleteConfirmed" type="checkbox" />
+          <span>我已确认删除这条动画档案及其关联数据。</span>
+        </label>
         <div class="dialog-note">
           <span aria-hidden="true">!</span
           ><span>关联的别名、标签关系、公司关系与个人评分将由后端业务规则一并处理。</span>
@@ -1474,7 +1522,7 @@ function getCoverGradient(id: number) {
           ><button
             class="danger-button"
             type="button"
-            :disabled="deleteSubmitting"
+            :disabled="deleteSubmitting || !deleteConfirmed"
             @click="confirmDelete"
           >
             {{ deleteSubmitting ? '正在删除…' : '确认删除' }}

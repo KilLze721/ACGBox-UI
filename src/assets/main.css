@@ -3441,6 +3441,23 @@ svg {
   margin-top: 20px;
 }
 
+.anime-management-page .dialog-delete-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding-top: 10px;
+  color: var(--ink-soft);
+  font-size: 9px;
+}
+
+.anime-management-page .dialog-delete-confirm input {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  margin: 1px 0 0;
+  accent-color: var(--danger);
+}
+
 .toast-region {
   position: fixed;
   right: 22px;

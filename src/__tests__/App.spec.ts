@@ -15,8 +15,8 @@ describe('App', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('动画详情')
-    expect(wrapper.text()).toContain('42')
+    expect(router.currentRoute.value.path).toBe('/admin/anime')
+    expect(wrapper.text()).toContain('动画管理')
     expect(wrapper.find('.nav-item.active').text()).toContain('动画管理')
 
     wrapper.unmount()

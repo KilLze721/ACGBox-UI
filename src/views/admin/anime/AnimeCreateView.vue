@@ -1,11 +1,33 @@
 <script setup lang="ts">
-import ReservedPage from '@/components/admin/ReservedPage.vue'
+import { useRouter } from 'vue-router'
+import AnimeEditorForm from './AnimeEditorForm.vue'
+
+const router = useRouter()
+
+function handleSaved() {
+  void router.push('/admin/anime')
+}
 </script>
 
 <template>
-  <ReservedPage
-    title="新增动画"
-    description="设计稿已保留新增动画入口，但未提供表单页面设计；当前展示与设计稿一致的模块占位状态。"
-    icon="anime"
-  />
+  <main class="anime-create-page">
+    <button
+      class="ghost-button anime-create-back"
+      type="button"
+      @click="router.push('/admin/anime')"
+    >
+      <span aria-hidden="true">←</span> 返回动画管理
+    </button>
+    <AnimeEditorForm mode="create" @saved="handleSaved" @cancelled="router.push('/admin/anime')" />
+  </main>
 </template>
+
+<style scoped>
+.anime-create-page {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+.anime-create-back {
+  margin-bottom: 12px;
+}
+</style>

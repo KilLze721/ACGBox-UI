@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ACGBox 动画新增、编辑、详情与删除确认页面原型。" />
+    <title>动画资料 · ACGBox</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --font-display: "Noto Serif SC", "Source Han Serif SC", "STSong", serif;
+        --font-body: "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+        --canvas: #f3f1f7;
+        --surface: rgba(255, 255, 255, .9);
+        --surface-solid: #fff;
+        --surface-muted: #f8f7fb;
+        --surface-hover: #f3f0f9;
+        --ink: #25243a;
+        --ink-soft: #6f6d84;
+        --ink-faint: #9693a8;
+        --line: rgba(61, 56, 88, .12);
+        --line-strong: rgba(61, 56, 88, .2);
+        --sidebar: #171725;
+        --sidebar-ink: #efedf8;
+        --accent: #d95f86;
+        --accent-strong: #bd3f69;
+        --accent-soft: #f9dce6;
+        --violet: #7567aa;
+        --violet-soft: #e9e4f7;
+        --cyan: #2da9a2;
+        --cyan-soft: #dff5f2;
+        --yellow: #d49a27;
+        --yellow-soft: #fff1c9;
+        --danger: #c84c5c;
+        --danger-soft: #fde4e7;
+        --success: #39836f;
+        --success-soft: #e0f2ec;
+        --shadow: 0 18px 50px rgba(37, 31, 67, .08);
+        --shadow-soft: 0 8px 26px rgba(37, 31, 67, .07);
+        --focus: 0 0 0 3px rgba(217, 95, 134, .22);
+        --radius-xl: 24px;
+        --radius-lg: 18px;
+        --radius-md: 12px;
+        --radius-sm: 9px;
+      }
+      body[data-theme="dark"] {
+        color-scheme: dark;
+        --canvas: #12131d; --surface: rgba(31, 31, 47, .92); --surface-solid: #202031;
+        --surface-muted: #29283b; --surface-hover: #302e45; --ink: #f2eff9;
+        --ink-soft: #b0acc1; --ink-faint: #817d94; --line: rgba(229, 224, 244, .1);
+        --line-strong: rgba(229, 224, 244, .18); --accent: #f07da1; --accent-strong: #ff98b7;
+        --accent-soft: rgba(217, 95, 134, .18); --violet: #a99bdc;
+        --violet-soft: rgba(117, 103, 170, .22); --cyan: #58c7bf;
+        --cyan-soft: rgba(45, 169, 162, .18); --yellow: #f0bd53;
+        --yellow-soft: rgba(212, 154, 39, .18); --danger: #f07a88;
+        --danger-soft: rgba(200, 76, 92, .18); --success: #6fd0b3;
+        --success-soft: rgba(57, 131, 111, .2); --shadow: 0 18px 50px rgba(0, 0, 0, .22);
+        --shadow-soft: 0 8px 26px rgba(0, 0, 0, .18);
+      }
+      * { box-sizing: border-box; }
+      html { min-width: 320px; background: var(--canvas); }
+      body {
+        min-width: 320px; min-height: 100vh; margin: 0; color: var(--ink);
+        background: radial-gradient(circle at 78% -8%, rgba(217,95,134,.1), transparent 31rem),
+          radial-gradient(circle at 20% 96%, rgba(45,169,162,.07), transparent 34rem), var(--canvas);
+        font: 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased;
+      }
+      body::before { position: fixed; inset: 0; z-index: -1; pointer-events: none; content: ""; opacity: .25;
+        background-image: radial-gradient(circle, rgba(69,61,98,.18) .65px, transparent .8px);
+        background-size: 8px 8px; mask-image: linear-gradient(to bottom, #000, transparent 46%); }
+      button, input, select, textarea { color: inherit; font: inherit; }
+      button { border: 0; cursor: pointer; }
+      button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
+        outline: none; box-shadow: var(--focus); }
+      svg { display: block; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+      .app-shell { min-height: 100vh; }
+      .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 10; display: flex; width: 244px; flex-direction: column;
+        overflow: hidden; color: var(--sidebar-ink); background: linear-gradient(145deg, rgba(255,255,255,.04), transparent 42%), var(--sidebar);
+        border-right: 1px solid rgba(255,255,255,.07); transition: transform .2s ease; }
+      .sidebar::after { position: absolute; right: -44px; bottom: 66px; width: 120px; height: 120px; pointer-events: none; content: "";
+        border: 1px solid rgba(238,151,180,.15); border-radius: 38% 62% 56% 44%; transform: rotate(24deg); }
+      .brand { display: flex; height: 70px; align-items: center; gap: 12px; padding: 0 22px; border-bottom: 1px solid rgba(255,255,255,.08); color: inherit; text-decoration: none; }
+      .brand-mark { display: grid; width: 38px; height: 38px; place-items: center; color: #fff; background: linear-gradient(135deg,#f186a6,#b85c8b 54%,#6960a4);
+        border: 1px solid rgba(255,255,255,.2); border-radius: 13px 8px 13px 8px; box-shadow: 0 8px 22px rgba(217,95,134,.26); font: 800 17px var(--font-display); }
+      .brand-name, .brand-caption { display: block; }.brand-name { font: 700 17px var(--font-display); letter-spacing: .04em; }.brand-caption { margin-top: 1px; color: #9d99b4; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
+      .nav-label { padding: 22px 22px 10px; margin: 0; color: #85819d; font-size: 9px; font-weight: 700; letter-spacing: .13em; }
+      .nav-list { display: grid; gap: 5px; padding: 0 12px; margin: 0; list-style: none; }
+      .nav-item { display: flex; height: 42px; align-items: center; gap: 12px; padding: 0 13px; color: #b8b5c9; border-radius: 10px; text-decoration: none; font-size: 12px; transition: .16s ease; }
+      .nav-item:hover { color: #fff; background: rgba(255,255,255,.055); }.nav-item.active { position: relative; color: #fff; background: linear-gradient(90deg,rgba(217,95,134,.22),rgba(117,103,170,.13)); }
+      .nav-item.active::before { position: absolute; inset: 9px auto 9px 0; width: 3px; content: ""; background: #ee83a4; border-radius: 4px; }
+      .nav-icon { display: grid; width: 18px; place-items: center; color: #aaa5c0; font-size: 15px; }.nav-item.active .nav-icon { color: #f08cac; }
+      .nav-note { margin-top: auto; padding: 16px 18px 18px; }.signal-card { display: flex; align-items: center; gap: 10px; padding: 12px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.07); border-radius: 12px; }
+      .signal-dot { width: 7px; height: 7px; flex: 0 0 auto; background: #61c7a6; border-radius: 50%; box-shadow: 0 0 0 4px rgba(97,199,166,.12); }
+      .signal-copy strong, .signal-copy span { display: block; }.signal-copy strong { font-size: 10px; }.signal-copy span { margin-top: 2px; color: #8f8ba6; font-size: 9px; }
+      .main-shell { min-height: 100vh; margin-left: 244px; }
+      .topbar { position: sticky; top: 0; z-index: 8; display: flex; height: 70px; align-items: center; justify-content: space-between; padding: 0 28px;
+        background: color-mix(in srgb, var(--canvas) 86%, transparent); border-bottom: 1px solid var(--line); backdrop-filter: blur(18px); }
+      .topbar-left, .topbar-actions, .breadcrumb, .avatar-button { display: flex; align-items: center; }.topbar-left { gap: 15px; }.breadcrumb { gap: 9px; color: var(--ink-faint); font-size: 11px; }.breadcrumb strong { color: var(--ink); font-weight: 650; }.breadcrumb-separator { color: var(--line-strong); }
+      .icon-button { display: grid; width: 34px; height: 34px; place-items: center; color: var(--ink-soft); background: transparent; border: 1px solid transparent; border-radius: 10px; font-size: 15px; }.icon-button:hover { color: var(--accent); background: var(--surface); border-color: var(--line); }
+      .topbar-actions { gap: 12px; }.avatar-button { gap: 9px; padding-left: 12px; border-left: 1px solid var(--line); }.avatar { display: grid; width: 30px; height: 30px; place-items: center; color: #fff; background: linear-gradient(135deg,#e88aa8,#8275b9); border-radius: 10px; font-size: 12px; font-weight: 700; }.avatar-copy strong,.avatar-copy span { display: block; }.avatar-copy strong { font-size: 10px; }.avatar-copy span { color: var(--ink-faint); font-size: 9px; }
+      .workspace-tabbar { display: flex; height: 46px; align-items: center; gap: 9px; padding: 0 20px; background: rgba(255,255,255,.28); border-bottom: 1px solid var(--line); }
+      body[data-theme="dark"] .workspace-tabbar { background: rgba(255,255,255,.015); }.workspace-tab-count { display: grid; width: 20px; height: 20px; flex: 0 0 auto; place-items: center; color: var(--ink-faint); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 7px; font-size: 9px; }
+      .workspace-tab-list { display: flex; height: 100%; gap: 4px; overflow-x: auto; scrollbar-width: none; }.workspace-tab-list::-webkit-scrollbar { display: none; }.workspace-tab { position: relative; display: flex; min-width: 118px; max-width: 180px; align-items: center; padding: 0 13px; color: var(--ink-faint); border-radius: 9px 9px 0 0; font-size: 10px; }.workspace-tab.active { color: var(--accent-strong); background: var(--surface); border: 1px solid var(--line); border-bottom-color: var(--surface); }.workspace-tab.active::after { position: absolute; right: 10px; bottom: -1px; left: 10px; height: 2px; content: ""; background: var(--accent); border-radius: 4px 4px 0 0; }.workspace-tab button { display: flex; align-items: center; gap: 7px; padding: 0; color: inherit; background: transparent; font-size: inherit; }.workspace-tab-icon { color: var(--violet); }
+      .content { width: min(1440px, 100%); padding: 26px 30px 48px; margin: 0 auto; }.page-hero { position: relative; display: flex; min-height: 150px; align-items: center; justify-content: space-between; gap: 20px; padding: 26px 30px; overflow: hidden; background: linear-gradient(112deg,rgba(255,255,255,.9),rgba(249,246,252,.82)); border: 1px solid var(--line); border-radius: var(--radius-xl); box-shadow: var(--shadow-soft); }
+      body[data-theme="dark"] .page-hero { background: linear-gradient(112deg,rgba(36,35,53,.95),rgba(31,31,47,.84)); }.page-hero::before { position: absolute; top: -54px; right: 13%; width: 208px; height: 208px; content: ""; border: 1px solid rgba(117,103,170,.15); border-radius: 43% 57% 63% 37%; transform: rotate(28deg); }.page-hero::after { position: absolute; top: 27px; right: 20%; width: 5px; height: 5px; content: "✦"; color: var(--accent); opacity: .62; }
+      .hero-copy,.hero-actions { position: relative; z-index: 1; }.eyebrow { display: flex; align-items: center; gap: 8px; margin: 0 0 9px; color: var(--accent-strong); font-size: 9px; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }.eyebrow::before { width: 17px; height: 1px; content: ""; background: currentColor; }.page-hero h1 { margin: 0; font: 700 clamp(23px,3vw,30px)/1.25 var(--font-display); letter-spacing: -.035em; }.page-hero h1 span { color: var(--ink-faint); font: 500 12px var(--font-body); letter-spacing: 0; }.page-hero p:not(.eyebrow) { max-width: 610px; margin: 8px 0 0; color: var(--ink-soft); font-size: 11px; }.hero-actions { display: flex; gap: 9px; flex: 0 0 auto; }
+      .primary-button,.secondary-button,.danger-button,.ghost-button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border-radius: 10px; font-size: 11px; font-weight: 700; text-decoration: none; transition: .16s ease; }.primary-button { color: #fff; background: linear-gradient(135deg,#df7395,#bb5d88); box-shadow: 0 7px 15px rgba(197,75,117,.18); }.primary-button:hover { background: linear-gradient(135deg,#e681a0,#a94d78); transform: translateY(-1px); }.secondary-button,.ghost-button { color: var(--ink-soft); background: var(--surface-solid); border: 1px solid var(--line); }.secondary-button:hover,.ghost-button:hover { color: var(--accent-strong); background: var(--surface-hover); border-color: rgba(217,95,134,.25); }.danger-button { color: #fff; background: var(--danger); }.danger-button:hover { filter: brightness(.94); transform: translateY(-1px); }
+      .layout-grid { display: grid; grid-template-columns: minmax(0,1fr) 310px; align-items: start; gap: 18px; margin-top: 18px; }.form-column { display: grid; gap: 14px; min-width: 0; }.section-card,.side-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); backdrop-filter: blur(12px); }.section-card { padding: 20px 22px; }.section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 14px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }.section-heading h2,.side-card h2 { margin: 0; font: 700 15px var(--font-display); }.section-heading p { margin: 3px 0 0; color: var(--ink-faint); font-size: 10px; }.section-index { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; color: var(--violet); background: var(--violet-soft); border-radius: 9px; font: 700 10px var(--font-display); }
+      .form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 15px 14px; }.field { min-width: 0; }.field.full { grid-column: 1 / -1; }.field label,.field-label { display: flex; align-items: center; gap: 5px; margin: 0 0 6px; color: var(--ink-soft); font-size: 10px; font-weight: 700; }.required { color: var(--accent-strong); }.field-key { margin-left: auto; color: var(--ink-faint); font: 9px ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 400; }
+      .control,.control-select,.control-area { width: 100%; min-height: 39px; padding: 9px 11px; color: var(--ink); background: var(--surface-solid); border: 1px solid var(--line-strong); border-radius: 10px; font-size: 11px; transition: .16s ease; }.control:hover,.control-select:hover,.control-area:hover { border-color: rgba(117,103,170,.42); }.control:focus,.control-select:focus,.control-area:focus { border-color: var(--accent); }.control::placeholder,.control-area::placeholder { color: var(--ink-faint); }.control-select { cursor: pointer; }.control-area { min-height: 92px; resize: vertical; }.hint { margin: 5px 0 0; color: var(--ink-faint); font-size: 9px; }.input-wrap { position: relative; }.input-suffix { position: absolute; top: 50%; right: 11px; color: var(--ink-faint); font-size: 10px; transform: translateY(-50%); pointer-events: none; }.has-suffix { padding-right: 42px; }
+      .field-error { padding: 6px 8px; margin-top: 6px; color: var(--danger); background: var(--danger-soft); border-radius: 7px; font-size: 9px; }.invalid { border-color: var(--danger) !important; }.chip-list { display: flex; min-height: 39px; flex-wrap: wrap; align-items: center; gap: 6px; padding: 5px 7px; background: var(--surface-solid); border: 1px solid var(--line-strong); border-radius: 10px; }.chip { display: inline-flex; align-items: center; gap: 6px; min-height: 26px; padding: 0 9px; color: var(--violet); background: var(--violet-soft); border-radius: 7px; font-size: 9px; }.chip button { padding: 0; color: inherit; background: transparent; }.chip-add { padding: 4px 7px; color: var(--ink-faint); background: transparent; border-radius: 6px; font-size: 10px; }.chip-add:hover { color: var(--accent); background: var(--accent-soft); }.tag-chip { color: #2a827c; background: var(--cyan-soft); }.status-chip { color: #387c69; background: var(--success-soft); }
+      .cover-row { display: grid; grid-template-columns: 76px minmax(0,1fr); gap: 12px; align-items: center; }.cover-preview { display: grid; width: 76px; height: 94px; place-items: center; overflow: hidden; color: #fff; background: linear-gradient(145deg,#d88da7,#877db7 60%,#4d687f); border-radius: 10px 6px 10px 6px; box-shadow: 0 7px 18px rgba(63,53,90,.15); }.cover-preview img { width: 100%; height: 100%; object-fit: cover; }.cover-placeholder { text-align: center; }.cover-placeholder b { display: block; font: 700 20px var(--font-display); }.cover-placeholder span { display: block; margin-top: 3px; color: rgba(255,255,255,.8); font-size: 8px; letter-spacing: .12em; }.inline-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }.mini-button { min-height: 29px; padding: 0 9px; color: var(--ink-soft); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 8px; font-size: 9px; }.mini-button:hover { color: var(--accent-strong); border-color: var(--accent); }.mini-button.remove:hover { color: var(--danger); border-color: var(--danger); }
+      .repeat-list { display: grid; gap: 8px; }.repeat-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(120px,.62fr) 34px; gap: 8px; align-items: center; }.repeat-row.link-row { grid-template-columns: minmax(110px,.45fr) minmax(0,1fr) 76px 34px; }.remove-button { display: grid; width: 32px; height: 32px; place-items: center; color: var(--ink-faint); background: transparent; border-radius: 8px; }.remove-button:hover { color: var(--danger); background: var(--danger-soft); }.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 10px; }.switch-copy strong,.switch-copy span { display: block; }.switch-copy strong { font-size: 10px; }.switch-copy span { margin-top: 2px; color: var(--ink-faint); font-size: 9px; }.switch { position: relative; width: 36px; height: 21px; flex: 0 0 auto; padding: 0; background: #cfccd8; border-radius: 99px; transition: .18s ease; }.switch::after { position: absolute; top: 3px; left: 3px; width: 15px; height: 15px; content: ""; background: #fff; border-radius: 50%; box-shadow: 0 1px 3px #0002; transition: .18s ease; }.switch[aria-checked="true"] { background: var(--accent); }.switch[aria-checked="true"]::after { left: 18px; }
+      .tag-picker { display: flex; flex-wrap: wrap; gap: 6px; }.tag-option { min-height: 27px; padding: 0 9px; color: var(--ink-soft); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 8px; font-size: 9px; }.tag-option:hover { color: var(--cyan); border-color: var(--cyan); }.tag-option.selected { color: #267e78; background: var(--cyan-soft); border-color: rgba(45,169,162,.3); }
+      .rate-picker { display: flex; min-height: 39px; align-items: center; gap: 1px; }.rate-star { display: grid; width: 22px; height: 30px; flex: 0 0 auto; place-items: center; padding: 0; color: var(--line-strong); background: transparent; border-radius: 6px; font-size: 18px; line-height: 1; transition: color .13s ease,transform .13s ease; }.rate-star:hover { color: #efb844; transform: scale(1.12); }.rate-star.selected,.rate-star.preview { color: #e5a72d; }.rate-star:focus-visible { box-shadow: var(--focus); }.rate-zero { min-width: 21px; height: 26px; padding: 0 3px; color: var(--ink-faint); background: transparent; border-radius: 6px; font-size: 9px; }.rate-zero[aria-checked="true"] { color: #fff; background: var(--violet); }.rate-zero:hover { color: var(--accent-strong); background: var(--accent-soft); }.rate-value { min-width: 43px; margin-left: 5px; color: var(--ink); font-size: 11px; font-weight: 750; }.rate-value small { color: var(--ink-faint); font-size: 9px; font-weight: 500; }.rate-clear { margin-left: auto; padding: 5px 6px; color: var(--ink-faint); background: transparent; border-radius: 6px; font-size: 9px; }.rate-clear:hover { color: var(--accent-strong); background: var(--accent-soft); }
+      .payload-card { position: sticky; top: 88px; overflow: hidden; }.payload-head { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; background: var(--surface-muted); border-bottom: 1px solid var(--line); }.payload-head h2 { margin: 0; font: 700 12px var(--font-display); }.method-pill { padding: 4px 7px; color: #4d6786; background: #e7eef7; border-radius: 6px; font: 700 8px ui-monospace,monospace; }.payload-route { padding: 10px 15px; color: var(--violet); border-bottom: 1px solid var(--line); font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }.payload-code { max-height: 470px; padding: 14px 15px; margin: 0; overflow: auto; color: var(--ink-soft); font: 9px/1.75 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }.payload-foot { padding: 11px 15px; color: var(--ink-faint); background: var(--surface-muted); border-top: 1px solid var(--line); font-size: 9px; }.payload-foot strong { color: var(--success); font-weight: 700; }.form-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 2px 0; }.save-actions { display: flex; gap: 8px; }.page-note { color: var(--ink-faint); font-size: 9px; }
+      .view { display: none; }.view.active { display: block; animation: rise .22s ease both; }.view-actions { display: flex; gap: 8px; }.detail-title-row { display: flex; align-items: flex-start; gap: 16px; }.detail-cover { width: 96px; height: 126px; flex: 0 0 auto; overflow: hidden; background: linear-gradient(145deg,#d88da7,#877db7 60%,#4d687f); border-radius: 12px 7px 12px 7px; }.detail-cover img { width: 100%; height: 100%; object-fit: cover; }.detail-copy h2 { margin: 2px 0 5px; font: 700 24px var(--font-display); }.detail-alias { color: var(--ink-soft); font-size: 11px; }.detail-subtitle { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 11px; }.meta-badge { padding: 4px 8px; color: var(--violet); background: var(--violet-soft); border-radius: 7px; font-size: 9px; }.detail-rating { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; color: #926717; background: var(--yellow-soft); border-radius: 8px; font-size: 10px; font-weight: 750; }.detail-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 11px; }.detail-cell { min-width: 0; padding: 11px 12px; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 10px; }.detail-cell span,.detail-cell strong { display: block; }.detail-cell span { color: var(--ink-faint); font-size: 9px; }.detail-cell strong { margin-top: 4px; font-size: 11px; font-weight: 650; overflow-wrap: anywhere; }.detail-description { margin: 0; color: var(--ink-soft); font-size: 11px; line-height: 1.8; }.external-list { display: grid; gap: 8px; }.external-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 10px; }.external-item strong { font-size: 10px; }.external-item span { color: var(--ink-faint); font: 9px ui-monospace,monospace; }.empty-state { padding: 18px; color: var(--ink-faint); background: var(--surface-muted); border: 1px dashed var(--line-strong); border-radius: 10px; text-align: center; font-size: 10px; }
+      .danger-panel { display: grid; grid-template-columns: 42px minmax(0,1fr); gap: 13px; padding: 15px; color: var(--danger); background: var(--danger-soft); border: 1px solid color-mix(in srgb,var(--danger) 20%, transparent); border-radius: 13px; }.danger-mark { display: grid; width: 42px; height: 42px; place-items: center; background: color-mix(in srgb,var(--danger) 12%, transparent); border-radius: 12px; font-size: 19px; }.danger-panel h2 { margin: 1px 0 4px; font: 700 13px var(--font-display); }.danger-panel p { margin: 0; color: var(--ink-soft); font-size: 10px; }.cascade-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; padding: 0; margin: 14px 0 0; list-style: none; }.cascade-list li { padding: 8px 9px; color: var(--ink-soft); background: var(--surface-solid); border: 1px solid var(--line); border-radius: 8px; font-size: 9px; }.danger-confirm { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 15px; margin-top: 16px; border-top: 1px solid var(--line); }.danger-confirm p { margin: 0; color: var(--ink-soft); font-size: 10px; }.confirm-check { display: flex; align-items: center; gap: 7px; margin-top: 8px; color: var(--ink-soft); font-size: 9px; }.confirm-check input { accent-color: var(--danger); }.delete-target { display: flex; align-items: center; gap: 13px; padding: 13px; margin-top: 16px; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 12px; }.delete-target-cover { width: 43px; height: 58px; flex: 0 0 auto; background: linear-gradient(145deg,#d88da7,#877db7 60%,#4d687f); border-radius: 8px 5px 8px 5px; }.delete-target strong,.delete-target span { display: block; }.delete-target strong { font: 700 13px var(--font-display); }.delete-target span { margin-top: 3px; color: var(--ink-faint); font-size: 9px; }
+      .toast { position: fixed; right: 20px; bottom: 20px; z-index: 30; display: none; padding: 12px 16px; color: var(--ink); background: var(--surface-solid); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); font-size: 11px; }.toast.show { display: block; animation: rise .2s ease both; }.overlay { position: fixed; inset: 0; z-index: 40; display: none; place-items: center; padding: 20px; background: rgba(18,17,30,.48); backdrop-filter: blur(4px); }.overlay.show { display: grid; }.dialog { width: min(480px,100%); padding: 22px; background: var(--surface-solid); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }.dialog h2 { margin: 0; font: 700 17px var(--font-display); }.dialog p { color: var(--ink-soft); font-size: 11px; }.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+      @keyframes rise { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+      @media(max-width:1100px) { .layout-grid { grid-template-columns: minmax(0,1fr) 270px; }.detail-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+      @media(max-width:900px) { .sidebar { width: 230px; transform: translateX(-102%); }.app-shell.sidebar-open .sidebar { transform: translateX(0); }.main-shell { margin-left: 0; }.sidebar-backdrop { position: fixed; inset: 0; z-index: 9; display: none; background: rgba(15,14,26,.4); }.app-shell.sidebar-open .sidebar-backdrop { display: block; }.layout-grid { grid-template-columns: 1fr; }.payload-card { position: static; }.payload-code { max-height: 280px; }.content { padding: 20px; } }
+      @media(max-width:620px) { .topbar { height: 60px; padding: 0 14px; }.breadcrumb span:first-child,.breadcrumb-separator,.avatar-copy { display: none; }.content { padding: 14px; }.workspace-tabbar { padding: 0 10px; }.workspace-tab { min-width: 106px; max-width: 145px; }.page-hero { display: block; min-height: 0; padding: 22px 19px; border-radius: 19px; }.hero-actions { margin-top: 16px; }.hero-actions .primary-button { flex: 1; }.form-grid { grid-template-columns: 1fr; }.field.full { grid-column: auto; }.section-card { padding: 16px; border-radius: 15px; }.repeat-row,.repeat-row.link-row { grid-template-columns: 1fr 34px; }.repeat-row .row-secondary,.repeat-row.link-row .row-secondary { grid-column: 1; }.repeat-row .remove-button,.repeat-row.link-row .remove-button { grid-column: 2; grid-row: 1; }.repeat-row.link-row .control.sort-control { grid-column: 1; }.detail-title-row { align-items: center; gap: 12px; }.detail-cover { width: 72px; height: 96px; }.detail-copy h2 { font-size: 20px; }.detail-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }.cascade-list { grid-template-columns: repeat(2,minmax(0,1fr)); }.form-actions,.danger-confirm { align-items: stretch; flex-direction: column; }.save-actions .primary-button,.save-actions .secondary-button { flex: 1; } }
+      @media(prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+      .sidebar-toggle { display: grid; width: 34px; height: 34px; place-items: center; color: var(--ink-soft); background: transparent; border-radius: 9px; }
+      .sidebar-toggle:hover { color: var(--accent); background: var(--surface); }
+      .management-view { display: grid; gap: 16px; }
+      .management-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 11px; }
+      .management-stat { display: flex; align-items: center; gap: 11px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-soft); }
+      .management-stat-mark { display: grid; width: 34px; height: 34px; place-items: center; color: var(--violet); background: var(--violet-soft); border-radius: 10px; font-size: 15px; }
+      .management-stat:nth-child(2) .management-stat-mark { color: var(--cyan); background: var(--cyan-soft); }.management-stat:nth-child(3) .management-stat-mark { color: var(--yellow); background: var(--yellow-soft); }.management-stat:nth-child(4) .management-stat-mark { color: var(--success); background: var(--success-soft); }
+      .management-stat span,.management-stat strong { display: block; }.management-stat span { color: var(--ink-faint); font-size: 9px; }.management-stat strong { margin-top: 2px; font: 700 18px var(--font-display); }
+      .management-tools { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+      .management-search { display: flex; width: min(480px,100%); align-items: center; gap: 8px; padding: 0 11px; color: var(--ink-faint); background: var(--surface-solid); border: 1px solid var(--line-strong); border-radius: 9px; }.management-search input { width: 100%; height: 36px; color: var(--ink); background: transparent; border: 0; outline: 0; font-size: 10px; }.management-search:focus-within { border-color: var(--accent); box-shadow: var(--focus); }
+      .management-list { overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); }.management-list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--line); }.management-list-head h2 { margin: 0; font: 700 14px var(--font-display); }.management-list-head span { color: var(--ink-faint); font-size: 9px; }
+      .table-scroll { overflow-x: auto; }.anime-table { width: 100%; min-width: 1050px; border-collapse: collapse; text-align: left; }.anime-table th { padding: 10px 11px; color: var(--ink-faint); background: var(--surface-muted); border-bottom: 1px solid var(--line); font-size: 9px; font-weight: 700; white-space: nowrap; }.anime-table td { padding: 10px 11px; border-bottom: 1px solid var(--line); color: var(--ink-soft); font-size: 9px; vertical-align: middle; }.anime-table tbody tr:last-child td { border-bottom: 0; }.anime-table tbody tr:hover { background: var(--surface-hover); }.anime-table td:first-child,.anime-table th:first-child { padding-left: 17px; }.table-cover { display: block; width: 38px; height: 49px; object-fit: cover; background: linear-gradient(145deg,#d88da7,#877db7 60%,#4d687f); border-radius: 6px 4px 6px 4px; }.table-name { display: block; color: var(--ink); font-size: 10px; font-weight: 700; }.table-sub { display: block; max-width: 180px; margin-top: 3px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.table-tags { display: flex; gap: 4px; white-space: nowrap; }.table-tag { padding: 3px 6px; color: #267e78; background: var(--cyan-soft); border-radius: 5px; font-size: 8px; }.table-status { padding: 4px 7px; color: #387c69; background: var(--success-soft); border-radius: 6px; white-space: nowrap; }.table-status.airing { color: #377c82; background: var(--cyan-soft); }.table-status.upcoming { color: #8a671f; background: var(--yellow-soft); }.table-rating { color: #956a13; font-weight: 750; white-space: nowrap; }.external-icon { display: inline-grid; width: 25px; height: 25px; place-items: center; color: var(--violet); background: var(--violet-soft); border-radius: 7px; text-decoration: none; font-size: 11px; }.row-actions { display: flex; gap: 3px; }.row-action { display: grid; width: 27px; height: 27px; place-items: center; color: var(--ink-faint); background: transparent; border-radius: 7px; font-size: 12px; }.row-action:hover { color: var(--accent-strong); background: var(--accent-soft); }.row-action.danger:hover { color: var(--danger); background: var(--danger-soft); }
+      .list-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); }.list-footer span { color: var(--ink-faint); font-size: 9px; }.pager { display: flex; align-items: center; gap: 5px; }.pager button { display: grid; min-width: 28px; height: 28px; place-items: center; color: var(--ink-soft); background: transparent; border: 1px solid var(--line); border-radius: 7px; font-size: 9px; }.pager button.active { color: #fff; background: var(--accent); border-color: var(--accent); }
+      .workspace-tab button { cursor: pointer; }.workspace-tab-create { display: none; }.workspace-tab-create.visible { display: flex; }.workspace-tab-close { margin-left: auto; padding-left: 8px !important; color: var(--ink-faint) !important; }
+      .drawer-backdrop { position: fixed; inset: 0; z-index: 24; display: none; background: rgba(18,17,30,.42); backdrop-filter: blur(2px); }.drawer-backdrop.show { display: block; }
+      .view.drawer-panel { position: fixed; inset: 0 0 0 auto; z-index: 25; display: none; width: min(920px,92vw); height: 100dvh; padding: 24px 26px 40px; overflow: auto; background: var(--canvas); box-shadow: -24px 0 60px rgba(20,17,40,.2); scrollbar-color: var(--line-strong) transparent; }
+      .view.drawer-panel.drawer-open { display: block; animation: drawer-in .22s ease both; }.view.drawer-panel .page-hero { min-height: 128px; padding: 20px 23px; }.drawer-close { position: fixed; top: 16px; right: min(938px,calc(92vw + 14px)); z-index: 27; display: none; width: 34px; height: 34px; place-items: center; color: var(--ink-soft); background: var(--surface-solid); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-soft); }.drawer-close.show { display: grid; }.drawer-close:hover { color: var(--accent); }
+      .view-create { padding-bottom: 10px; }.create-page-top { display: flex; align-items: center; gap: 8px; margin-bottom: 13px; }.create-page-top .ghost-button { min-height: 31px; }
+      .dialog-check { display: flex; align-items: center; gap: 7px; padding: 8px 0 0; color: var(--ink-soft); font-size: 9px; }.dialog-check input { accent-color: var(--danger); }.danger-dialog .danger-button:disabled { opacity: .45; cursor: not-allowed; filter: saturate(.5); }
+      @keyframes drawer-in { from { opacity: .6; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+      @media(max-width:900px) { .management-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }.management-tools { align-items: stretch; flex-direction: column; }.management-search { width: 100%; }.view.drawer-panel { width: min(760px,96vw); padding: 18px 16px 32px; }.drawer-close { right: 10px; }.view.drawer-panel .page-hero { padding-right: 54px; } }
+      @media(max-width:620px) { .management-stats { gap: 7px; }.management-stat { padding: 10px; }.management-stat-mark { width: 30px; height: 30px; }.management-stat strong { font-size: 16px; }.management-list { border-radius: 14px; }.management-list-head { padding: 13px; }.list-footer { align-items: flex-start; flex-direction: column; }.hero-actions { flex-wrap: wrap; }.view.drawer-panel { width: 100vw; padding: 14px 12px 26px; }.view.drawer-panel .page-hero { padding: 18px 16px; }.drawer-close { top: 12px; right: 12px; }.view.drawer-panel .page-hero h1 span { display: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell" id="appShell">
+      <aside class="sidebar" aria-label="主导航">
+        <a class="brand" href="#"><span class="brand-mark">A</span><span><span class="brand-name">ACGBox</span><span class="brand-caption">Archive System</span></span></a>
+        <nav><p class="nav-label">工作台 / Workspace</p><ul class="nav-list">
+          <li><a class="nav-item" href="#"><span class="nav-icon">⌂</span><span>数据概览</span></a></li>
+          <li><a class="nav-item active" href="#"><span class="nav-icon">▣</span><span>动画管理</span></a></li>
+          <li><a class="nav-item" href="#"><span class="nav-icon">◫</span><span>系列管理</span></a></li>
+          <li><a class="nav-item" href="#"><span class="nav-icon">◇</span><span>标签管理</span></a></li>
+          <li><a class="nav-item" href="#"><span class="nav-icon">▤</span><span>制作公司管理</span></a></li>
+          <li><a class="nav-item" href="#"><span class="nav-icon">◈</span><span>放送类型管理</span></a></li>
+          <li><a class="nav-item" href="#"><span class="nav-icon">◈</span><span>改编类型管理</span></a></li>
+          <li><a class="nav-item" href="#"><span class="nav-icon">⌖</span><span>地区管理</span></a></li>
+          <li><a class="nav-item" href="#"><span class="nav-icon">⚙</span><span>系统设置</span></a></li>
+        </ul></nav>
+        <div class="nav-note"><div class="signal-card"><span class="signal-dot"></span><span class="signal-copy"><strong>资料库连接正常</strong><span>Archive node / Tokyo-01</span></span></div></div>
+      </aside>
+      <button class="sidebar-backdrop" aria-label="关闭导航" onclick="toggleSidebar()"></button>
+      <main class="main-shell">
+        <header class="topbar"><div class="topbar-left"><button class="sidebar-toggle" aria-label="切换导航" onclick="toggleSidebar()">☰</button><div class="breadcrumb"><span>内容管理</span><span class="breadcrumb-separator">/</span><strong id="crumbTitle">动画管理</strong></div></div>
+          <div class="topbar-actions"><button class="icon-button" id="themeToggle" aria-label="切换深色主题" onclick="toggleTheme()">☾</button><div class="avatar-button"><span class="avatar">编</span><span class="avatar-copy"><strong>内容编辑</strong><span>原型状态预览</span></span></div></div>
+        </header>
+        <nav class="workspace-tabbar" aria-label="已打开页面"><span class="workspace-tab-count">1</span><div class="workspace-tab-list" role="tablist">
+          <div class="workspace-tab active" data-tab="list"><button role="tab" aria-selected="true" onclick="switchView('list')"><span class="workspace-tab-icon">▣</span>动画管理</button></div>
+          <div class="workspace-tab workspace-tab-create" id="createWorkspaceTab" data-tab="create"><button role="tab" aria-selected="false" onclick="switchView('create')"><span class="workspace-tab-icon">✦</span>新增动画</button><button class="workspace-tab-close" type="button" aria-label="关闭新增动画页" onclick="switchView('list')">×</button></div>
+        </div></nav>
+        <div class="content">
+          <section class="view active management-view" id="view-list" data-title="动画管理">
+            <header class="page-hero"><div class="hero-copy"><p class="eyebrow">CONTENT ARCHIVE / ANIME INDEX</p><h1>动画管理 <span>ANIME INDEX</span></h1><p>编目、检索并维护动画资料。查看与编辑在当前工作台以侧栏小页面打开，新增资料独立进入新页面。</p></div><div class="hero-actions"><button class="primary-button" onclick="switchView('create')">＋ 新增动画</button></div></header>
+            <div class="management-stats" aria-label="动画资料统计"><article class="management-stat"><span class="management-stat-mark">▤</span><span><span>动画总数</span><strong id="listTotal">128</strong></span></article><article class="management-stat"><span class="management-stat-mark">◉</span><span><span>放送中</span><strong>12</strong></span></article><article class="management-stat"><span class="management-stat-mark">◷</span><span><span>未放送</span><strong>8</strong></span></article><article class="management-stat"><span class="management-stat-mark">✓</span><span><span>已完结</span><strong>108</strong></span></article></div>
+            <section class="management-list" aria-labelledby="animeListHeading"><div class="management-list-head"><div><h2 id="animeListHeading">动画资料列表</h2><span id="listCountLabel">当前展示 5 条 · 共 128 条</span></div><button class="ghost-button" onclick="showToast('列表已刷新')">↻ 刷新</button></div>
+              <div class="management-tools"><label class="management-search"><span>⌕</span><input id="listSearch" type="search" placeholder="搜索动画名称、别名或系列" oninput="filterList(this.value)"></label><span class="page-note">开始放送日期 · 倒序 / ID 倒序</span></div>
+              <div class="table-scroll"><table class="anime-table"><thead><tr><th>封面</th><th>动画 / 别名 / 系列</th><th>标签</th><th>集数 / 类型</th><th>开始放送</th><th>状态</th><th>地区</th><th>制作公司</th><th>评分</th><th>外链</th><th>操作</th></tr></thead><tbody id="animeRows">
+                <tr data-anime-id="15" data-search="葬送的芙莉莲 葬送的芙莉蓮 frieren"><td><img class="table-cover" src="https://lain.bgm.tv/pic/cover/l/13/c5/400602_ZI8Y9.jpg" alt=""></td><td><strong class="table-name">葬送的芙莉莲</strong><span class="table-sub">葬送的芙莉蓮 · Frieren · 系列：葬送的芙莉莲</span></td><td><span class="table-tags"><i class="table-tag">冒险</i><i class="table-tag">奇幻</i><i class="table-tag">治愈</i></span></td><td>28 集 · TV / 漫画改</td><td>2023-09-29</td><td><span class="table-status">已完结</span></td><td>日本</td><td>MADHOUSE</td><td><span class="table-rating">★ 9.5</span></td><td><a class="external-icon" href="https://bgm.tv/subject/400602" target="_blank" rel="noreferrer" title="Bangumi">B</a></td><td><div class="row-actions"><button class="row-action" title="查看详情" aria-label="查看葬送的芙莉莲详情" onclick="openDrawer('detail',15)">⌕</button><button class="row-action" title="编辑" aria-label="编辑葬送的芙莉莲" onclick="openDrawer('edit',15)">✎</button><button class="row-action danger" title="删除" aria-label="删除葬送的芙莉莲" onclick="openDeleteDialog(15)">⌫</button></div></td></tr>
+                <tr data-anime-id="6" data-search="迷宫饭 舌尖上的地下城"><td><span class="table-cover"></span></td><td><strong class="table-name">迷宫饭</strong><span class="table-sub">舌尖上的地下城 · 系列：迷宫饭</span></td><td><span class="table-tags"><i class="table-tag">冒险</i><i class="table-tag">奇幻</i><i class="table-tag">美食</i></span></td><td>24 集 · TV / 漫画改</td><td>2024-01-04</td><td><span class="table-status">已完结</span></td><td>日本</td><td>TRIGGER</td><td><span class="table-rating">★ 9.0</span></td><td><a class="external-icon" href="#" title="Bangumi">B</a></td><td><div class="row-actions"><button class="row-action" title="查看详情" onclick="openDrawer('detail',6)">⌕</button><button class="row-action" title="编辑" onclick="openDrawer('edit',6)">✎</button><button class="row-action danger" title="删除" onclick="openDeleteDialog(6)">⌫</button></div></td></tr>
+                <tr data-anime-id="20" data-search="药屋少女的呢喃 药屋少女"><td><span class="table-cover"></span></td><td><strong class="table-name">药屋少女的呢喃</strong><span class="table-sub">药屋少女 · 系列：药屋少女的呢喃</span></td><td><span class="table-tags"><i class="table-tag">推理</i><i class="table-tag">历史</i></span></td><td>24 集 · TV / 小说改</td><td>2023-10-22</td><td><span class="table-status">已完结</span></td><td>日本</td><td>TOHO animation</td><td><span class="table-rating">★ 8.5</span></td><td><span class="page-note">—</span></td><td><div class="row-actions"><button class="row-action" title="查看详情" onclick="openDrawer('detail',20)">⌕</button><button class="row-action" title="编辑" onclick="openDrawer('edit',20)">✎</button><button class="row-action danger" title="删除" onclick="openDeleteDialog(20)">⌫</button></div></td></tr>
+                <tr data-anime-id="21" data-search="葬送的芙莉莲 后日谈"><td><span class="table-cover"></span></td><td><strong class="table-name">葬送的芙莉莲：旅途之后</strong><span class="table-sub">短篇特别篇 · 系列：葬送的芙莉莲</span></td><td><span class="table-tags"><i class="table-tag">奇幻</i><i class="table-tag">治愈</i></span></td><td>1 集 · OVA / 漫画改</td><td>2025-02-11</td><td><span class="table-status upcoming">未放送</span></td><td>日本</td><td>MADHOUSE</td><td><span class="page-note">未评分</span></td><td><span class="page-note">—</span></td><td><div class="row-actions"><button class="row-action" title="查看详情" onclick="openDrawer('detail',21)">⌕</button><button class="row-action" title="编辑" onclick="openDrawer('edit',21)">✎</button><button class="row-action danger" title="删除" onclick="openDeleteDialog(21)">⌫</button></div></td></tr>
+                <tr data-anime-id="22" data-search="胆大党 dandadan"><td><span class="table-cover"></span></td><td><strong class="table-name">胆大党</strong><span class="table-sub">DAN DA DAN · 系列：胆大党</span></td><td><span class="table-tags"><i class="table-tag">科幻</i><i class="table-tag">喜剧</i></span></td><td>12 集 · TV / 漫画改</td><td>2024-10-04</td><td><span class="table-status airing">放送中</span></td><td>日本</td><td>Science SARU</td><td><span class="table-rating">★ 8.0</span></td><td><a class="external-icon" href="#" title="Bangumi">B</a></td><td><div class="row-actions"><button class="row-action" title="查看详情" onclick="openDrawer('detail',22)">⌕</button><button class="row-action" title="编辑" onclick="openDrawer('edit',22)">✎</button><button class="row-action danger" title="删除" onclick="openDeleteDialog(22)">⌫</button></div></td></tr>
+              </tbody></table></div><div class="list-footer"><span>第 1–5 条，共 128 条　·　每页 10 条</span><div class="pager"><button aria-label="上一页">‹</button><button class="active">1</button><button>2</button><button>3</button><span>…</span><button>13</button><button aria-label="下一页">›</button></div></div>
+            </section>
+          </section>
+          <section class="view view-create" id="view-create" data-title="新增动画">
+            <div class="create-page-top"><button class="ghost-button" onclick="switchView('list')">← 返回动画管理</button><span class="page-note">新页面 · 动画管理 / 新增动画</span></div>
+            <header class="page-hero"><div class="hero-copy"><p class="eyebrow">ANIME ARCHIVE / NEW ENTRY</p><h1>新增动画 <span>· 建立一份完整档案</span></h1><p>录入动画基础信息、分类关系和外部资料。带 <b class="required">*</b> 为接口必填字段，提交结构会在右侧同步展示。</p></div><div class="hero-actions"><button class="secondary-button" onclick="resetForm()">重置表单</button><button class="primary-button" onclick="submitForm('create')">✦ 保存动画</button></div></header>
+            <div class="layout-grid"><div class="form-column">
+              <section class="section-card"><div class="section-heading"><div><h2>基础资料</h2><p>动画名称、放送信息和作品封面</p></div><span class="section-index">01</span></div>
+                <div class="form-grid">
+                  <div class="field full"><label for="name">动画名称 <span class="required">*</span><code class="field-key">name</code></label><input class="control" id="name" value="葬送的芙莉莲" placeholder="输入正式名称" required><div class="field-error" hidden id="nameError">请填写动画名称。</div></div>
+                  <div class="field"><label for="broadcastTypeId">放送类型 <span class="required">*</span><code class="field-key">broadcastTypeId</code></label><select class="control-select" id="broadcastTypeId"><option value="">请选择放送类型</option><option value="1" selected>TV</option><option value="2">剧场版</option><option value="3">OVA</option><option value="4">网络放送</option></select></div>
+                  <div class="field"><label for="adaptationTypeId">改编类型 <span class="required">*</span><code class="field-key">adaptationTypeId</code></label><select class="control-select" id="adaptationTypeId"><option value="">请选择改编类型</option><option value="1">原创</option><option value="2" selected>漫画改</option><option value="3">小说改</option><option value="4">游戏改</option></select></div>
+                  <div class="field"><label for="regionId">地区 <span class="required">*</span><code class="field-key">regionId</code></label><select class="control-select" id="regionId"><option value="">请选择地区</option><option value="1" selected>日本</option><option value="2">中国大陆</option><option value="3">中国台湾</option><option value="4">美国</option></select></div>
+                  <div class="field"><label for="status">动画状态 <span class="required">*</span><code class="field-key">status</code></label><select class="control-select" id="status"><option value="1">未放送</option><option value="2">放送中</option><option value="3" selected>已完结</option><option value="4">其他</option></select><p class="hint">接口值：1 未放送 / 2 放送中 / 3 已完结 / 4 其他</p></div>
+                  <div class="field"><label for="airDate">开始放送日期 <span class="required">*</span><code class="field-key">airDate</code></label><input class="control" id="airDate" type="date" value="2023-09-29" required><p class="hint">LocalDate，提交格式 yyyy-MM-dd</p></div>
+                  <div class="field"><label for="episodeCount">总集数<code class="field-key">episodeCount</code></label><div class="input-wrap"><input class="control has-suffix" id="episodeCount" type="number" min="0" step="1" value="28" placeholder="未确定可留空"><span class="input-suffix">集</span></div></div>
+                  <div class="field"><label>个人评分<code class="field-key">personalRatingScore</code></label><input type="hidden" id="personalRatingScore" value="8"><div class="rate-picker" role="radiogroup" aria-label="个人评分，整数 1 到 10 分" data-rate-for="personalRatingScore"><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="1 分" data-score="1" onclick="setRating('personalRatingScore',1)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="2 分" data-score="2" onclick="setRating('personalRatingScore',2)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="3 分" data-score="3" onclick="setRating('personalRatingScore',3)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="4 分" data-score="4" onclick="setRating('personalRatingScore',4)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="5 分" data-score="5" onclick="setRating('personalRatingScore',5)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="6 分" data-score="6" onclick="setRating('personalRatingScore',6)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="7 分" data-score="7" onclick="setRating('personalRatingScore',7)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="true" aria-label="8 分" data-score="8" onclick="setRating('personalRatingScore',8)">★</button><button class="rate-star" type="button" role="radio" aria-checked="false" aria-label="9 分" data-score="9" onclick="setRating('personalRatingScore',9)">★</button><button class="rate-star" type="button" role="radio" aria-checked="false" aria-label="10 分" data-score="10" onclick="setRating('personalRatingScore',10)">★</button><span class="rate-value" data-rate-value="personalRatingScore">8 <small>/ 10</small></span><button class="rate-clear" type="button" onclick="clearRating('personalRatingScore')">清除</button></div><p class="hint">点击星级选择整数评分；不填写时提交 null</p></div>
+                  <div class="field full"><label>封面图片 URL<code class="field-key">coverImageUrl</code></label><div class="cover-row"><div class="cover-preview" id="coverPreview"><div class="cover-placeholder"><b>葬</b><span>ANIME FILE</span></div></div><div><input class="control" id="coverImageUrl" value="https://lain.bgm.tv/pic/cover/l/13/c5/400602_ZI8Y9.jpg" placeholder="https://..."><div class="inline-actions"><button class="mini-button" type="button" onclick="previewCover()">预览封面</button><button class="mini-button" type="button" onclick="document.getElementById('coverImageUrl').value='';previewCover()">清除封面</button></div></div></div></div>
+                  <div class="field full"><label for="description">动画简介<code class="field-key">description</code></label><textarea class="control-area" id="description" placeholder="记录剧情简介、编辑备注等">魔法使芙莉莲在勇者一行击败魔王后，踏上了重新认识人类的旅程。</textarea></div>
+                </div>
+              </section>
+              <section class="section-card"><div class="section-heading"><div><h2>别名与标签</h2><p>支持一个作品关联多个别名和标签</p></div><span class="section-index">02</span></div><div class="form-grid">
+                <div class="field full"><label>别名列表<code class="field-key">aliasNames: string[]</code></label><div class="repeat-list" id="aliasList"><div class="repeat-row"><input class="control alias-input" value="葬送的芙莉蓮" placeholder="输入别名"><button class="remove-button" type="button" aria-label="移除别名" onclick="removeRow(this)">×</button></div><div class="repeat-row"><input class="control alias-input" value="Frieren" placeholder="输入别名"><button class="remove-button" type="button" aria-label="移除别名" onclick="removeRow(this)">×</button></div></div><div class="inline-actions"><button class="mini-button" type="button" onclick="addAlias()">＋ 添加别名</button></div></div>
+                <div class="field full"><label>标签<code class="field-key">tagIds: number[]</code></label><div class="tag-picker" id="tagPicker"><button class="tag-option selected" data-id="17" onclick="toggleTag(this)">冒险</button><button class="tag-option selected" data-id="18" onclick="toggleTag(this)">奇幻</button><button class="tag-option selected" data-id="19" onclick="toggleTag(this)">治愈</button><button class="tag-option" data-id="21" onclick="toggleTag(this)">推理</button><button class="tag-option" data-id="24" onclick="toggleTag(this)">异世界</button><button class="tag-option" data-id="26" onclick="toggleTag(this)">日常</button></div><p class="hint">选项原型；接入时使用标签列表接口的 id，不提交标签名称。</p></div>
+              </div></section>
+              <section class="section-card"><div class="section-heading"><div><h2>关联资料</h2><p>制作公司、系列和外部来源</p></div><span class="section-index">03</span></div><div class="form-grid">
+                <div class="field full"><label>制作公司<code class="field-key">companies[]</code></label><div class="repeat-list" id="companyList"><div class="repeat-row"><select class="control-select company-id"><option value="">选择公司（companyId）</option><option value="5" selected>MADHOUSE · #5</option><option value="8">TRIGGER · #8</option><option value="3">Studio Deen · #3</option></select><select class="control-select company-role"><option value="制作" selected>制作</option><option value="动画制作">动画制作</option><option value="出品">出品</option><option value="协力">协力</option></select><button class="remove-button" type="button" aria-label="移除公司" onclick="removeRow(this)">×</button></div></div><div class="inline-actions"><button class="mini-button" type="button" onclick="addCompany()">＋ 添加公司</button></div></div>
+                <div class="field full"><label>所属系列<code class="field-key">seriesId</code></label><div class="form-grid"><div class="field"><select class="control-select" id="seriesId"><option value="">暂不关联系列</option><option value="7">葬送的芙莉莲 · #7</option><option value="3">迷宫饭 · #3</option></select></div><div class="field"><div class="input-wrap"><input class="control has-suffix" id="seriesSortOrder" type="number" min="0" step="1" placeholder="系列排序"><span class="input-suffix">序号</span></div><p class="hint">仅填写 seriesId 时生效</p></div><div class="field full"><div class="switch-row"><div class="switch-copy"><strong>无系列时自动创建</strong><span><code>autoCreateSeries: true</code>，使用动画名称创建</span></div><button type="button" class="switch" id="autoCreateSwitch" role="switch" aria-checked="false" onclick="toggleSwitch(this)"></button></div></div></div></div>
+                <div class="field full"><label>外部链接<code class="field-key">externalLinks[]</code></label><div class="repeat-list" id="linkList"><div class="repeat-row link-row"><input class="control" value="Bangumi" placeholder="来源标题"><input class="control link-url" type="url" value="https://bgm.tv/subject/400602" placeholder="https://…"><input class="control sort-control" type="number" min="0" step="1" value="0" aria-label="排序值 sortOrder"><button class="remove-button" type="button" aria-label="移除外链" onclick="removeRow(this)">×</button></div></div><div class="inline-actions"><button class="mini-button" type="button" onclick="addLink()">＋ 添加外链</button></div><p class="hint">提交字段：title、url（必填）、sortOrder（默认 0）</p></div>
+              </div></section>
+              <div class="form-actions"><span class="page-note">* 字段定义来自 ACGBox 动画接口文档</span><div class="save-actions"><button class="secondary-button" onclick="switchView('list')">取消</button><button class="primary-button" onclick="submitForm('create')">保存动画 →</button></div></div>
+            </div><aside class="side-card payload-card"><div class="payload-head"><h2>请求结构预览</h2><span class="method-pill">POST</span></div><div class="payload-route">/anime/create</div><pre class="payload-code" id="payloadCreate"></pre><div class="payload-foot"><strong>接口字段对齐</strong> · 日期、枚举、关联 ID 按请求 DTO 提交</div></aside></div>
+          </section>
+
+          <section class="view drawer-panel" id="view-edit" data-title="编辑动画">
+            <header class="page-hero"><div class="hero-copy"><p class="eyebrow">ANIME ARCHIVE / UPDATE ENTRY</p><h1>编辑动画 <span>· 更新档案内容</span></h1><p>正在编辑 <b>#15</b> 葬送的芙莉莲。保存时带上动画 <code>id</code>，所有字段显式更新，子资源按请求内容替换。</p></div><div class="hero-actions"><button class="secondary-button" onclick="closeDrawer()">取消编辑</button><button class="primary-button" onclick="submitForm('edit')">保存修改</button></div></header>
+            <div class="layout-grid"><div class="form-column">
+              <section class="section-card"><div class="section-heading"><div><h2>基础资料</h2><p>编辑请求包含完整 DTO 字段</p></div><span class="section-index">01</span></div><div class="form-grid">
+                <div class="field full"><label>动画 ID <code class="field-key">id: number</code></label><input class="control" value="15" disabled></div>
+                <div class="field full"><label>动画名称 <span class="required">*</span><code class="field-key">name</code></label><input class="control" id="editName" value="葬送的芙莉莲" required></div>
+                <div class="field"><label>放送类型 <span class="required">*</span><code class="field-key">broadcastTypeId</code></label><select class="control-select" id="editBroadcast"><option value="1" selected>TV · #1</option><option value="2">剧场版 · #2</option><option value="3">OVA · #3</option></select></div>
+                <div class="field"><label>改编类型 <span class="required">*</span><code class="field-key">adaptationTypeId</code></label><select class="control-select" id="editAdaptation"><option value="2" selected>漫画改 · #2</option><option value="1">原创 · #1</option><option value="3">小说改 · #3</option></select></div>
+                <div class="field"><label>地区 <span class="required">*</span><code class="field-key">regionId</code></label><select class="control-select" id="editRegion"><option value="1" selected>日本 · #1</option><option value="2">中国大陆 · #2</option></select></div>
+                <div class="field"><label>动画状态 <span class="required">*</span><code class="field-key">status</code></label><select class="control-select" id="editStatus"><option value="1">未放送</option><option value="2">放送中</option><option value="3" selected>已完结</option><option value="4">其他</option></select></div>
+                <div class="field"><label>开始放送日期 <span class="required">*</span><code class="field-key">airDate</code></label><input class="control" type="date" id="editAirDate" value="2023-09-29"></div>
+                <div class="field"><label>总集数<code class="field-key">episodeCount</code></label><input class="control" type="number" min="0" step="1" id="editEpisodes" value="28"></div>
+                <div class="field"><label>个人评分<code class="field-key">personalRatingScore</code></label><input type="hidden" id="editRating" value="9"><div class="rate-picker" role="radiogroup" aria-label="个人评分，整数 1 到 10 分" data-rate-for="editRating"><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="1 分" data-score="1" onclick="setRating('editRating',1)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="2 分" data-score="2" onclick="setRating('editRating',2)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="3 分" data-score="3" onclick="setRating('editRating',3)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="4 分" data-score="4" onclick="setRating('editRating',4)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="5 分" data-score="5" onclick="setRating('editRating',5)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="6 分" data-score="6" onclick="setRating('editRating',6)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="7 分" data-score="7" onclick="setRating('editRating',7)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="false" aria-label="8 分" data-score="8" onclick="setRating('editRating',8)">★</button><button class="rate-star selected" type="button" role="radio" aria-checked="true" aria-label="9 分" data-score="9" onclick="setRating('editRating',9)">★</button><button class="rate-star" type="button" role="radio" aria-checked="false" aria-label="10 分" data-score="10" onclick="setRating('editRating',10)">★</button><span class="rate-value" data-rate-value="editRating">9 <small>/ 10</small></span><button class="rate-clear" type="button" onclick="clearRating('editRating')">清除</button></div><p class="hint">点击星级选择整数评分；不填写时提交 null</p></div>
+                <div class="field full"><label>封面图片 URL<code class="field-key">coverImageUrl</code></label><input class="control" id="editCover" value="https://lain.bgm.tv/pic/cover/l/13/c5/400602_ZI8Y9.jpg"></div>
+                <div class="field full"><label>动画简介<code class="field-key">description</code></label><textarea class="control-area" id="editDescription">魔法使芙莉莲的旅程。</textarea></div>
+              </div></section>
+              <section class="section-card"><div class="section-heading"><div><h2>别名、标签与关联</h2><p>子资源覆盖式更新，请确认保留所有需要的关系</p></div><span class="section-index">02</span></div><div class="form-grid">
+                <div class="field full"><label>别名列表<code class="field-key">aliasNames: string[]</code></label><div class="repeat-list" id="editAliasList"><div class="repeat-row"><input class="control alias-input" value="葬送的芙莉蓮"><button class="remove-button" onclick="removeRow(this)" aria-label="移除别名">×</button></div></div><div class="inline-actions"><button class="mini-button" onclick="addAlias('editAliasList')">＋ 添加别名</button></div></div>
+                <div class="field full"><label>标签<code class="field-key">tagIds: number[]</code></label><div class="tag-picker" id="editTagPicker"><button class="tag-option selected" data-id="17" onclick="toggleTag(this)">冒险</button><button class="tag-option selected" data-id="18" onclick="toggleTag(this)">奇幻</button><button class="tag-option selected" data-id="19" onclick="toggleTag(this)">治愈</button><button class="tag-option" data-id="21" onclick="toggleTag(this)">推理</button></div></div>
+                <div class="field full"><label>制作公司<code class="field-key">companies[]</code></label><div class="repeat-list" id="editCompanyList"><div class="repeat-row"><select class="control-select company-id"><option value="5" selected>MADHOUSE · #5</option><option value="8">TRIGGER · #8</option></select><select class="control-select company-role"><option value="动画制作" selected>动画制作</option><option value="制作">制作</option><option value="出品">出品</option></select><button class="remove-button" onclick="removeRow(this)" aria-label="移除公司">×</button></div></div><div class="inline-actions"><button class="mini-button" onclick="addCompany('editCompanyList')">＋ 添加公司</button></div></div>
+                <div class="field"><label>所属系列<code class="field-key">seriesId</code></label><select class="control-select" id="editSeries"><option value="">暂不关联</option><option value="7">葬送的芙莉莲 · #7</option><option value="3" selected>迷宫饭 · #3</option></select></div><div class="field"><label>系列排序<code class="field-key">seriesSortOrder</code></label><input class="control" id="editSeriesOrder" type="number" min="0" value="3"></div>
+                <div class="field full"><label>外部链接<code class="field-key">externalLinks[]</code></label><div class="repeat-list" id="editLinkList"><div class="repeat-row link-row"><input class="control" value="官网" placeholder="来源标题"><input class="control link-url" type="url" value="https://frieren-anime.jp"><input class="control sort-control" type="number" min="0" value="0" aria-label="排序值 sortOrder"><button class="remove-button" onclick="removeRow(this)" aria-label="移除外链">×</button></div></div><div class="inline-actions"><button class="mini-button" onclick="addLink('editLinkList')">＋ 添加外链</button></div></div>
+              </div></section><div class="form-actions"><span class="page-note">修改将以完整 DTO 更新，子资源关系会整体替换。</span><div class="save-actions"><button class="secondary-button" onclick="closeDrawer()">取消</button><button class="primary-button" onclick="submitForm('edit')">保存修改 →</button></div></div>
+            </div><aside class="side-card payload-card"><div class="payload-head"><h2>更新请求结构</h2><span class="method-pill">POST</span></div><div class="payload-route">/anime/update</div><pre class="payload-code" id="payloadEdit"></pre><div class="payload-foot"><strong>必填</strong> · id、name、broadcastTypeId、adaptationTypeId、regionId、airDate、status</div></aside></div>
+          </section>
+
+          <section class="view drawer-panel" id="view-detail" data-title="动画详情">
+            <header class="page-hero"><div class="hero-copy"><p class="eyebrow">ANIME ARCHIVE / FILE NO. 00015</p><h1>动画详情 <span>· 作品档案卡</span></h1><p>从动画管理列表当前行打开的只读资料侧栏。</p></div><div class="hero-actions view-actions"><button class="secondary-button" onclick="openDeleteDialog(15)">⌫ 删除</button><button class="primary-button" onclick="openDrawer('edit',15)">✎ 编辑资料</button></div></header>
+            <div class="form-column" style="margin-top:18px">
+              <section class="section-card"><div class="detail-title-row"><div class="detail-cover"><img src="https://lain.bgm.tv/pic/cover/l/13/c5/400602_ZI8Y9.jpg" alt="葬送的芙莉莲封面" onerror="this.style.display='none'"></div><div class="detail-copy"><p class="eyebrow">ANIME / #15</p><h2>葬送的芙莉莲</h2><div class="detail-alias">葬送的芙莉蓮　·　Frieren</div><div class="detail-subtitle"><span class="status-chip chip">已完结</span><span class="meta-badge">TV</span><span class="meta-badge">漫画改</span><span class="meta-badge">日本</span><span class="detail-rating">★ 9.5</span></div></div></div></section>
+              <section class="section-card"><div class="section-heading"><div><h2>档案信息</h2><p>与 AnimeVO 详情响应字段对应</p></div><span class="section-index">01</span></div><div class="detail-grid">
+                <div class="detail-cell"><span>动画 ID · id</span><strong>15</strong></div><div class="detail-cell"><span>总集数 · episodeCount</span><strong>28 集</strong></div><div class="detail-cell"><span>开始放送 · airDate</span><strong>2023-09-29</strong></div><div class="detail-cell"><span>放送类型 · broadcastTypeId</span><strong>TV · #1</strong></div><div class="detail-cell"><span>改编类型 · adaptationTypeId</span><strong>漫画改 · #2</strong></div><div class="detail-cell"><span>地区 · regionId</span><strong>日本 · #1</strong></div><div class="detail-cell"><span>动画状态 · status</span><strong>3 · 已完结</strong></div><div class="detail-cell"><span>个人评分 · personalRatingScore</span><strong>9.5 / 10</strong></div><div class="detail-cell"><span>封面 · coverImageUrl</span><strong>已设置</strong></div>
+              </div></section>
+              <section class="section-card"><div class="section-heading"><div><h2>简介</h2><p>description</p></div><span class="section-index">02</span></div><p class="detail-description">魔法使芙莉莲在勇者一行击败魔王后，踏上了重新认识人类的旅程。</p></section>
+              <section class="section-card"><div class="section-heading"><div><h2>分类与关联</h2><p>别名、标签、制作公司和所属系列</p></div><span class="section-index">03</span></div><div class="form-grid">
+                <div class="field full"><label>别名 · aliasNames</label><div class="chip-list"><span class="chip">葬送的芙莉蓮</span><span class="chip">Frieren</span></div></div>
+                <div class="field full"><label>标签 · tagIds</label><div class="chip-list"><span class="chip tag-chip">冒险 · #17</span><span class="chip tag-chip">奇幻 · #18</span><span class="chip tag-chip">治愈 · #19</span></div></div>
+                <div class="field"><label>制作公司 · companies</label><div class="chip-list"><span class="chip">MADHOUSE · #5</span><span class="chip">动画制作</span></div></div>
+                <div class="field"><label>所属系列 · seriesId</label><div class="chip-list"><span class="chip">葬送的芙莉莲 · #7</span><span class="chip">顺序 0</span></div></div>
+              </div></section>
+              <section class="section-card"><div class="section-heading"><div><h2>外部资料</h2><p>详情显示来源名称和链接地址</p></div><span class="section-index">04</span></div><div class="external-list"><div class="external-item"><strong>◉　Bangumi</strong><span>https://bgm.tv/subject/400602</span></div><div class="external-item"><strong>↗　官方网站</strong><span>https://frieren-anime.jp</span></div></div></section>
+              <div class="form-actions"><span class="page-note">GET /anime/{id} · 示例详情数据</span><div class="save-actions"><button class="secondary-button" onclick="closeDrawer()">关闭详情</button><button class="primary-button" onclick="openDrawer('edit',15)">编辑资料 →</button></div></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
+    <button class="drawer-close" id="drawerClose" type="button" aria-label="关闭侧栏页面" onclick="closeDrawer()">×</button>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="overlay" id="deleteDialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle"><div class="dialog danger-dialog"><h2 id="dialogTitle">确认删除这条动画？</h2><p id="deleteDialogDescription">将提交 <code>POST /anime/delete</code>，请求体为 ID 数组。删除会级联清理动画别名、公司、外链、标签、系列关系和个人评分。</p><div class="delete-target"><div class="delete-target-cover"></div><div><strong id="deleteTargetName">葬送的芙莉莲</strong><span id="deleteTargetMeta">ID #15 · 关联资料一并清除</span></div></div><label class="dialog-check"><input id="confirmDeleteCheck" type="checkbox" onchange="updateDeleteButton()">我已确认删除这条档案及其关联数据。</label><div class="dialog-actions"><button class="secondary-button" onclick="closeDeleteDialog()">取消</button><button class="danger-button" id="confirmDeleteButton" disabled onclick="confirmDelete()">确认删除</button></div></div></div>
+    <script>
+      const state = { view: 'list', editingId: 15, deletingId: null };
+      const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+      function switchView(view) {
+        closeDrawer();
+        state.view = view;
+        document.getElementById('view-list').classList.toggle('active', view === 'list');
+        document.getElementById('view-create').classList.toggle('active', view === 'create');
+        const createTab = document.getElementById('createWorkspaceTab');
+        createTab.classList.toggle('visible', view === 'create');
+        document.querySelectorAll('.workspace-tab[data-tab]').forEach((tab) => {
+          const active = tab.dataset.tab === view;
+          tab.classList.toggle('active', active);
+          tab.querySelector('[role="tab"]').setAttribute('aria-selected', String(active));
+        });
+        document.querySelector('.workspace-tab-count').textContent = view === 'create' ? '2' : '1';
+        document.getElementById('crumbTitle').textContent = view === 'create' ? '新增动画' : '动画管理';
+        if (view === 'create') updatePayloads();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      function openDrawer(view, id) {
+        state.editingId = Number(id || state.editingId || 15);
+        const row = document.querySelector(`[data-anime-id="${state.editingId}"]`);
+        const name = row?.querySelector('.table-name')?.textContent ?? '葬送的芙莉莲';
+        document.querySelectorAll('.drawer-panel').forEach((panel) => panel.classList.remove('drawer-open'));
+        document.getElementById(`view-${view}`).classList.add('drawer-open');
+        document.getElementById('drawerBackdrop').classList.add('show');
+        document.getElementById('drawerClose').classList.add('show');
+        document.body.classList.add('drawer-visible');
+        if (view === 'edit') {
+          document.getElementById('editName').value = name;
+          document.querySelector('#view-edit .field input[disabled]').value = String(state.editingId);
+        } else {
+          document.querySelector('#view-detail .detail-copy h2').textContent = name;
+          document.querySelector('#view-detail .page-hero .eyebrow').textContent = `ANIME / #${state.editingId}`;
+          document.querySelector('#view-detail .detail-grid .detail-cell strong').textContent = String(state.editingId);
+        }
+        updatePayloads();
+      }
+      function closeDrawer() {
+        document.querySelectorAll('.drawer-panel').forEach((panel) => panel.classList.remove('drawer-open'));
+        document.getElementById('drawerBackdrop').classList.remove('show');
+        document.getElementById('drawerClose').classList.remove('show');
+        document.body.classList.remove('drawer-visible');
+      }
+      function toggleSidebar() { document.getElementById('appShell').classList.toggle('sidebar-open'); }
+      function toggleTheme() {
+        const dark = document.body.dataset.theme !== 'dark';
+        document.body.dataset.theme = dark ? 'dark' : 'light';
+        document.getElementById('themeToggle').textContent = dark ? '☼' : '☾';
+      }
+      function toggleSwitch(button) { button.setAttribute('aria-checked', String(button.getAttribute('aria-checked') !== 'true')); updatePayloads(); }
+      function selectedNumber(id) { const value = document.getElementById(id).value; return value === '' ? null : Number(value); }
+      function selectedTags(containerId) { return [...document.querySelectorAll(`#${containerId} .tag-option.selected`)].map((item) => Number(item.dataset.id)); }
+      function values(selector, rootId) { return [...document.querySelectorAll(`#${rootId} ${selector}`)].map((item) => item.value.trim()).filter(Boolean); }
+      function companyValues(rootId) { return [...document.querySelectorAll(`#${rootId} .repeat-row`)].map((row) => ({ companyId: Number(row.querySelector('.company-id').value), role: row.querySelector('.company-role').value })).filter((item) => item.companyId); }
+      function linkValues(rootId) { return [...document.querySelectorAll(`#${rootId} .link-row`)].map((row) => ({ title: row.children[0].value.trim() || null, url: row.querySelector('.link-url').value.trim(), sortOrder: Number(row.querySelector('.sort-control').value || 0) })).filter((item) => item.url); }
+      function createPayload() {
+        const payload = {
+          name: document.getElementById('name').value.trim(), episodeCount: selectedNumber('episodeCount'),
+          broadcastTypeId: selectedNumber('broadcastTypeId'), adaptationTypeId: selectedNumber('adaptationTypeId'),
+          regionId: selectedNumber('regionId'), airDate: document.getElementById('airDate').value || null,
+          coverImageUrl: document.getElementById('coverImageUrl').value.trim() || null, status: Number(document.getElementById('status').value),
+          description: document.getElementById('description').value.trim() || null, aliasNames: values('.alias-input', 'aliasList'),
+          companies: companyValues('companyList'), externalLinks: linkValues('linkList'), tagIds: selectedTags('tagPicker'),
+          seriesId: selectedNumber('seriesId'), seriesSortOrder: selectedNumber('seriesSortOrder'),
+          autoCreateSeries: document.getElementById('autoCreateSwitch').getAttribute('aria-checked') === 'true',
+          personalRatingScore: selectedNumber('personalRatingScore')
+        };
+        return payload;
+      }
+      function editPayload() {
+        return {
+          id: state.editingId, name: document.getElementById('editName').value.trim(), episodeCount: selectedNumber('editEpisodes'),
+          broadcastTypeId: selectedNumber('editBroadcast'), adaptationTypeId: selectedNumber('editAdaptation'),
+          regionId: selectedNumber('editRegion'), airDate: document.getElementById('editAirDate').value || null,
+          coverImageUrl: document.getElementById('editCover').value.trim() || null, status: Number(document.getElementById('editStatus').value),
+          description: document.getElementById('editDescription').value.trim() || null, aliasNames: values('.alias-input', 'editAliasList'),
+          companies: companyValues('editCompanyList'), externalLinks: linkValues('editLinkList'), tagIds: selectedTags('editTagPicker'),
+          seriesId: selectedNumber('editSeries'), seriesSortOrder: selectedNumber('editSeriesOrder'), personalRatingScore: selectedNumber('editRating')
+        };
+      }
+      function updatePayloads() {
+        const create = createPayload();
+        const edit = editPayload();
+        document.getElementById('payloadCreate').textContent = JSON.stringify(create, null, 2);
+        document.getElementById('payloadEdit').textContent = JSON.stringify(edit, null, 2);
+      }
+      function toggleTag(button) { button.classList.toggle('selected'); updatePayloads(); }
+      function setRatingState(fieldId, value) {
+        document.getElementById(fieldId).value = value == null ? '' : String(value);
+        const picker = document.querySelector(`[data-rate-for="${fieldId}"]`);
+        const zero = picker.querySelector('.rate-zero');
+        if (zero) zero.setAttribute('aria-checked', String(value === 0));
+        picker.querySelectorAll('.rate-star').forEach((star) => {
+          const score = Number(star.dataset.score);
+          star.classList.toggle('selected', value != null && score <= value);
+          star.setAttribute('aria-checked', String(value != null && score === value));
+        });
+        picker.querySelector('.rate-value').innerHTML = value == null ? '— <small>/ 10</small>' : `${value} <small>/ 10</small>`;
+      }
+      function setRating(fieldId, value) { setRatingState(fieldId, Math.max(0, Math.min(10, Math.round(value)))); updatePayloads(); }
+      function clearRating(fieldId) { setRatingState(fieldId, null); updatePayloads(); }
+      function removeRow(button) { button.closest('.repeat-row').remove(); updatePayloads(); }
+      function addAlias(listId = 'aliasList') {
+        const row = document.createElement('div'); row.className = 'repeat-row';
+        row.innerHTML = '<input class="control alias-input" placeholder="输入别名"><button class="remove-button" type="button" aria-label="移除别名" onclick="removeRow(this)">×</button>';
+        document.getElementById(listId).append(row); row.querySelector('input').focus(); updatePayloads();
+      }
+      function addCompany(listId = 'companyList') {
+        const row = document.createElement('div'); row.className = 'repeat-row';
+        row.innerHTML = '<select class="control-select company-id"><option value="">选择公司（companyId）</option><option value="5">MADHOUSE · #5</option><option value="8">TRIGGER · #8</option><option value="3">Studio Deen · #3</option></select><select class="control-select company-role"><option>制作</option><option>动画制作</option><option>出品</option><option>协力</option></select><button class="remove-button" type="button" aria-label="移除公司" onclick="removeRow(this)">×</button>';
+        document.getElementById(listId).append(row); updatePayloads();
+      }
+      function addLink(listId = 'linkList') {
+        const row = document.createElement('div'); row.className = 'repeat-row link-row';
+        row.innerHTML = '<input class="control" placeholder="来源标题"><input class="control link-url" type="url" placeholder="https://…"><input class="control sort-control" type="number" min="0" step="1" value="0" aria-label="排序值 sortOrder"><button class="remove-button" type="button" aria-label="移除外链" onclick="removeRow(this)">×</button>';
+        document.getElementById(listId).append(row); updatePayloads();
+      }
+      function previewCover() {
+        const url = document.getElementById('coverImageUrl').value.trim(); const preview = document.getElementById('coverPreview');
+        preview.innerHTML = url ? `<img src="${esc(url)}" alt="封面预览" onerror="this.remove();this.parentElement.innerHTML='<div class=cover-placeholder><b>?</b><span>无法载入</span></div>'">` : '<div class="cover-placeholder"><b>封</b><span>NO COVER</span></div>';
+      }
+      function resetForm() {
+        document.getElementById('name').value = ''; document.getElementById('episodeCount').value = '';
+        document.getElementById('broadcastTypeId').value = ''; document.getElementById('adaptationTypeId').value = '';
+        document.getElementById('regionId').value = ''; document.getElementById('airDate').value = '';
+        document.getElementById('status').value = '1'; setRatingState('personalRatingScore', null);
+        document.getElementById('description').value = ''; document.getElementById('coverImageUrl').value = '';
+        document.getElementById('aliasList').innerHTML = ''; document.getElementById('seriesId').value = '';
+        document.getElementById('seriesSortOrder').value = ''; document.getElementById('autoCreateSwitch').setAttribute('aria-checked','false');
+        document.querySelectorAll('#tagPicker .tag-option').forEach((item) => item.classList.remove('selected'));
+        document.getElementById('nameError').hidden = true; updatePayloads(); previewCover(); showToast('表单已重置');
+      }
+      function submitForm(mode) {
+        if (mode === 'create' && !document.getElementById('name').value.trim()) {
+          const error = document.getElementById('nameError'); error.hidden = false; document.getElementById('name').classList.add('invalid'); document.getElementById('name').focus(); return;
+        }
+        document.getElementById(mode === 'create' ? 'name' : 'editName').classList.remove('invalid');
+        updatePayloads(); showToast(mode === 'create' ? '新增请求预览已更新' : '修改请求预览已更新');
+      }
+      function updateDeleteButton() { document.getElementById('confirmDeleteButton').disabled = !document.getElementById('confirmDeleteCheck').checked; }
+      function openDeleteDialog(id) {
+        state.deletingId = Number(id || state.editingId || 15);
+        const row = document.querySelector(`[data-anime-id="${state.deletingId}"]`);
+        const name = row?.querySelector('.table-name')?.textContent ?? '动画资料';
+        document.getElementById('deleteTargetName').textContent = name;
+        document.getElementById('deleteTargetMeta').textContent = `ID #${state.deletingId} · 别名、关联和个人评分将一并移除`;
+        document.getElementById('deleteDialogDescription').innerHTML = `将提交 <code>POST /anime/delete</code>，请求体为 <code>[${state.deletingId}]</code>。删除会级联清理动画别名、公司、外链、标签、系列关系和个人评分。`;
+        document.getElementById('confirmDeleteCheck').checked = false;
+        updateDeleteButton();
+        document.getElementById('deleteDialog').classList.add('show');
+      }
+      function closeDeleteDialog() { document.getElementById('deleteDialog').classList.remove('show'); }
+      function confirmDelete() {
+        document.querySelector(`[data-anime-id="${state.deletingId}"]`)?.remove();
+        closeDeleteDialog(); closeDrawer();
+        const remaining = document.querySelectorAll('#animeRows tr').length;
+        document.getElementById('listTotal').textContent = String(Math.max(Number(document.getElementById('listTotal').textContent) - 1, 0));
+        document.getElementById('listCountLabel').textContent = `当前展示 ${remaining} 条 · 共 ${document.getElementById('listTotal').textContent} 条`;
+        showToast('原型中已移除该动画 · 未调用接口');
+      }
+      function filterList(keyword) {
+        const term = keyword.trim().toLocaleLowerCase(); let visible = 0;
+        document.querySelectorAll('#animeRows tr').forEach((row) => {
+          const match = !term || row.dataset.search.toLocaleLowerCase().includes(term);
+          row.hidden = !match; if (match) visible += 1;
+        });
+        document.getElementById('listCountLabel').textContent = `当前匹配 ${visible} 条 · 共 128 条`;
+      }
+      let toastTimer;
+      function showToast(message) { const toast = document.getElementById('toast'); toast.textContent = message; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2400); }
+      document.addEventListener('input', (event) => { if (event.target.matches('input,textarea,select')) updatePayloads(); });
+      document.addEventListener('change', (event) => { if (event.target.matches('input,textarea,select')) updatePayloads(); });
+      document.querySelectorAll('.rate-picker').forEach((picker) => {
+        const fieldId = picker.dataset.rateFor;
+        const zero = document.createElement('button');
+        zero.className = 'rate-zero'; zero.type = 'button'; zero.setAttribute('role', 'radio');
+        zero.setAttribute('aria-label', '0 分'); zero.textContent = '0';
+        zero.addEventListener('click', () => setRating(fieldId, 0));
+        picker.prepend(zero);
+        picker.setAttribute('aria-label', '个人评分，整数 0 到 10 分');
+        setRatingState(fieldId, document.getElementById(fieldId).value === '' ? null : Number(document.getElementById(fieldId).value));
+        picker.addEventListener('pointermove', (event) => {
+          const star = event.target.closest('.rate-star');
+          picker.querySelectorAll('.rate-star').forEach((item) => item.classList.toggle('preview', Boolean(star) && Number(item.dataset.score) <= Number(star.dataset.score)));
+        });
+        picker.addEventListener('pointerleave', () => picker.querySelectorAll('.rate-star').forEach((item) => item.classList.remove('preview')));
+        picker.addEventListener('keydown', (event) => {
+          if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const fieldId = picker.dataset.rateFor;
+          const raw = document.getElementById(fieldId).value;
+          const current = raw === '' ? 0 : Number(raw);
+          const next = event.key === 'Home' ? 0 : event.key === 'End' ? 10 : current + (event.key === 'ArrowRight' ? 1 : -1);
+          const score = Math.max(0, Math.min(10, next));
+          setRating(fieldId, score);
+          picker.querySelector(`[data-score="${score}"]`).focus();
+        });
+      });
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeDeleteDialog(); closeDrawer(); } });
+      document.getElementById('deleteDialog').addEventListener('click', (event) => { if (event.target.id === 'deleteDialog') closeDeleteDialog(); });
+      updatePayloads();
+    </script>
+  </body>
+</html>
