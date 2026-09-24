@@ -52,12 +52,12 @@ function syncDraftWithValue() {
   selectedYear.value = parsed?.year ?? currentYear
   selectedMonth.value = parsed?.month ?? null
   pageStart.value = getYearPageStart(selectedYear.value)
+  view.value = parsed?.month ? 'month' : 'year'
 }
 
 function openPicker() {
   if (props.disabled || open.value) return
   syncDraftWithValue()
-  view.value = 'year'
   open.value = true
 }
 
@@ -122,13 +122,19 @@ watch(
 
 watch(
   () => props.modelValue,
-  () => {
+  (value) => {
     if (!open.value) return
-    const parsed = validateArchiveDate(props.modelValue).value
+    if (!value.trim()) {
+      selectedMonth.value = null
+      view.value = 'year'
+      return
+    }
+    const parsed = validateArchiveDate(value).value
     if (!parsed) return
     selectedYear.value = parsed.year
     selectedMonth.value = parsed.month
     pageStart.value = getYearPageStart(parsed.year)
+    view.value = parsed.month === null ? 'year' : 'month'
   },
 )
 

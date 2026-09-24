@@ -61,7 +61,8 @@ const companies = ref<CompanyOption[]>([])
 const series = ref<SeriesSummary[]>([])
 const loading = ref(true)
 const submitting = ref(false)
-const confirmationAction = ref<'save' | 'reset' | 'cancel' | null>(null)
+const confirmationAction = ref<'save' | 'reset' | 'cancel' | 'saved' | null>(null)
+const savedAnime = ref<AnimeDetail | null>(null)
 const errorMessage = ref('')
 const errors = reactive<Record<string, string>>({})
 let loadController: AbortController | undefined
@@ -81,7 +82,7 @@ function createDefaultForm(): AnimeForm {
     broadcastTypeId: '',
     adaptationTypeId: '',
     regionId: '',
-    status: '1',
+    status: props.mode === 'create' ? '' : '1',
     airDate: '',
     episodeCount: '',
     personalRatingScore: '',
@@ -208,14 +209,9 @@ function validateForm() {
   if (!form.adaptationTypeId) setError('adaptationTypeId', '请选择改编类型。')
   if (!form.regionId) setError('regionId', '请选择地区。')
   if (!form.status) setError('status', '请选择动画状态。')
-  const selectedDate = new Date(`${form.airDate}T00:00:00Z`)
-  if (
-    !/^\d{4}-\d{2}-\d{2}$/.test(form.airDate) ||
-    Number.isNaN(selectedDate.getTime()) ||
-    selectedDate.toISOString().slice(0, 10) !== form.airDate
-  ) {
-    setError('airDate', '请选择有效的开始放送日期。')
-  }
+  const normalizedAirDate = normalizeAirDate(form.airDate)
+  if (!normalizedAirDate) setError('airDate', '请输入完整且有效的开始放送日期（YYYY-MM-DD）。')
+  else form.airDate = normalizedAirDate
   if (form.episodeCount && (!/^\d+$/.test(form.episodeCount) || Number(form.episodeCount) < 0)) {
     setError('episodeCount', '总集数请输入非负整数。')
   }
@@ -252,6 +248,19 @@ function isHttpUrl(value: string) {
   }
 }
 
+function normalizeAirDate(value: string) {
+  const match = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(value.trim())
+  if (!match) return null
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  if (year < 1 || month < 1 || month > 12) return null
+  const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const lastDay = month === 2 ? (isLeapYear ? 29 : 28) : [4, 6, 9, 11].includes(month) ? 30 : 31
+  if (day < 1 || day > lastDay) return null
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
 function buildPayload(): AnimePayload {
   return {
     ...(props.mode === 'edit' && props.animeId ? { id: props.animeId } : {}),
@@ -260,7 +269,7 @@ function buildPayload(): AnimePayload {
     broadcastTypeId: Number(form.broadcastTypeId),
     adaptationTypeId: Number(form.adaptationTypeId),
     regionId: Number(form.regionId),
-    airDate: form.airDate,
+    airDate: normalizeAirDate(form.airDate) ?? form.airDate,
     coverImageUrl: form.coverImageUrl.trim() || null,
     status: Number(form.status),
     description: form.description.trim() || null,
@@ -298,7 +307,10 @@ async function saveForm() {
       props.mode === 'create'
         ? await createAnime(payload)
         : await updateAnime(payload as AnimePayload & { id: number })
-    emit('saved', saved)
+    if (props.mode === 'edit') {
+      savedAnime.value = saved
+      confirmationAction.value = 'saved'
+    } else emit('saved', saved)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '保存动画资料失败，请稍后重试。'
   } finally {
@@ -321,12 +333,17 @@ function requestCancel() {
 
 defineExpose({ requestCancel })
 
+function dismissConfirmation() {
+  if (confirmationAction.value !== 'saved') confirmationAction.value = null
+}
+
 async function confirmAction() {
   const action = confirmationAction.value
   confirmationAction.value = null
   if (action === 'save') await saveForm()
   else if (action === 'reset') resetForm()
   else if (action === 'cancel') emit('cancelled')
+  else if (action === 'saved' && savedAnime.value) emit('saved', savedAnime.value)
 }
 </script>
 
@@ -428,7 +445,7 @@ async function confirmAction() {
               id="animeStatus"
               v-model="form.status"
               label="动画状态"
-              placeholder="请选择状态"
+              placeholder="请选择动画状态"
               :options="statusOptions"
               :show-placeholder-option="false"
             />
@@ -440,7 +457,7 @@ async function confirmAction() {
               id="animeAirDate"
               v-model="form.airDate"
               :invalid="!!errors.airDate"
-              @update:model-value="errors.airDate = ''"
+              @update:model-value="(value) => { if (normalizeAirDate(value)) errors.airDate = '' }"
             />
             <small v-if="errors.airDate" class="field-error">{{ errors.airDate }}</small>
           </div>
@@ -712,17 +729,39 @@ async function confirmAction() {
         </button>
       </footer>
     </form>
-    <div v-if="confirmationAction" class="anime-confirm-backdrop" @click.self="confirmationAction = null">
-      <section class="anime-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="animeConfirmTitle">
-        <span class="anime-confirm-mark" aria-hidden="true">?</span>
-        <h2 id="animeConfirmTitle">{{ confirmationAction === 'save' ? '确认保存动画？' : confirmationAction === 'reset' ? '确认重置表单？' : '确认取消编辑？' }}</h2>
-        <p>{{ confirmationAction === 'save' ? '请确认当前动画资料无误后继续保存。' : confirmationAction === 'reset' ? '当前填写的内容将被清空，是否继续？' : '尚未保存的修改将会丢失，是否离开？' }}</p>
-        <div class="anime-confirm-actions">
-          <button class="secondary-button" type="button" @click="confirmationAction = null">返回</button>
-          <button class="primary-button" type="button" :disabled="submitting" @click="confirmAction">{{ confirmationAction === 'save' ? '确认保存' : confirmationAction === 'reset' ? '确认重置' : '确认离开' }}</button>
-        </div>
-      </section>
-    </div>
+    <Teleport to="body">
+      <div
+        v-if="confirmationAction"
+        class="anime-confirm-backdrop"
+        @click.self="dismissConfirmation"
+      >
+        <section
+          class="anime-confirm-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="animeConfirmTitle"
+        >
+          <span class="anime-confirm-mark" aria-hidden="true">{{ confirmationAction === 'saved' ? '✓' : '?' }}</span>
+          <h2 id="animeConfirmTitle">
+            {{ confirmationAction === 'saved' ? '动画修改成功' : confirmationAction === 'save' ? '确认保存动画？' : confirmationAction === 'reset' ? '确认重置表单？' : '确认取消编辑？' }}
+          </h2>
+          <p>
+            {{ confirmationAction === 'saved' ? '动画资料已保存，点击确认返回动画列表。' : confirmationAction === 'save' ? '请确认当前动画资料无误后继续保存。' : confirmationAction === 'reset' ? '当前填写的内容将被清空，是否继续？' : '尚未保存的修改将会丢失，是否离开？' }}
+          </p>
+          <div class="anime-confirm-actions">
+            <button
+              v-if="confirmationAction !== 'saved'"
+              class="secondary-button"
+              type="button"
+              @click="dismissConfirmation"
+            >返回</button>
+            <button class="primary-button" type="button" :disabled="submitting" @click="confirmAction">
+              {{ confirmationAction === 'saved' ? '确认' : confirmationAction === 'save' ? '确认保存' : confirmationAction === 'reset' ? '确认重置' : '确认离开' }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -966,6 +1005,7 @@ async function confirmAction() {
   gap: 5px;
   min-height: 30px;
   padding: 0 9px;
+  margin-top: 9px;
   color: var(--accent-strong);
   background: var(--surface-solid);
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
@@ -1091,21 +1131,26 @@ async function confirmAction() {
 .anime-confirm-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 180;
+  z-index: 300;
   display: grid;
   place-items: center;
   padding: 18px;
+  overflow: hidden;
   background: rgba(18, 17, 30, 0.42);
   backdrop-filter: blur(3px);
+  overscroll-behavior: contain;
 }
 .anime-confirm-dialog {
   width: min(390px, 100%);
+  max-height: calc(100dvh - 36px);
   padding: 22px;
+  overflow-y: auto;
   color: var(--ink);
   background: var(--surface-solid);
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: 0 22px 60px rgba(20, 17, 40, 0.22);
+  overscroll-behavior: contain;
 }
 .anime-confirm-mark {
   display: grid;

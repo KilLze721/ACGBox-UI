@@ -23,6 +23,15 @@ const loading = ref(true)
 const errorMessage = ref('')
 const editorForm = ref<InstanceType<typeof AnimeEditorForm> | null>(null)
 let controller: AbortController | undefined
+let scrollLockState:
+  | {
+      htmlOverflow: string
+      bodyOverflow: string
+      htmlPaddingRight: string
+      scrollX: number
+      scrollY: number
+    }
+  | undefined
 
 const statusNames: Record<number, string> = {
   1: '未放送',
@@ -32,6 +41,23 @@ const statusNames: Record<number, string> = {
 }
 
 onMounted(async () => {
+  const html = document.documentElement
+  const body = document.body
+  const scrollbarWidth = window.innerWidth - html.clientWidth
+  scrollLockState = {
+    htmlOverflow: html.style.overflow,
+    bodyOverflow: body.style.overflow,
+    htmlPaddingRight: html.style.paddingRight,
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+  }
+  html.style.overflow = 'hidden'
+  body.style.overflow = 'hidden'
+  if (scrollbarWidth > 0) {
+    const currentPadding = Number.parseFloat(getComputedStyle(html).paddingRight) || 0
+    html.style.paddingRight = `${currentPadding + scrollbarWidth}px`
+  }
+
   if (props.mode !== 'detail') return
   controller = new AbortController()
   try {
@@ -44,7 +70,18 @@ onMounted(async () => {
   }
 })
 
-onBeforeUnmount(() => controller?.abort())
+onBeforeUnmount(() => {
+  controller?.abort()
+  if (!scrollLockState) return
+  const html = document.documentElement
+  const body = document.body
+  html.style.overflow = scrollLockState.htmlOverflow
+  body.style.overflow = scrollLockState.bodyOverflow
+  html.style.paddingRight = scrollLockState.htmlPaddingRight
+  if (window.scrollX !== scrollLockState.scrollX || window.scrollY !== scrollLockState.scrollY)
+    window.scrollTo(scrollLockState.scrollX, scrollLockState.scrollY)
+  scrollLockState = undefined
+})
 
 function openEdit() {
   emit('edit')
@@ -300,16 +337,27 @@ function getSafeExternalUrl(value: string) {
   background: rgba(18, 17, 30, 0.43);
   backdrop-filter: blur(3px);
   animation: anime-crud-fade 0.16s ease both;
+  overscroll-behavior: contain;
 }
 .anime-crud-drawer {
   position: relative;
   width: min(920px, 92vw);
   height: 100dvh;
   padding: 22px 25px 28px;
-  overflow: auto;
+  max-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--canvas);
   box-shadow: -22px 0 60px rgba(20, 17, 40, 0.18);
   animation: anime-crud-slide 0.2s ease both;
+}
+.anime-crud-drawer :deep(.anime-editor-footer) {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  padding: 10px 0 5px;
+  background: var(--canvas);
+  box-shadow: 0 -8px 16px rgba(20, 17, 40, 0.06);
 }
 .anime-crud-drawer-close {
   position: fixed;
