@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { createAnime, getAnimeDetail, updateAnime } from '@/api/anime'
 import {
   getCompanies,
@@ -27,6 +28,10 @@ const props = defineProps<{
   animeId?: number
 }>()
 
+const route = useRoute()
+const ownerFullPath = route.fullPath
+const visible = computed(() => route.fullPath === ownerFullPath)
+
 const emit = defineEmits<{
   saved: [anime: AnimeDetail]
   cancelled: []
@@ -53,6 +58,7 @@ interface AnimeForm {
 }
 
 const form = reactive<AnimeForm>(createDefaultForm())
+const initialFormState = ref(getFormSnapshot())
 const broadcastTypes = ref<NamedOption[]>([])
 const adaptationTypes = ref<NamedOption[]>([])
 const regions = ref<NamedOption[]>([])
@@ -98,6 +104,13 @@ function createDefaultForm(): AnimeForm {
   }
 }
 
+function getFormSnapshot() {
+  return JSON.stringify({
+    ...form,
+    tagIds: [...form.tagIds].sort((left, right) => left - right),
+  })
+}
+
 async function getAllPages<T>(loadPage: (pageNum: number) => Promise<PageResult<T>>) {
   const firstPage = await loadPage(1)
   if (firstPage.pages <= 1) return firstPage.rows
@@ -134,6 +147,7 @@ function applyAnime(anime: AnimeDetail) {
     seriesId: anime.seriesId === null ? '' : String(anime.seriesId),
     seriesSortOrder: anime.seriesSortOrder === null ? '' : String(anime.seriesSortOrder),
   })
+  initialFormState.value = getFormSnapshot()
 }
 
 onMounted(async () => {
@@ -301,12 +315,14 @@ function requestSave() {
 async function saveForm() {
   submitting.value = true
   errorMessage.value = ''
+  const submittedFormState = getFormSnapshot()
   try {
     const payload = buildPayload()
     const saved =
       props.mode === 'create'
         ? await createAnime(payload)
         : await updateAnime(payload as AnimePayload & { id: number })
+    initialFormState.value = submittedFormState
     if (props.mode === 'edit') {
       savedAnime.value = saved
       confirmationAction.value = 'saved'
@@ -331,7 +347,14 @@ function requestCancel() {
   confirmationAction.value = 'cancel'
 }
 
-defineExpose({ requestCancel })
+function getCloseState() {
+  return {
+    dirty: getFormSnapshot() !== initialFormState.value,
+    submitting: submitting.value,
+  }
+}
+
+defineExpose({ requestCancel, getCloseState })
 
 function dismissConfirmation() {
   if (confirmationAction.value !== 'saved') confirmationAction.value = null
@@ -732,6 +755,7 @@ async function confirmAction() {
     <Teleport to="body">
       <div
         v-if="confirmationAction"
+        v-show="visible"
         class="anime-confirm-backdrop"
         @click.self="dismissConfirmation"
       >

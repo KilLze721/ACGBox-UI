@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import {
+  computed,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  ref,
+  watch,
+} from 'vue'
+import { useRoute } from 'vue-router'
 import { getAnimeDetail } from '@/api/anime'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import AnimeEditorForm from './AnimeEditorForm.vue'
@@ -10,6 +19,10 @@ const props = defineProps<{
   animeId: number
   anime: AnimePageItem
 }>()
+
+const route = useRoute()
+const ownerFullPath = route.fullPath
+const visible = computed(() => route.fullPath === ownerFullPath)
 
 const emit = defineEmits<{
   close: []
@@ -40,7 +53,8 @@ const statusNames: Record<number, string> = {
   4: '其他',
 }
 
-onMounted(async () => {
+function lockPageScroll() {
+  if (scrollLockState) return
   const html = document.documentElement
   const body = document.body
   const scrollbarWidth = window.innerWidth - html.clientWidth
@@ -57,6 +71,22 @@ onMounted(async () => {
     const currentPadding = Number.parseFloat(getComputedStyle(html).paddingRight) || 0
     html.style.paddingRight = `${currentPadding + scrollbarWidth}px`
   }
+}
+
+function restorePageScroll() {
+  if (!scrollLockState) return
+  const html = document.documentElement
+  const body = document.body
+  html.style.overflow = scrollLockState.htmlOverflow
+  body.style.overflow = scrollLockState.bodyOverflow
+  html.style.paddingRight = scrollLockState.htmlPaddingRight
+  if (window.scrollX !== scrollLockState.scrollX || window.scrollY !== scrollLockState.scrollY)
+    window.scrollTo(scrollLockState.scrollX, scrollLockState.scrollY)
+  scrollLockState = undefined
+}
+
+onMounted(async () => {
+  lockPageScroll()
 
   if (props.mode !== 'detail') return
   controller = new AbortController()
@@ -70,18 +100,25 @@ onMounted(async () => {
   }
 })
 
+onActivated(lockPageScroll)
+onDeactivated(restorePageScroll)
+watch(visible, (active) => {
+  if (active) lockPageScroll()
+  else restorePageScroll()
+})
+
 onBeforeUnmount(() => {
   controller?.abort()
-  if (!scrollLockState) return
-  const html = document.documentElement
-  const body = document.body
-  html.style.overflow = scrollLockState.htmlOverflow
-  body.style.overflow = scrollLockState.bodyOverflow
-  html.style.paddingRight = scrollLockState.htmlPaddingRight
-  if (window.scrollX !== scrollLockState.scrollX || window.scrollY !== scrollLockState.scrollY)
-    window.scrollTo(scrollLockState.scrollX, scrollLockState.scrollY)
-  scrollLockState = undefined
+  restorePageScroll()
 })
+
+function getCloseState() {
+  return props.mode === 'edit'
+    ? editorForm.value?.getCloseState() ?? { dirty: false, submitting: false }
+    : { dirty: false, submitting: false }
+}
+
+defineExpose({ getCloseState })
 
 function openEdit() {
   emit('edit')
@@ -104,7 +141,7 @@ function getSafeExternalUrl(value: string) {
 
 <template>
   <Teleport to="body">
-    <div class="anime-crud-backdrop" @click.self="requestClose">
+    <div v-show="visible" class="anime-crud-backdrop" @click.self="requestClose">
       <aside
         class="anime-crud-drawer"
         role="dialog"

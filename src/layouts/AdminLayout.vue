@@ -1,13 +1,47 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  cloneVNode,
+  computed,
+  defineComponent,
+  markRaw,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+  watchEffect,
+  type Component,
+  type ComponentPublicInstance,
+  type VNode,
+} from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 
 interface WorkspaceTab {
+  id: string
   path: string
+  fullPath: string
   title: string
   icon: string
   closable: boolean
+  ordinal: number
+  cacheName: string
+}
+
+interface TabCloseState {
+  dirty: boolean
+  submitting: boolean
+}
+
+interface CloseAwarePage {
+  getCloseState?: () => TabCloseState
+}
+
+interface PendingTabClose {
+  ids: string[]
+  keepId: string | null
+  affectedTitles: string[]
+  submitting: boolean
 }
 
 const route = useRoute()
@@ -18,6 +52,12 @@ const tabViewport = ref<HTMLElement>()
 const canScrollTabsLeft = ref(false)
 const canScrollTabsRight = ref(false)
 const darkTheme = ref(false)
+const activeTabId = ref('dashboard')
+const pendingTabClose = ref<PendingTabClose | null>(null)
+const pageWrappers = new Map<string, Component>()
+const pageInstances = new Map<string, CloseAwarePage>()
+const tabSession = Date.now().toString(36)
+let tabSequence = 0
 
 const menuItems = computed(() =>
   router
@@ -32,15 +72,21 @@ const currentTitle = computed(() => route.meta.title)
 
 const workspaceTabs = ref<WorkspaceTab[]>([
   {
+    id: 'dashboard',
     path: '/admin/dashboard',
+    fullPath: '/admin/dashboard',
     title: '数据概览',
     icon: 'dashboard',
     closable: false,
+    ordinal: 1,
+    cacheName: 'WorkspaceTab-dashboard',
   },
 ])
 
+const activeTab = computed(() => workspaceTabs.value.find((tab) => tab.id === activeTabId.value))
+const cachedTabNames = computed(() => workspaceTabs.value.map((tab) => tab.cacheName))
 const canCloseOtherTabs = computed(() =>
-  workspaceTabs.value.some((tab) => tab.closable && tab.path !== route.fullPath),
+  workspaceTabs.value.some((tab) => tab.closable && tab.id !== activeTabId.value),
 )
 
 watch(
@@ -51,6 +97,15 @@ watch(
   },
   { immediate: true },
 )
+
+watchEffect(() => {
+  const pending = pendingTabClose.value
+  if (!pending?.submitting) return
+  const stillSubmitting = workspaceTabs.value.some(
+    (tab) => pending.ids.includes(tab.id) && getCloseState(tab).submitting,
+  )
+  if (!stillSubmitting) pendingTabClose.value = null
+})
 
 onMounted(() => {
   darkTheme.value = localStorage.getItem('acgbox-theme') === 'dark'
@@ -71,22 +126,81 @@ function getCurrentRouteIcon() {
 }
 
 function openCurrentRouteTab() {
-  const currentPath = route.fullPath
-  const existingTab = workspaceTabs.value.find((tab) => tab.path === currentPath)
-
-  if (existingTab) {
-    existingTab.title = route.meta.title
-    existingTab.icon = getCurrentRouteIcon()
-  } else {
-    workspaceTabs.value.push({
-      path: currentPath,
-      title: route.meta.title,
-      icon: getCurrentRouteIcon(),
-      closable: currentPath !== '/admin/dashboard',
-    })
+  if (route.path === '/admin/dashboard') {
+    activeTabId.value = 'dashboard'
+    if (route.fullPath !== '/admin/dashboard') void router.replace('/admin/dashboard')
+    void scrollActiveTabIntoView()
+    return
   }
 
+  let tab = workspaceTabs.value.find((item) => item.fullPath === route.fullPath)
+  if (!tab) {
+    const ordinal =
+      Math.max(
+        0,
+        ...workspaceTabs.value
+          .filter((item) => item.path === route.path)
+          .map((item) => item.ordinal),
+      ) + 1
+    const id = `tab-${tabSession}-${++tabSequence}`
+    tab = {
+      id,
+      path: route.path,
+      fullPath: route.fullPath,
+      title: `${route.meta.title}${ordinal > 1 ? `(${ordinal})` : ''}`,
+      icon: getCurrentRouteIcon(),
+      closable: true,
+      ordinal,
+      cacheName: `WorkspaceTab-${id}`,
+    }
+    workspaceTabs.value.push(tab)
+  }
+  activeTabId.value = tab.id
+
   void scrollActiveTabIntoView()
+}
+
+function getTabWrapper(component: VNode) {
+  const tab = activeTab.value
+  if (!tab) return null
+  const existing = pageWrappers.get(tab.id)
+  if (existing) return existing
+
+  const wrapper = markRaw(
+    defineComponent({
+      name: tab.cacheName,
+      setup() {
+        return () =>
+          cloneVNode(
+            component,
+            {
+              ref: (instance: Element | ComponentPublicInstance | null) => {
+                if (instance) pageInstances.set(tab.id, instance as CloseAwarePage)
+                else pageInstances.delete(tab.id)
+              },
+            },
+            true,
+          )
+      },
+    }),
+  )
+  pageWrappers.set(tab.id, wrapper)
+  return wrapper
+}
+
+function openMenuPage(path: string) {
+  mobileSidebarOpen.value = false
+  if (path === '/admin/dashboard') {
+    void router.push(path)
+    return
+  }
+  if (!workspaceTabs.value.some((tab) => tab.path === path)) {
+    void router.push(path)
+    return
+  }
+  const id = `tab-${tabSession}-${++tabSequence}`
+  // 同一路由通过内部查询参数区分标签实例和浏览器历史记录。
+  void router.push({ path, query: { __workspaceTab: id } })
 }
 
 async function scrollActiveTabIntoView() {
@@ -112,35 +226,102 @@ function scrollTabs(direction: 'left' | 'right') {
 }
 
 function activateAdjacentTab(offset: number) {
-  const currentIndex = workspaceTabs.value.findIndex((tab) => tab.path === route.fullPath)
+  const currentIndex = workspaceTabs.value.findIndex((tab) => tab.id === activeTabId.value)
   if (currentIndex < 0) return
 
   const nextIndex =
     (currentIndex + offset + workspaceTabs.value.length) % workspaceTabs.value.length
   const nextTab = workspaceTabs.value[nextIndex]
-  if (nextTab) void router.push(nextTab.path)
+  if (nextTab) void router.push(nextTab.fullPath)
 }
 
-function closeWorkspaceTab(path: string) {
-  const closingIndex = workspaceTabs.value.findIndex((tab) => tab.path === path && tab.closable)
-  if (closingIndex < 0) return
+async function activateTab(tab: WorkspaceTab) {
+  if (route.fullPath === tab.fullPath) activeTabId.value = tab.id
+  else await router.push(tab.fullPath)
+}
 
-  const closingActiveTab = route.fullPath === path
-  workspaceTabs.value.splice(closingIndex, 1)
+function getCloseState(tab: WorkspaceTab): TabCloseState {
+  return pageInstances.get(tab.id)?.getCloseState?.() ?? { dirty: false, submitting: false }
+}
 
-  if (closingActiveTab) {
-    const nextTab = workspaceTabs.value[Math.max(0, closingIndex - 1)] ?? workspaceTabs.value[0]
-    if (nextTab) void router.push(nextTab.path)
+async function finishClosingTabs(ids: string[], keepId: string | null) {
+  const closing = new Set(ids)
+  const closingIndex = workspaceTabs.value.findIndex((tab) => tab.id === activeTabId.value)
+  const remaining = workspaceTabs.value.filter((tab) => !closing.has(tab.id))
+  if (closing.has(activeTabId.value)) {
+    const nextTab =
+      remaining.find((tab) => tab.id === keepId) ??
+      remaining[Math.max(0, closingIndex - 1)] ??
+      remaining[0]
+    if (nextTab) await activateTab(nextTab)
+  }
+  workspaceTabs.value = remaining
+  ids.forEach((id) => {
+    pageWrappers.delete(id)
+    pageInstances.delete(id)
+  })
+  void nextTick(updateTabScrollState)
+}
+
+async function requestCloseTabs(ids: string[], keepId: string | null = null) {
+  if (pendingTabClose.value) return
+  const targets = workspaceTabs.value.filter((tab) => tab.closable && ids.includes(tab.id))
+  if (!targets.length) return
+
+  const submittingTab = targets.find((tab) => getCloseState(tab).submitting)
+  if (submittingTab) {
+    await activateTab(submittingTab)
+    pendingTabClose.value = {
+      ids,
+      keepId,
+      affectedTitles: [submittingTab.title],
+      submitting: true,
+    }
+    return
   }
 
-  void nextTick(updateTabScrollState)
+  const dirtyTabs = targets.filter((tab) => getCloseState(tab).dirty)
+  if (dirtyTabs.length) {
+    await activateTab(dirtyTabs[0]!)
+    pendingTabClose.value = {
+      ids,
+      keepId,
+      affectedTitles: dirtyTabs.map((tab) => tab.title),
+      submitting: false,
+    }
+    return
+  }
+
+  await finishClosingTabs(ids, keepId)
+}
+
+function closeWorkspaceTab(id: string) {
+  void requestCloseTabs([id])
 }
 
 function closeOtherTabs() {
-  workspaceTabs.value = workspaceTabs.value.filter(
-    (tab) => !tab.closable || tab.path === route.fullPath,
+  const ids = workspaceTabs.value
+    .filter((tab) => tab.closable && tab.id !== activeTabId.value)
+    .map((tab) => tab.id)
+  void requestCloseTabs(ids, activeTabId.value)
+}
+
+function confirmTabClose() {
+  const pending = pendingTabClose.value
+  if (!pending || pending.submitting) return
+  const submittingTab = workspaceTabs.value.find(
+    (tab) => pending.ids.includes(tab.id) && getCloseState(tab).submitting,
   )
-  void nextTick(updateTabScrollState)
+  if (submittingTab) {
+    pendingTabClose.value = {
+      ...pending,
+      affectedTitles: [submittingTab.title],
+      submitting: true,
+    }
+    return
+  }
+  pendingTabClose.value = null
+  void finishClosingTabs(pending.ids, pending.keepId)
 }
 
 function toggleSidebar() {
@@ -180,16 +361,19 @@ function toggleTheme() {
         <p class="nav-label">工作台 / Workspace</p>
         <ul class="nav-list">
           <li v-for="item in menuItems" :key="item.path">
-            <RouterLink
-              class="nav-item"
-              :class="{ active: activeMenu === item.path }"
-              :to="item.path"
-              :aria-current="activeMenu === item.path ? 'page' : undefined"
-            >
-              <span class="nav-icon" aria-hidden="true">
-                <AdminIcon :name="item.meta.icon ?? 'dashboard'" />
-              </span>
-              <span class="nav-text">{{ item.meta.menuName }}</span>
+            <RouterLink :to="item.path" custom v-slot="{ href }">
+              <a
+                class="nav-item"
+                :class="{ active: activeMenu === item.path }"
+                :href="href"
+                :aria-current="activeMenu === item.path ? 'page' : undefined"
+                @click.prevent="openMenuPage(item.path)"
+              >
+                <span class="nav-icon" aria-hidden="true">
+                  <AdminIcon :name="item.meta.icon ?? 'dashboard'" />
+                </span>
+                <span class="nav-text">{{ item.meta.menuName }}</span>
+              </a>
             </RouterLink>
           </li>
         </ul>
@@ -268,16 +452,16 @@ function toggleTheme() {
           >
             <div
               v-for="tab in workspaceTabs"
-              :key="tab.path"
+              :key="tab.id"
               class="workspace-tab"
-              :class="{ active: tab.path === route.fullPath }"
+              :class="{ active: tab.id === activeTabId }"
             >
               <RouterLink
                 class="workspace-tab-main"
-                :to="tab.path"
+                :to="tab.fullPath"
                 role="tab"
-                :aria-selected="tab.path === route.fullPath"
-                :tabindex="tab.path === route.fullPath ? 0 : -1"
+                :aria-selected="tab.id === activeTabId"
+                :tabindex="tab.id === activeTabId ? 0 : -1"
                 :title="tab.title"
               >
                 <span class="workspace-tab-icon" aria-hidden="true"
@@ -291,7 +475,7 @@ function toggleTheme() {
                 type="button"
                 :aria-label="`关闭 ${tab.title}`"
                 title="关闭标签"
-                @click="closeWorkspaceTab(tab.path)"
+                @click="closeWorkspaceTab(tab.id)"
               >
                 <AdminIcon name="close" />
               </button>
@@ -334,8 +518,60 @@ function toggleTheme() {
       </nav>
 
       <div class="content">
-        <RouterView />
+        <RouterView v-slot="{ Component }">
+          <KeepAlive :include="cachedTabNames">
+            <component :is="getTabWrapper(Component)" :key="activeTabId" />
+          </KeepAlive>
+        </RouterView>
       </div>
     </main>
+    <Teleport to="body">
+      <div
+        v-if="pendingTabClose"
+        class="modal-layer open workspace-close-layer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="workspaceCloseTitle"
+      >
+        <section class="dialog">
+          <span class="dialog-icon" aria-hidden="true">!</span>
+          <h2 id="workspaceCloseTitle">
+            {{ pendingTabClose.submitting ? '页面正在保存' : '页面有未保存的内容' }}
+          </h2>
+          <p v-if="pendingTabClose.submitting">
+            {{ pendingTabClose.affectedTitles.join('、') }}正在提交，请等待保存结束后再关闭。
+          </p>
+          <p v-else>
+            {{ pendingTabClose.affectedTitles.join('、') }}中有尚未保存的新增或修改内容。
+            放弃更改后将关闭本次操作涉及的页面标签。
+          </p>
+          <div class="dialog-actions">
+            <button class="secondary-button" type="button" @click="pendingTabClose = null">
+              {{ pendingTabClose.submitting ? '返回页面' : '继续编辑' }}
+            </button>
+            <button
+              v-if="!pendingTabClose.submitting"
+              class="primary-button"
+              type="button"
+              @click="confirmTabClose"
+            >
+              放弃更改并关闭
+            </button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
   </div>
 </template>
+
+<style scoped>
+.workspace-close-layer {
+  z-index: 400;
+  overscroll-behavior: contain;
+}
+.workspace-close-layer .dialog {
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+</style>

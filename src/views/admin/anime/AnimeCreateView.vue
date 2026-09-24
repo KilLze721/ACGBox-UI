@@ -1,8 +1,16 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AnimeEditorForm from './AnimeEditorForm.vue'
 
 const router = useRouter()
+const editorForm = ref<InstanceType<typeof AnimeEditorForm> | null>(null)
+
+function getCloseState() {
+  return editorForm.value?.getCloseState() ?? { dirty: false, submitting: false }
+}
+
+defineExpose({ getCloseState })
 
 function handleSaved() {
   void router.push('/admin/anime')
@@ -18,7 +26,12 @@ function handleSaved() {
     >
       <span aria-hidden="true">←</span> 返回动画管理
     </button>
-    <AnimeEditorForm mode="create" @saved="handleSaved" @cancelled="router.push('/admin/anime')" />
+    <AnimeEditorForm
+      ref="editorForm"
+      mode="create"
+      @saved="handleSaved"
+      @cancelled="router.push('/admin/anime')"
+    />
   </main>
 </template>
 

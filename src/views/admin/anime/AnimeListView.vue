@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onActivated, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { deleteAnime, getAnimePage } from '@/api/anime'
 import {
   getAdaptationTypes,
@@ -121,6 +121,13 @@ const deleteSubmitting = ref(false)
 const deleteConfirmed = ref(false)
 const deleteConfirmationMessage = ref('')
 const drawerMode = ref<'detail' | 'edit' | null>(null)
+const crudDrawer = ref<InstanceType<typeof AnimeCrudDrawer> | null>(null)
+
+function getCloseState() {
+  return crudDrawer.value?.getCloseState() ?? { dirty: false, submitting: false }
+}
+
+defineExpose({ getCloseState })
 const drawerAnime = ref<AnimePageItem | null>(null)
 const toast = ref<{ title: string; message: string; type: 'success' | 'error' } | null>(null)
 const page = ref<PageResult<AnimePageItem>>({
@@ -148,6 +155,7 @@ let statsController: AbortController | undefined
 let companyController: AbortController | undefined
 let companySearchTimer: number | undefined
 let toastTimer: number | undefined
+let hasActivated = false
 
 const advancedFilterCount = computed(
   () =>
@@ -280,6 +288,14 @@ onMounted(() => {
   void loadCatalogs()
   void loadStats()
   void loadPage(1)
+})
+
+onActivated(() => {
+  if (!hasActivated) {
+    hasActivated = true
+    return
+  }
+  void loadPage(page.value.pageNum)
 })
 
 onBeforeUnmount(() => {
@@ -1476,6 +1492,7 @@ function getCoverGradient(id: number) {
 
     <AnimeCrudDrawer
       v-if="drawerMode && drawerAnime"
+      ref="crudDrawer"
       :key="`${drawerMode}-${drawerAnime.id}`"
       :mode="drawerMode"
       :anime-id="drawerAnime.id"
