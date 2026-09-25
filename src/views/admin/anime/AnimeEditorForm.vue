@@ -4,16 +4,19 @@ import { useRoute } from 'vue-router'
 import { createAnime, getAnimeDetail, updateAnime } from '@/api/anime'
 import {
   getCompanies,
+  getCompanyById,
   getRegions,
   getTags,
   getBroadcastTypes,
   getAdaptationTypes,
 } from '@/api/catalog'
-import { getSeriesPage } from '@/api/series'
+import { getSeriesById, getSeriesPage } from '@/api/series'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import AnimeAirDateInput from '@/components/admin/AnimeAirDateInput.vue'
 import AnimeSuggestionInput from '@/components/admin/AnimeSuggestionInput.vue'
+import AnimeEntitySelect from '@/components/admin/AnimeEntitySelect.vue'
+import { companyRoles, linkTitleSuggestions } from './animeFormOptions'
 import type {
   AnimeDetail,
   AnimePayload,
@@ -50,9 +53,10 @@ interface AnimeForm {
   description: string
   aliasNames: string[]
   tagIds: number[]
-  companies: Array<{ companyId: string; role: string }>
+  companies: Array<{ companyId: string; companyName: string; role: string }>
   externalLinks: Array<{ title: string; url: string; sortOrder: string }>
   seriesId: string
+  seriesName: string
   seriesSortOrder: string
   autoCreateSeries: boolean
 }
@@ -63,12 +67,11 @@ const broadcastTypes = ref<NamedOption[]>([])
 const adaptationTypes = ref<NamedOption[]>([])
 const regions = ref<NamedOption[]>([])
 const tags = ref<NamedOption[]>([])
-const companies = ref<CompanyOption[]>([])
-const series = ref<SeriesSummary[]>([])
 const loading = ref(true)
 const submitting = ref(false)
 const confirmationAction = ref<'save' | 'reset' | 'cancel' | 'saved' | null>(null)
 const savedAnime = ref<AnimeDetail | null>(null)
+const loadError = ref('')
 const errorMessage = ref('')
 const errors = reactive<Record<string, string>>({})
 let loadController: AbortController | undefined
@@ -79,9 +82,6 @@ const statusOptions: NamedOption[] = [
   { id: 3, name: '已完结' },
   { id: 4, name: '其他' },
 ]
-const companyRoles = ['动画制作', '制作协力', '3DCG', '制作', '出品', '企划', '协力']
-const linkTitleSuggestions = ['官网', 'Bilibili', 'Bangumi', '豆瓣', '官方网站']
-
 function createDefaultForm(): AnimeForm {
   return {
     name: '',
@@ -99,6 +99,7 @@ function createDefaultForm(): AnimeForm {
     companies: [],
     externalLinks: [],
     seriesId: '',
+    seriesName: '',
     seriesSortOrder: '',
     autoCreateSeries: false,
   }
@@ -120,7 +121,11 @@ async function getAllPages<T>(loadPage: (pageNum: number) => Promise<PageResult<
   return firstPage.rows.concat(remaining.flatMap((page) => page.rows))
 }
 
-function applyAnime(anime: AnimeDetail) {
+function applyAnime(
+  anime: AnimeDetail,
+  companyNames: CompanyOption[],
+  selectedSeries: SeriesSummary | null,
+) {
   Object.assign(form, {
     name: anime.name,
     broadcastTypeId: String(anime.broadcastTypeId),
@@ -135,9 +140,10 @@ function applyAnime(anime: AnimeDetail) {
     description: anime.description ?? '',
     aliasNames: [...(anime.aliasNames ?? [])],
     tagIds: [...(anime.tagIds ?? [])],
-    companies: (anime.companies ?? []).map((company) => ({
+    companies: (anime.companies ?? []).map((company, index) => ({
       companyId: String(company.companyId),
-      role: company.role ?? '制作',
+      companyName: companyNames[index]?.name ?? '',
+      role: company.role ?? '',
     })),
     externalLinks: (anime.externalLinks ?? []).map((link) => ({
       title: link.title ?? '',
@@ -145,6 +151,7 @@ function applyAnime(anime: AnimeDetail) {
       sortOrder: String(link.sortOrder ?? 0),
     })),
     seriesId: anime.seriesId === null ? '' : String(anime.seriesId),
+    seriesName: selectedSeries?.name ?? '',
     seriesSortOrder: anime.seriesSortOrder === null ? '' : String(anime.seriesSortOrder),
   })
   initialFormState.value = getFormSnapshot()
@@ -154,33 +161,46 @@ onMounted(async () => {
   const controller = new AbortController()
   loadController = controller
   try {
-    const [broadcast, adaptation, region, allTags, allCompanies, allSeries, anime] =
-      await Promise.all([
-        getBroadcastTypes(controller.signal),
-        getAdaptationTypes(controller.signal),
-        getRegions(controller.signal),
-        getAllPages((pageNum) => getTags(pageNum, 100, controller.signal)),
-        getAllPages((pageNum) => getCompanies('', 100, controller.signal, pageNum)),
-        getAllPages((pageNum) => getSeriesPage(pageNum, 100, controller.signal)),
-        props.mode === 'edit' && props.animeId
-          ? getAnimeDetail(props.animeId, controller.signal)
-          : Promise.resolve(null),
-      ])
+    const [broadcast, adaptation, region, allTags, anime] = await Promise.all([
+      getBroadcastTypes(controller.signal),
+      getAdaptationTypes(controller.signal),
+      getRegions(controller.signal),
+      getAllPages((pageNum) => getTags(pageNum, 100, controller.signal)),
+      props.mode === 'edit' && props.animeId
+        ? getAnimeDetail(props.animeId, controller.signal)
+        : Promise.resolve(null),
+    ])
     broadcastTypes.value = broadcast
     adaptationTypes.value = adaptation
     regions.value = region
     tags.value = allTags
-    companies.value = allCompanies
-    series.value = allSeries
-    if (anime) applyAnime(anime)
+    if (anime) {
+      const [companyNames, selectedSeries] = await Promise.all([
+        Promise.all(
+          anime.companies.map((company) => getCompanyById(company.companyId, controller.signal)),
+        ),
+        anime.seriesId === null
+          ? Promise.resolve(null)
+          : getSeriesById(anime.seriesId, controller.signal),
+      ])
+      applyAnime(anime, companyNames, selectedSeries)
+    }
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '动画资料加载失败，请稍后重试。'
+    loadError.value = error instanceof Error ? error.message : '动画资料加载失败，请稍后重试。'
   } finally {
     loading.value = false
   }
 })
 
 onBeforeUnmount(() => loadController?.abort())
+
+function searchCompanies(name: string, pageNum: number, signal: AbortSignal) {
+  return getCompanies(name, 10, signal, pageNum)
+}
+
+function searchSeries(name: string, pageNum: number, signal: AbortSignal) {
+  return getSeriesPage(pageNum, 10, signal, name)
+}
 
 function addAlias() {
   form.aliasNames.push('')
@@ -191,7 +211,7 @@ function removeAlias(index: number) {
 }
 
 function addCompany() {
-  form.companies.push({ companyId: '', role: '制作' })
+  form.companies.push({ companyId: '', companyName: '', role: '' })
 }
 
 function removeCompany(index: number) {
@@ -244,7 +264,9 @@ function validateForm() {
     setError('coverImageUrl', '请输入有效的 HTTP 或 HTTPS 图片地址。')
   }
   form.companies.forEach((company, index) => {
-    if (!company.companyId) setError(`company-${index}`, '请选择制作公司。')
+    if (company.companyName.trim() && !company.companyId) {
+      setError(`company-${index}`, '制作公司不存在或未选中，请从搜索结果中选择已有公司。')
+    }
   })
   form.externalLinks.forEach((link, index) => {
     if (link.url && !isHttpUrl(link.url))
@@ -288,10 +310,12 @@ function buildPayload(): AnimePayload {
     status: Number(form.status),
     description: form.description.trim() || null,
     aliasNames: form.aliasNames.map((alias) => alias.trim()).filter(Boolean),
-    companies: form.companies.map((company) => ({
-      companyId: Number(company.companyId),
-      role: company.role.trim() || null,
-    })),
+    companies: form.companies
+      .filter((company) => company.companyId)
+      .map((company) => ({
+        companyId: Number(company.companyId),
+        role: company.role.trim() || null,
+      })),
     externalLinks: form.externalLinks
       .filter((link) => link.url.trim())
       .map((link) => ({
@@ -373,8 +397,8 @@ async function confirmAction() {
 <template>
   <div class="anime-editor-form">
     <div v-if="loading" class="anime-form-state">正在加载动画表单…</div>
-    <div v-else-if="errorMessage && !broadcastTypes.length" class="anime-form-state error">
-      {{ errorMessage }}
+    <div v-else-if="loadError" class="anime-form-state error">
+      {{ loadError }}
     </div>
     <form v-else class="anime-editor-content" @submit.prevent="requestSave">
       <header class="anime-editor-hero">
@@ -628,19 +652,23 @@ async function confirmAction() {
                 class="anime-repeat-row"
                 :class="{ invalid: errors[`company-${index}`] }"
               >
-                <ArchiveSelect
+                <AnimeEntitySelect
                   :id="`animeCompany-${index}`"
                   v-model="company.companyId"
+                  v-model:selected-name="company.companyName"
                   label="制作公司"
-                  placeholder="选择公司"
-                  :options="companies"
-                  :show-placeholder-option="false"
+                  placeholder="输入公司名称搜索"
+                  no-results-message="未找到该制作公司，请检查名称。"
+                  no-results-error="该公司名称不存在"
+                  :error-message="errors[`company-${index}`]"
+                  :search="searchCompanies"
+                  @update:model-value="errors[`company-${index}`] = ''"
                 />
                 <AnimeSuggestionInput
                   :id="`animeCompanyRole-${index}`"
                   v-model="company.role"
                   label="公司职责"
-                  placeholder="公司职责"
+                  placeholder="请输入职责"
                   :suggestions="companyRoles"
                 />
                 <button
@@ -651,9 +679,6 @@ async function confirmAction() {
                 >
                   <AdminIcon name="close" />
                 </button>
-                <small v-if="errors[`company-${index}`]" class="field-error">{{
-                  errors[`company-${index}`]
-                }}</small>
               </div>
             </div>
             <button class="anime-inline-button" type="button" @click="addCompany">
@@ -663,12 +688,14 @@ async function confirmAction() {
           <div class="field full">
             <span class="anime-field-label">所属系列</span>
             <div class="anime-series-fields">
-              <ArchiveSelect
+              <AnimeEntitySelect
                 id="animeSeries"
                 v-model="form.seriesId"
+                v-model:selected-name="form.seriesName"
                 label="所属系列"
                 placeholder="暂不关联系列"
-                :options="series"
+                empty-option="暂不关联系列"
+                :search="searchSeries"
               />
               <div class="anime-input-suffix">
                 <input
@@ -993,8 +1020,12 @@ async function confirmAction() {
   align-items: center;
   gap: 7px;
 }
-.anime-repeat-row:has(.archive-select) {
+.anime-repeat-row:has(.anime-entity-select) {
   grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.8fr) 32px;
+  align-items: start;
+}
+.anime-repeat-row:has(.anime-entity-select) > .anime-remove-button {
+  margin-top: 3px;
 }
 .anime-repeat-row > select {
   height: 38px;

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { inject, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AnimeEditorForm from './AnimeEditorForm.vue'
 
 const router = useRouter()
+const ownerFullPath = useRoute().fullPath
 const editorForm = ref<InstanceType<typeof AnimeEditorForm> | null>(null)
+const returnToAnimeList = inject<(fullPath: string) => Promise<void>>('returnToAnimeList')
 
 function getCloseState() {
   return editorForm.value?.getCloseState() ?? { dirty: false, submitting: false }
@@ -13,7 +15,16 @@ function getCloseState() {
 defineExpose({ getCloseState })
 
 function handleSaved() {
-  void router.push('/admin/anime')
+  void closeAndReturnToAnime()
+}
+
+function handleCancelled() {
+  void closeAndReturnToAnime()
+}
+
+async function closeAndReturnToAnime() {
+  if (returnToAnimeList) await returnToAnimeList(ownerFullPath)
+  else await router.replace('/admin/anime')
 }
 </script>
 
@@ -22,7 +33,7 @@ function handleSaved() {
     <button
       class="ghost-button anime-create-back"
       type="button"
-      @click="router.push('/admin/anime')"
+      @click="editorForm?.requestCancel()"
     >
       <span aria-hidden="true">←</span> 返回动画管理
     </button>
@@ -30,7 +41,7 @@ function handleSaved() {
       ref="editorForm"
       mode="create"
       @saved="handleSaved"
-      @cancelled="router.push('/admin/anime')"
+      @cancelled="handleCancelled"
     />
   </main>
 </template>

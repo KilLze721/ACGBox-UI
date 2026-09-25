@@ -7,6 +7,7 @@ import {
   nextTick,
   onBeforeUnmount,
   onMounted,
+  provide,
   ref,
   watch,
   watchEffect,
@@ -53,6 +54,7 @@ const canScrollTabsLeft = ref(false)
 const canScrollTabsRight = ref(false)
 const darkTheme = ref(false)
 const activeTabId = ref('dashboard')
+const lastAnimeTabId = ref<string | null>(null)
 const pendingTabClose = ref<PendingTabClose | null>(null)
 const pageWrappers = new Map<string, Component>()
 const pageInstances = new Map<string, CloseAwarePage>()
@@ -88,6 +90,8 @@ const cachedTabNames = computed(() => workspaceTabs.value.map((tab) => tab.cache
 const canCloseOtherTabs = computed(() =>
   workspaceTabs.value.some((tab) => tab.closable && tab.id !== activeTabId.value),
 )
+
+provide('returnToAnimeList', returnToAnimeList)
 
 watch(
   () => route.fullPath,
@@ -156,6 +160,7 @@ function openCurrentRouteTab() {
     workspaceTabs.value.push(tab)
   }
   activeTabId.value = tab.id
+  if (tab.path === '/admin/anime') lastAnimeTabId.value = tab.id
 
   void scrollActiveTabIntoView()
 }
@@ -261,6 +266,25 @@ async function finishClosingTabs(ids: string[], keepId: string | null) {
     pageInstances.delete(id)
   })
   void nextTick(updateTabScrollState)
+}
+
+async function returnToAnimeList(createFullPath: string) {
+  const createTab = workspaceTabs.value.find(
+    (tab) => tab.fullPath === createFullPath && tab.path === '/admin/anime/create',
+  )
+  if (!createTab) return
+
+  const animeTab =
+    workspaceTabs.value.find(
+      (tab) => tab.id === lastAnimeTabId.value && tab.path === '/admin/anime',
+    ) ?? workspaceTabs.value.find((tab) => tab.path === '/admin/anime')
+  const animePath = animeTab?.fullPath ?? '/admin/anime'
+  await router.replace(animePath)
+  await nextTick()
+  if (route.fullPath !== animePath) return
+
+  if (pendingTabClose.value?.ids.includes(createTab.id)) pendingTabClose.value = null
+  await finishClosingTabs([createTab.id], null)
 }
 
 async function requestCloseTabs(ids: string[], keepId: string | null = null) {

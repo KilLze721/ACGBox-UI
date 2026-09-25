@@ -293,7 +293,58 @@ describe('工作台页面标签', () => {
     wrapper.unmount()
   })
 
-  it('提交期间阻止关闭，保存结束后不再提示未保存内容', async () => {
+  it('确认取消新增后返回最近使用的动画管理实例，不新开管理标签', async () => {
+    stubCatalogRequests()
+    await router.push('/admin/dashboard')
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
+    await flushPromises()
+    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
+    await flushPromises()
+    const animeTabPath = router.currentRoute.value.fullPath
+    const animePageUid = wrapper.findComponent(AnimeListView).vm.$.uid
+    await router.push('/admin/anime/create')
+    await flushPromises()
+    await wrapper.find('input[placeholder="输入正式名称"]').setValue('未保存的动画')
+
+    await wrapper.find('.anime-editor-footer .secondary-button').trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.anime-confirm-backdrop')).not.toBeNull()
+    document.querySelector<HTMLButtonElement>('.anime-confirm-actions .primary-button')?.click()
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe(animeTabPath)
+    expect(wrapper.findComponent(AnimeListView).vm.$.uid).toBe(animePageUid)
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(3)
+    expect(wrapper.find('button[aria-label="关闭 新增动画"]').exists()).toBe(false)
+    expect(
+      wrapper.findAll('.workspace-tab').filter((tab) => tab.text().includes('动画管理')),
+    ).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('没有动画管理标签时，确认取消新增后只创建一个管理标签', async () => {
+    stubCatalogRequests()
+    await router.push('/admin/dashboard')
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+    await router.push('/admin/anime/create')
+    await flushPromises()
+
+    await wrapper.find('.anime-editor-footer .secondary-button').trigger('click')
+    await flushPromises()
+    document.querySelector<HTMLButtonElement>('.anime-confirm-actions .primary-button')?.click()
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/admin/anime')
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
+    expect(wrapper.find('button[aria-label="关闭 新增动画"]').exists()).toBe(false)
+    expect(
+      wrapper.findAll('.workspace-tab').filter((tab) => tab.text().includes('动画管理')),
+    ).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('提交期间阻止关闭，保存成功后关闭新增标签并返回已有动画管理', async () => {
     let finishSave!: (response: unknown) => void
     const saveResponse = new Promise<unknown>((resolve) => {
       finishSave = resolve
@@ -317,8 +368,10 @@ describe('工作台页面标签', () => {
       }),
     )
 
-    await router.push('/admin/dashboard')
+    await router.push('/admin/anime')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+    await flushPromises()
+    const animePageUid = wrapper.findComponent(AnimeListView).vm.$.uid
     await router.push('/admin/anime/create')
     await flushPromises()
     await wrapper.find('input[placeholder="输入正式名称"]').setValue('准备保存的动画')
@@ -335,7 +388,11 @@ describe('工作台页面标签', () => {
     await wrapper.find('button[aria-label="关闭 新增动画"]').trigger('click')
     await flushPromises()
     expect(document.querySelector('.workspace-close-layer')?.textContent).toContain('正在提交')
-    expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(3)
+    document.querySelector<HTMLButtonElement>('.workspace-close-layer .secondary-button')?.click()
+    await flushPromises()
+    await wrapper.find('.workspace-tab-main[href="/admin/dashboard"]').trigger('click')
+    await flushPromises()
 
     finishSave({
       ok: true,
@@ -348,9 +405,10 @@ describe('工作台页面标签', () => {
     })
     await flushPromises()
     expect(document.querySelector('.workspace-close-layer')).toBeNull()
-    await wrapper.find('button[aria-label="关闭 新增动画"]').trigger('click')
-    await flushPromises()
-    expect(document.querySelector('.workspace-close-layer')).toBeNull()
+    expect(router.currentRoute.value.path).toBe('/admin/anime')
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
+    expect(wrapper.find('button[aria-label="关闭 新增动画"]').exists()).toBe(false)
+    expect(wrapper.findComponent(AnimeListView).vm.$.uid).toBe(animePageUid)
     wrapper.unmount()
   })
 })

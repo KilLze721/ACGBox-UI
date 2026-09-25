@@ -20,3 +20,7 @@ export function getTags(pageNum = 1, pageSize = 100, signal?: AbortSignal) {
 export function getCompanies(name = '', pageSize = 10, signal?: AbortSignal, pageNum = 1) {
   return get<PageResult<CompanyOption>>('/companies/page', { pageNum, pageSize, name }, signal)
 }
+
+export function getCompanyById(id: number, signal?: AbortSignal) {
+  return get<CompanyOption>(`/companies/${id}`, {}, signal)
+}
