@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onActivated, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { deleteAnime, getAnimePage } from '@/api/anime'
+import { computed, inject, onActivated, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { routeLocationKey } from 'vue-router'
+import { deleteAnime, getAnimeDetail, getAnimePage } from '@/api/anime'
 import {
   getAdaptationTypes,
   getBroadcastTypes,
@@ -23,6 +24,9 @@ import ArchiveDateInput from '@/components/admin/ArchiveDateInput.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import { getArchiveDateBound, validateArchiveDate } from '@/utils/archiveDate'
 import AnimeCrudDrawer from './AnimeCrudDrawer.vue'
+
+const route = inject(routeLocationKey, null)
+const ownerFullPath = route?.fullPath ?? ''
 
 interface AnimeFilters {
   keyword: string
@@ -288,6 +292,7 @@ onMounted(() => {
   void loadCatalogs()
   void loadStats()
   void loadPage(1)
+  void openLinkedDetail()
 })
 
 onActivated(() => {
@@ -710,6 +715,53 @@ async function confirmDelete() {
 function openCrudDrawer(mode: 'detail' | 'edit', anime: AnimePageItem) {
   drawerAnime.value = anime
   drawerMode.value = mode
+}
+
+async function openLinkedDetail() {
+  if (!route) return
+  const id = Number(route.query.detail)
+  if (!Number.isInteger(id) || id <= 0 || route.fullPath !== ownerFullPath) return
+  try {
+    const detail = await getAnimeDetail(id)
+    let anime: AnimePageItem | undefined
+    try {
+      anime = (await getAnimePage({ pageNum: 1, pageSize: 20, keyword: detail.name })).rows.find(
+        (row) => row.id === id,
+      )
+    } catch {
+      /* 详情接口成功时仍可展示基础资料。 */
+    }
+    if (!anime) {
+      anime = {
+        id: detail.id,
+        name: detail.name,
+        aliasNames: detail.aliasNames,
+        tags: detail.tagIds.map((tagId) => ({ id: tagId, name: `#${tagId}` })),
+        episodeCount: detail.episodeCount,
+        broadcastType: { id: detail.broadcastTypeId, name: `#${detail.broadcastTypeId}` },
+        adaptationType: { id: detail.adaptationTypeId, name: `#${detail.adaptationTypeId}` },
+        airDate: detail.airDate,
+        coverImageUrl: detail.coverImageUrl,
+        status: detail.status,
+        region: { id: detail.regionId, name: `#${detail.regionId}` },
+        companies: detail.companies.map((company) => ({
+          companyId: company.companyId,
+          companyName: `#${company.companyId}`,
+          role: company.role,
+        })),
+        externalLinks: detail.externalLinks,
+        personalRating: detail.personalRatingScore,
+        series:
+          detail.seriesId === null
+            ? null
+            : { id: detail.seriesId, name: `#${detail.seriesId}`, description: null },
+      }
+    }
+    if (route.fullPath === ownerFullPath) openCrudDrawer('detail', anime)
+  } catch (error) {
+    if (route.fullPath === ownerFullPath)
+      showToast('详情读取失败', error instanceof Error ? error.message : '请稍后重试。', 'error')
+  }
 }
 
 function closeCrudDrawer() {

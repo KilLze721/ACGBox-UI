@@ -77,8 +77,9 @@
       .drawer-backdrop { position: fixed; inset: 0; z-index: 20; display: none; background: rgba(18,17,30,.42); backdrop-filter: blur(2px); }.drawer-backdrop.show { display: block; }.drawer { position: fixed; inset: 0 0 0 auto; z-index: 21; display: flex; width: min(620px,94vw); height: 100dvh; flex-direction: column; overflow: hidden; background: var(--canvas); box-shadow: -24px 0 60px rgba(20,17,40,.2); transform: translateX(102%); transition: transform .22s ease; }.drawer.show { transform: translateX(0); }.drawer-header { display: flex; flex: 0 0 auto; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 21px 23px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }.drawer-title h2 { margin: 0; font: 700 19px var(--font-display); }.drawer-title p { margin: 4px 0 0; color: var(--ink-faint); font-size: 10px; }.drawer-close { display: grid; width: 32px; height: 32px; flex: 0 0 auto; place-items: center; color: var(--ink-soft); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 9px; font-size: 16px; }.drawer-close:hover { color: var(--accent); }.drawer-body { min-height: 0; flex: 1; padding: 19px 23px; overflow: auto; }.drawer-footer { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 9px; padding: 13px 23px; background: var(--surface); border-top: 1px solid var(--line); }.drawer-footer .footer-actions { display: flex; gap: 8px; }.field { margin-bottom: 16px; }.field label { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; color: var(--ink-soft); font-size: 10px; font-weight: 700; }.required { color: var(--accent-strong); }.field-key { margin-left: auto; color: var(--ink-faint); font: 9px ui-monospace,SFMono-Regular,Consolas,monospace; font-weight: 400; }.control,.control-area { display: block; width: 100%; min-height: 39px; padding: 9px 11px; color: var(--ink); background: var(--surface-solid); border: 1px solid var(--line-strong); border-radius: 10px; font-size: 11px; transition: .16s ease; }.control:hover,.control-area:hover { border-color: rgba(117,103,170,.42); }.control:focus,.control-area:focus { border-color: var(--accent); outline: none; box-shadow: var(--focus); }.control::placeholder,.control-area::placeholder { color: var(--ink-faint); }.control-area { min-height: 118px; resize: vertical; }.hint { margin: 5px 0 0; color: var(--ink-faint); font-size: 9px; }.field-error { display: none; margin-top: 6px; color: var(--danger); font-size: 9px; }.field.invalid .control { border-color: var(--danger); }.field.invalid .field-error { display: block; }.drawer-section { padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; }.drawer-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 11px; }.drawer-section-head strong { font: 700 12px var(--font-display); }.request-preview { overflow: hidden; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 11px; }.request-head { display: flex; align-items: center; justify-content: space-between; padding: 9px 11px; border-bottom: 1px solid var(--line); }.request-head strong { font-size: 9px; }.method { padding: 3px 6px; color: #4d6786; background: #e7eef7; border-radius: 5px; font: 700 8px ui-monospace,monospace; }.request-path { padding: 7px 11px; color: var(--violet); border-bottom: 1px solid var(--line); font: 9px ui-monospace,SFMono-Regular,Consolas,monospace; }.request-json { max-height: 220px; padding: 10px 11px; margin: 0; overflow: auto; color: var(--ink-soft); font: 9px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace; white-space: pre-wrap; overflow-wrap: anywhere; }.detail-kv { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 15px; }.detail-item { padding: 11px 12px; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 10px; }.detail-item span,.detail-item strong { display: block; }.detail-item span { color: var(--ink-faint); font-size: 9px; }.detail-item strong { margin-top: 4px; color: var(--ink); font-size: 11px; font-weight: 650; overflow-wrap: anywhere; }.detail-description { padding: 14px; color: var(--ink-soft); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 10px; font-size: 11px; line-height: 1.8; white-space: pre-wrap; }.detail-response { margin-top: 14px; }
       .overlay { position: fixed; inset: 0; z-index: 40; display: none; place-items: center; padding: 20px; background: rgba(18,17,30,.48); backdrop-filter: blur(4px); }.overlay.show { display: grid; }.dialog { width: min(460px,100%); padding: 22px; background: var(--surface-solid); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }.dialog-mark { display: grid; width: 38px; height: 38px; place-items: center; margin-bottom: 12px; color: var(--danger); background: var(--danger-soft); border-radius: 11px; font-size: 16px; }.dialog h2 { margin: 0; font: 700 17px var(--font-display); }.dialog p { margin: 7px 0 0; color: var(--ink-soft); font-size: 10px; }.delete-preview { padding: 11px 12px; margin-top: 14px; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 10px; }.delete-preview strong { display: block; color: var(--ink); font-size: 11px; }.delete-preview code { display: block; margin-top: 5px; color: var(--violet); font: 9px ui-monospace,SFMono-Regular,Consolas,monospace; }.dialog-check { display: flex; align-items: center; gap: 7px; margin-top: 11px; color: var(--ink-soft); font-size: 9px; }.dialog-check input { accent-color: var(--danger); }.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 19px; }.toast { position: fixed; right: 20px; bottom: 20px; z-index: 50; display: none; max-width: min(380px,calc(100vw - 40px)); padding: 12px 15px; color: var(--ink); background: var(--surface-solid); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); font-size: 10px; }.toast.show { display: block; animation: rise .18s ease both; }
       @keyframes rise { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+      .association-section { margin: 17px 0; }.association-controls { display: grid; grid-template-columns: 115px minmax(0,1fr) auto; gap: 7px; }.association-controls select { min-width: 0; height: 37px; padding: 0 9px; color: var(--ink); background: var(--surface-solid); border: 1px solid var(--line-strong); border-radius: 8px; font-size: 9px; }.association-controls button { padding: 0 10px; color: var(--violet); background: var(--violet-soft); border-radius: 8px; font-size: 9px; font-weight: 700; }.association-controls button:hover { filter: brightness(.97); }.association-list,.related-list { display: grid; gap: 7px; margin-top: 10px; }.association-item,.related-item { display: flex; align-items: center; justify-content: space-between; gap: 9px; padding: 9px 10px; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 9px; }.association-info,.related-info { display: flex; min-width: 0; align-items: center; gap: 8px; }.work-kind { flex: 0 0 auto; padding: 4px 6px; color: var(--violet); background: var(--violet-soft); border-radius: 5px; font-size: 8px; }.work-kind.manga { color: #277c79; background: var(--cyan-soft); }.work-kind.novel { color: #946a19; background: var(--yellow-soft); }.work-copy { min-width: 0; }.work-copy strong,.work-copy span { display: block; }.work-copy strong { overflow: hidden; color: var(--ink); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }.work-copy span { margin-top: 2px; color: var(--ink-faint); font-size: 8px; }.work-remove { display: grid; width: 27px; height: 27px; flex: 0 0 auto; place-items: center; color: var(--ink-faint); background: transparent; border-radius: 7px; }.work-remove:hover { color: var(--danger); background: var(--danger-soft); }.related-link { display: flex; min-width: 0; flex: 1; align-items: center; justify-content: space-between; gap: 9px; color: inherit; text-decoration: none; }.related-link:hover .work-copy strong { color: var(--accent-strong); }.related-link:focus-visible { border-radius: 6px; }.related-arrow { color: var(--ink-faint); font-size: 12px; }.association-empty { padding: 12px; color: var(--ink-faint); background: var(--surface-muted); border: 1px dashed var(--line-strong); border-radius: 9px; text-align: center; font-size: 9px; }.api-note { padding: 9px 10px; margin-top: 10px; color: #85621c; background: var(--yellow-soft); border-radius: 8px; font-size: 8px; line-height: 1.55; }
       @media(max-width:920px) { .sidebar { width: min(280px,84vw); transform: translateX(-102%); }.app-shell.sidebar-open .sidebar { transform: translateX(0); }.sidebar-backdrop { position: fixed; inset: 0; z-index: 9; display: none; background: rgba(15,14,26,.4); }.app-shell.sidebar-open .sidebar-backdrop { display: block; }.main-shell { margin-left: 0; }.content { padding: 20px; } }
-      @media(max-width:620px) { .topbar { height: 60px; padding: 0 14px; }.breadcrumb span:first-child,.breadcrumb-separator,.avatar-copy { display: none; }.content { padding: 14px; }.page-hero { display: block; min-height: 0; padding: 21px 19px; }.hero-actions { margin-top: 15px; }.stats-grid { grid-template-columns: 1fr; gap: 8px; }.filter-row { align-items: stretch; flex-direction: column; }.search-box { width: 100%; }.filter-tip { margin-left: 0; }.pagination { align-items: flex-start; flex-direction: column; }.drawer { width: 100vw; }.drawer-header,.drawer-body,.drawer-footer { padding-right: 15px; padding-left: 15px; }.detail-kv { grid-template-columns: 1fr 1fr; }.drawer-footer { align-items: stretch; flex-direction: column; }.drawer-footer .footer-actions { justify-content: flex-end; }.list-header { align-items: flex-start; flex-direction: column; } }
+      @media(max-width:620px) { .topbar { height: 60px; padding: 0 14px; }.breadcrumb span:first-child,.breadcrumb-separator,.avatar-copy { display: none; }.content { padding: 14px; }.page-hero { display: block; min-height: 0; padding: 21px 19px; }.hero-actions { margin-top: 15px; }.stats-grid { grid-template-columns: 1fr; gap: 8px; }.filter-row { align-items: stretch; flex-direction: column; }.search-box { width: 100%; }.filter-tip { margin-left: 0; }.pagination { align-items: flex-start; flex-direction: column; }.drawer { width: 100vw; }.drawer-header,.drawer-body,.drawer-footer { padding-right: 15px; padding-left: 15px; }.detail-kv { grid-template-columns: 1fr 1fr; }.drawer-footer { align-items: stretch; flex-direction: column; }.drawer-footer .footer-actions { justify-content: flex-end; }.list-header { align-items: flex-start; flex-direction: column; }.association-controls { grid-template-columns: 1fr 1fr; }.association-controls button { grid-column: 1 / -1; min-height: 34px; } }
       @media(max-width:620px) { .header-actions { width:100%; justify-content:space-between; }.header-actions .danger-button { min-height:32px; padding:0 9px; font-size:9px; } }
       @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
     </style>
@@ -115,12 +116,14 @@
           <input id="seriesId" type="hidden">
           <div class="field" id="nameField"><label for="seriesName">系列名称 <span class="required">*</span><code class="field-key">name</code></label><input class="control" id="seriesName" name="name" maxlength="120" placeholder="输入系列名称，例如：物语系列" autocomplete="off"><span class="field-error" id="nameError">请填写系列名称。</span><p class="hint">系列名称用于建立动画之间的归属关系。</p></div>
           <div class="field"><label for="seriesDescription">系列说明<code class="field-key">description</code></label><textarea class="control-area" id="seriesDescription" name="description" maxlength="2000" placeholder="补充系列背景、作品脉络或编辑备注"></textarea><p class="hint"><span id="descriptionLength">0</span> / 2000 · 可留空</p></div>
+          <section class="drawer-section association-section" aria-labelledby="associationTitle"><div class="drawer-section-head"><strong id="associationTitle">关联内容</strong><span class="list-meta">动画 / 漫画 / 小说</span></div><p class="hint">选择作品类型并添加到系列。漫画与小说入口为后续内容模块预留。</p><div class="association-controls"><select id="workType" aria-label="关联作品类型" onchange="renderWorkChoices()"><option value="anime">动画</option><option value="manga">漫画</option><option value="novel">小说</option></select><select id="workChoice" aria-label="选择要关联的作品"></select><button type="button" onclick="addWorkRelation()">＋ 添加关联</button></div><div class="association-list" id="formWorksList"></div><p class="api-note">数据模型已有 series_item（work_type、work_id）；当前 /series/create、/series/update 接口尚未定义关联字段，本区域为交互与字段扩展预览，不并入现有请求体。</p></section>
           <div class="request-preview"><div class="request-head"><strong>请求体预览</strong><span class="method">POST</span></div><div class="request-path" id="requestPath">/series/create</div><pre class="request-json" id="requestPreview"></pre></div>
         </form>
       </div>
       <div class="drawer-body" id="detailPanel" hidden>
         <div class="detail-kv"><div class="detail-item"><span>系列 ID · id</span><strong id="detailId">—</strong></div><div class="detail-item"><span>系列名称 · name</span><strong id="detailName">—</strong></div></div>
         <div class="field"><label>系列说明 · description</label><div class="detail-description" id="detailDescription">暂无说明</div></div>
+        <section class="drawer-section" aria-labelledby="relatedWorksTitle"><div class="drawer-section-head"><strong id="relatedWorksTitle">关联内容</strong><span class="list-meta" id="relatedWorksCount">0 项</span></div><div class="related-list" id="detailWorksList"></div><p class="api-note">点击作品可跳转对应详情：动画使用现有 /admin/anime/:id；漫画与小说为待内容模块落地后的预留路由。</p></section>
         <div class="request-preview detail-response"><div class="request-head"><strong>SeriesSummary 响应字段</strong><span class="method">GET</span></div><div class="request-path" id="detailPath">/series/1</div><pre class="request-json" id="detailPreview"></pre></div>
       </div>
       <footer class="drawer-footer" id="formFooter"><span class="page-note">名称必填 · 接口字段对齐</span><div class="footer-actions"><button class="secondary-button" type="button" onclick="closeDrawer()">取消</button><button class="primary-button" id="saveButton" type="button" onclick="saveSeries()">保存系列</button></div></footer>
@@ -130,9 +133,9 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script>
       const initialSeries = [
-        { id: 13, name: '葬送的芙莉莲', description: '围绕精灵魔法使芙莉莲展开的奇幻冒险作品系列。' },
-        { id: 12, name: '迷宫饭', description: '以迷宫探索与料理为主题的奇幻冒险系列。' },
-        { id: 11, name: '物语系列', description: '由西尾维新创作，以怪异与青春对话为核心的作品系列。' },
+        { id: 13, name: '葬送的芙莉莲', description: '围绕精灵魔法使芙莉莲展开的奇幻冒险作品系列。', works: [{ type: 'anime', id: 15, title: '葬送的芙莉莲' }, { type: 'manga', id: 201, title: '葬送的芙莉莲（漫画）' }] },
+        { id: 12, name: '迷宫饭', description: '以迷宫探索与料理为主题的奇幻冒险系列。', works: [{ type: 'anime', id: 6, title: '迷宫饭' }, { type: 'manga', id: 202, title: '迷宫饭（漫画）' }] },
+        { id: 11, name: '物语系列', description: '由西尾维新创作，以怪异与青春对话为核心的作品系列。', works: [{ type: 'novel', id: 301, title: '化物语' }, { type: 'anime', id: 31, title: '物语系列' }] },
         { id: 10, name: '命运系列', description: '以圣杯战争及其衍生世界观为核心的作品集合。' },
         { id: 9, name: '钢之炼金术师', description: '以炼金术世界观展开的冒险故事。' },
         { id: 8, name: '魔法少女小圆', description: '围绕魔法少女与愿望代价展开的原创动画系列。' },
@@ -144,7 +147,14 @@
         { id: 2, name: 'Fate', description: '围绕英灵召唤与圣杯战争展开的作品系列。' },
         { id: 1, name: '银魂', description: '以江户与科幻混合世界为背景的喜剧作品系列。' }
       ];
-      const state = { rows: initialSeries.map((item) => ({ ...item })), filtered: [], page: 1, pageSize: 10, currentId: null, deletingIds: [], search: '' };
+      const workTypeNames = { anime: '动画', manga: '漫画', novel: '小说' };
+      const workCatalog = {
+        anime: [{ id: 15, title: '葬送的芙莉莲' }, { id: 6, title: '迷宫饭' }, { id: 31, title: '物语系列' }, { id: 32, title: '夏目友人帐' }],
+        manga: [{ id: 201, title: '葬送的芙莉莲（漫画）' }, { id: 202, title: '迷宫饭（漫画）' }, { id: 203, title: '钢之炼金术师（漫画）' }],
+        novel: [{ id: 301, title: '化物语' }, { id: 302, title: '刀剑神域' }, { id: 303, title: 'Fate/Zero' }]
+      };
+      const workDetailRoutes = { anime: (id) => `/admin/anime/${id}`, manga: (id) => `/admin/manga/${id}`, novel: (id) => `/admin/novel/${id}` };
+      const state = { rows: initialSeries.map((item) => ({ ...item, works: (item.works || []).map((work) => ({ ...work })) })), filtered: [], page: 1, pageSize: 10, currentId: null, deletingIds: [], search: '', formWorks: [] };
       const byId = (id) => state.rows.find((item) => item.id === Number(id));
       const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
       function toggleSidebar() { document.getElementById('appShell').classList.toggle('sidebar-open'); }
@@ -196,10 +206,11 @@
         document.getElementById('seriesId').value = item?.id ?? '';
         document.getElementById('seriesName').value = item?.name ?? '';
         document.getElementById('seriesDescription').value = item?.description ?? '';
+        state.formWorks = item ? item.works.map((work) => ({ ...work })) : [];
         document.getElementById('requestPath').textContent = editing ? '/series/update' : '/series/create';
         document.getElementById('formPanel').hidden = false; document.getElementById('detailPanel').hidden = true;
         document.getElementById('formFooter').hidden = false; document.getElementById('detailFooter').hidden = true;
-        document.getElementById('nameField').classList.remove('invalid'); updatePreview(); updateDescriptionLength(); openDrawer();
+        document.getElementById('nameField').classList.remove('invalid'); renderWorkChoices(); renderFormWorks(); updatePreview(); updateDescriptionLength(); openDrawer();
         setTimeout(() => document.getElementById('seriesName').focus(), 80);
       }
       function openDetail(id) {
@@ -209,6 +220,7 @@
         document.getElementById('detailDescription').textContent = item.description || '暂无说明';
         document.getElementById('detailPath').textContent = `/series/${item.id}`;
         document.getElementById('detailPreview').textContent = JSON.stringify({ id: item.id, name: item.name, description: item.description || null }, null, 2);
+        renderDetailWorks(item.works);
         document.getElementById('formPanel').hidden = true; document.getElementById('detailPanel').hidden = false;
         document.getElementById('formFooter').hidden = true; document.getElementById('detailFooter').hidden = false;
         openDrawer();
@@ -220,6 +232,29 @@
         document.getElementById('requestPreview').textContent = JSON.stringify(payload, null, 2);
       }
       function updateDescriptionLength() { document.getElementById('descriptionLength').textContent = String(document.getElementById('seriesDescription').value.length); }
+      function renderWorkChoices() {
+        const type = document.getElementById('workType').value;
+        document.getElementById('workChoice').innerHTML = workCatalog[type].map((work) => `<option value="${type}:${work.id}">${esc(work.title)} · #${work.id}</option>`).join('');
+      }
+      function renderFormWorks() {
+        const list = document.getElementById('formWorksList');
+        list.innerHTML = state.formWorks.length ? state.formWorks.map((work, index) => `<div class="association-item"><div class="association-info"><span class="work-kind ${work.type}">${workTypeNames[work.type]}</span><div class="work-copy"><strong>${esc(work.title)}</strong><span>work_id · ${work.id}</span></div></div><button class="work-remove" type="button" aria-label="移除 ${esc(work.title)}" onclick="removeWorkRelation(${index})">×</button></div>`).join('') : '<div class="association-empty">尚未关联内容，可从上方添加动画、漫画或小说。</div>';
+      }
+      function addWorkRelation() {
+        const [type, rawId] = document.getElementById('workChoice').value.split(':'); const id = Number(rawId);
+        const work = workCatalog[type].find((item) => item.id === id);
+        if (!work || state.formWorks.some((item) => item.type === type && item.id === id)) { showToast('该内容已关联，或当前没有可添加的项目。'); return; }
+        state.formWorks.push({ type, id, title: work.title }); renderFormWorks(); showToast(`已添加${workTypeNames[type]}关联`);
+      }
+      function removeWorkRelation(index) { state.formWorks.splice(index, 1); renderFormWorks(); }
+      function renderDetailWorks(works = []) {
+        const list = document.getElementById('detailWorksList');
+        document.getElementById('relatedWorksCount').textContent = `${works.length} 项`;
+        list.innerHTML = works.length ? works.map((work) => {
+          const route = workDetailRoutes[work.type](work.id);
+          return `<div class="related-item"><span class="work-kind ${work.type}">${workTypeNames[work.type]}</span><a class="related-link" href="${route}" title="打开${workTypeNames[work.type]}详情 · ${route}"><span class="work-copy"><strong>${esc(work.title)}</strong><span>ID #${work.id} · ${esc(route)}</span></span><span class="related-arrow">↗</span></a></div>`;
+        }).join('') : '<div class="association-empty">该系列暂无关联内容。</div>';
+      }
       function saveSeries() {
         const nameInput = document.getElementById('seriesName'); const name = nameInput.value.trim();
         if (!name) { document.getElementById('nameField').classList.add('invalid'); nameInput.focus(); return; }
@@ -229,9 +264,9 @@
         const description = document.getElementById('seriesDescription').value.trim();
         if (state.currentId === null) {
           const id = Math.max(0, ...state.rows.map((item) => item.id)) + 1;
-          state.rows.unshift({ id, name, description }); showToast('系列已添加 · 原型未调用接口');
+          state.rows.unshift({ id, name, description, works: state.formWorks.map((work) => ({ ...work })) }); showToast('系列已添加 · 原型未调用接口');
         } else {
-          const item = byId(state.currentId); Object.assign(item, { name, description }); state.rows = state.rows.filter((row) => row.id !== item.id); state.rows.unshift(item); showToast('系列已修改 · 原型未调用接口');
+          const item = byId(state.currentId); Object.assign(item, { name, description, works: state.formWorks.map((work) => ({ ...work })) }); state.rows = state.rows.filter((row) => row.id !== item.id); state.rows.unshift(item); showToast('系列已修改 · 原型未调用接口');
         }
         closeDrawer(); state.page = 1; state.search = ''; document.getElementById('seriesSearch').value = ''; render();
       }

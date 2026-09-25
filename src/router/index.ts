@@ -64,7 +64,7 @@ const router = createRouter({
         {
           path: 'anime/:id',
           name: 'admin-anime-detail',
-          redirect: '/admin/anime',
+          redirect: (to) => ({ path: '/admin/anime', query: { detail: String(to.params.id) } }),
           meta: {
             title: '动画详情',
             section: '动画管理',

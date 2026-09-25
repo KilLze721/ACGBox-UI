@@ -45,7 +45,7 @@ describe('App', () => {
 
     expect(router.currentRoute.value.path).toBe('/admin/series')
     expect(wrapper.find('.nav-item.active').text()).toContain('系列管理')
-    expect(wrapper.text()).toContain('维护动画系列关系')
+    expect(wrapper.text()).toContain('系列档案列表')
 
     wrapper.unmount()
   })
