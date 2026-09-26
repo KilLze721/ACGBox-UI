@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  inject,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -9,8 +10,8 @@ import {
   ref,
   watch,
 } from 'vue'
-import { useRouter } from 'vue-router'
-import { getAnimeDetail, getAnimePage, updateAnime } from '@/api/anime'
+import { useRoute, useRouter } from 'vue-router'
+import { getAnimePage } from '@/api/anime'
 import {
   createSeries,
   deleteSeries,
@@ -19,7 +20,8 @@ import {
   updateSeries,
 } from '@/api/series'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
-import type { AnimePageItem, PageResult, SeriesSummary } from '@/types/api'
+import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
+import type { NamedOption, PageResult, SeriesSummary } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
 type WorkType = 'anime' | 'manga' | 'novel'
@@ -28,24 +30,22 @@ type AssociatedWork = {
   id: number
   title: string
   coverImageUrl?: string | null
-  seriesName?: string | null
 }
 
 const workTypeNames: Record<WorkType, string> = { anime: '动画', manga: '漫画', novel: '小说' }
-const demoCatalog: Record<'manga' | 'novel', AssociatedWork[]> = {
-  manga: [
-    { type: 'manga', id: 201, title: '葬送的芙莉莲（漫画）' },
-    { type: 'manga', id: 202, title: '迷宫饭（漫画）' },
-    { type: 'manga', id: 203, title: '钢之炼金术师（漫画）' },
-  ],
-  novel: [
-    { type: 'novel', id: 301, title: '化物语' },
-    { type: 'novel', id: 302, title: '刀剑神域' },
-    { type: 'novel', id: 303, title: 'Fate/Zero' },
-  ],
-}
+const pageSizeOptions: NamedOption[] = [5, 10, 20].map((value) => ({
+  id: value,
+  name: `${value} 条`,
+}))
 
 const router = useRouter()
+const route = useRoute()
+const ownerFullPath = route.fullPath
+const navigateLinkedContent =
+  inject<(path: '/admin/anime' | '/admin/series', keyword: string) => Promise<void>>(
+    'navigateLinkedContent'
+  )
+const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<SeriesSummary>>({
   pageNum: 1,
   pageSize: 10,
@@ -55,8 +55,12 @@ const page = ref<PageResult<SeriesSummary>>({
 })
 const totalSeries = ref(0)
 const pageSize = ref(10)
-const searchName = ref('')
-const appliedName = ref('')
+const pageSizeModel = computed({
+  get: () => String(pageSize.value),
+  set: (value: string) => changePageSize(value),
+})
+const searchName = ref(initialName)
+const appliedName = ref(initialName)
 const jumpPage = ref('1')
 const selectedIds = ref<number[]>([])
 const listLoading = ref(false)
@@ -66,21 +70,11 @@ const tabActive = ref(true)
 const currentSeries = ref<SeriesSummary | null>(null)
 const drawerLoading = ref(false)
 const drawerError = ref('')
-const relatedLoading = ref(false)
 const relatedError = ref('')
 const form = reactive({ name: '', description: '' })
 const nameError = ref('')
-const selectedWorks = ref<AssociatedWork[]>([])
 const relatedWorks = ref<AssociatedWork[]>([])
-const originalAnimeIds = ref<number[]>([])
 const initialFormState = ref('')
-const workType = ref<WorkType>('anime')
-const workKeyword = ref('')
-const workChoice = ref('')
-const workResults = ref<AssociatedWork[]>([])
-const workLoading = ref(false)
-const workError = ref('')
-const associationError = ref('')
 const saving = ref(false)
 const deleteTargets = ref<SeriesSummary[]>([])
 const deleteConfirmed = ref(false)
@@ -90,8 +84,6 @@ const toast = ref<{ message: string; error: boolean } | null>(null)
 
 let pageController: AbortController | undefined
 let drawerController: AbortController | undefined
-let searchController: AbortController | undefined
-let searchTimer: number | undefined
 let toastTimer: number | undefined
 let previousBodyOverflow: string | undefined
 let previousHtmlOverflow: string | undefined
@@ -99,17 +91,16 @@ let previousHtmlOverflow: string | undefined
 const hasDrawer = computed(() => drawerMode.value !== null)
 const allVisibleSelected = computed(
   () =>
-    page.value.rows.length > 0 &&
-    page.value.rows.every((row) => selectedIds.value.includes(row.id)),
+    page.value.rows.length > 0 && page.value.rows.every((row) => selectedIds.value.includes(row.id))
 )
 const selectedTargets = computed(() =>
-  page.value.rows.filter((row) => selectedIds.value.includes(row.id)),
+  page.value.rows.filter((row) => selectedIds.value.includes(row.id))
 )
 const firstResult = computed(() =>
-  page.value.total ? (page.value.pageNum - 1) * page.value.pageSize + 1 : 0,
+  page.value.total ? (page.value.pageNum - 1) * page.value.pageSize + 1 : 0
 )
 const lastResult = computed(() =>
-  Math.min(page.value.pageNum * page.value.pageSize, page.value.total),
+  Math.min(page.value.pageNum * page.value.pageSize, page.value.total)
 )
 const pageNumbers = computed(() => {
   const values: Array<number | string> = []
@@ -126,19 +117,13 @@ const pageNumbers = computed(() => {
   }
   return values
 })
-const filteredWorkResults = computed(() =>
-  workResults.value.filter(
-    (work) => !selectedWorks.value.some((item) => item.type === work.type && item.id === work.id),
-  ),
-)
 const isDirty = computed(
   () =>
     (drawerMode.value === 'create' || drawerMode.value === 'edit') &&
     JSON.stringify({
       name: form.name,
       description: form.description,
-      works: selectedWorks.value.map((work) => `${work.type}:${work.id}`).sort(),
-    }) !== initialFormState.value,
+    }) !== initialFormState.value
 )
 
 defineExpose({
@@ -159,7 +144,6 @@ function saveInitialFormState() {
   initialFormState.value = JSON.stringify({
     name: form.name,
     description: form.description,
-    works: selectedWorks.value.map((work) => `${work.type}:${work.id}`).sort(),
   })
 }
 
@@ -185,10 +169,12 @@ watch([drawerMode, () => deleteTargets.value.length], ([mode, deleteCount]) => {
 onMounted(() => {
   void loadPage(1)
   void loadTotal()
+  openLinkedDetail()
 })
 onActivated(() => {
   tabActive.value = true
   if (hasDrawer.value || deleteTargets.value.length) lockScroll()
+  if (!hasDrawer.value) openLinkedDetail()
 })
 onDeactivated(() => {
   tabActive.value = false
@@ -197,8 +183,6 @@ onDeactivated(() => {
 onBeforeUnmount(() => {
   pageController?.abort()
   drawerController?.abort()
-  searchController?.abort()
-  if (searchTimer) window.clearTimeout(searchTimer)
   if (toastTimer) window.clearTimeout(toastTimer)
   unlockScroll()
 })
@@ -221,7 +205,7 @@ async function loadPage(pageNum: number) {
       pageNum,
       pageSize.value,
       controller.signal,
-      appliedName.value,
+      appliedName.value
     )
     if (pageController !== controller) return
     page.value = result
@@ -245,8 +229,10 @@ function resetSearch() {
   appliedName.value = ''
   void loadPage(1)
 }
-function changePageSize(event: Event) {
-  pageSize.value = Number((event.target as HTMLSelectElement).value)
+function changePageSize(value: string) {
+  const nextPageSize = Number(value)
+  if (nextPageSize === pageSize.value) return
+  pageSize.value = nextPageSize
   void loadPage(1)
 }
 function goToPage(next: number) {
@@ -271,86 +257,9 @@ function toggleAll(checked: boolean) {
   selectedIds.value = checked ? page.value.rows.map((row) => row.id) : []
 }
 
-function resetWorkSearch() {
-  workType.value = 'anime'
-  workKeyword.value = ''
-  workChoice.value = ''
-  workResults.value = []
-  workError.value = ''
-  associationError.value = ''
-  void searchWorks()
-}
-async function searchWorks() {
-  searchController?.abort()
-  workChoice.value = ''
-  workError.value = ''
-  if (workType.value !== 'anime') {
-    const keyword = workKeyword.value.trim().toLocaleLowerCase()
-    workResults.value = demoCatalog[workType.value].filter((work) =>
-      work.title.toLocaleLowerCase().includes(keyword),
-    )
-    workLoading.value = false
-    return
-  }
-  const controller = new AbortController()
-  searchController = controller
-  workLoading.value = true
-  try {
-    const result = await getAnimePage(
-      { pageNum: 1, pageSize: 20, keyword: workKeyword.value.trim() || undefined },
-      controller.signal,
-    )
-    if (controller !== searchController) return
-    workResults.value = result.rows.map((anime: AnimePageItem) => ({
-      type: 'anime',
-      id: anime.id,
-      title: anime.name,
-      coverImageUrl: anime.coverImageUrl,
-      seriesName: anime.series?.name,
-    }))
-  } catch (error) {
-    if (controller.signal.aborted) return
-    workResults.value = []
-    workError.value = messageOf(error, '动画搜索失败，请重试。')
-  } finally {
-    if (controller === searchController) workLoading.value = false
-  }
-}
-watch([workType, workKeyword], () => {
-  if (!hasDrawer.value || drawerMode.value === 'detail') return
-  if (searchTimer) window.clearTimeout(searchTimer)
-  searchTimer = window.setTimeout(() => {
-    void searchWorks()
-  }, 250)
-})
-function addAssociation() {
-  associationError.value = ''
-  const candidate = workResults.value.find((work) => `${work.type}:${work.id}` === workChoice.value)
-  if (!candidate) {
-    associationError.value = '请先从搜索结果中选择内容。'
-    return
-  }
-  if (
-    candidate.type === 'anime' &&
-    candidate.seriesName &&
-    candidate.seriesName !== currentSeries.value?.name
-  ) {
-    associationError.value = `“${candidate.title}”已归属“${candidate.seriesName}”，请先在动画管理中调整归属。`
-    return
-  }
-  if (!selectedWorks.value.some((work) => work.type === candidate.type && work.id === candidate.id))
-    selectedWorks.value.push(candidate)
-  workChoice.value = ''
-}
-function removeAssociation(work: AssociatedWork) {
-  selectedWorks.value = selectedWorks.value.filter(
-    (item) => item.type !== work.type || item.id !== work.id,
-  )
-}
-
 async function loadRelatedAnime(
   series: SeriesSummary,
-  signal: AbortSignal,
+  signal: AbortSignal
 ): Promise<AssociatedWork[]> {
   const works: AssociatedWork[] = []
   let currentPage = 1
@@ -358,7 +267,7 @@ async function loadRelatedAnime(
   do {
     const result = await getAnimePage(
       { pageNum: currentPage, pageSize: 100, keyword: series.name },
-      signal,
+      signal
     )
     works.push(
       ...result.rows
@@ -368,58 +277,44 @@ async function loadRelatedAnime(
           id: anime.id,
           title: anime.name,
           coverImageUrl: anime.coverImageUrl,
-          seriesName: series.name,
-        })),
+        }))
     )
     pages = result.pages
     currentPage++
   } while (currentPage <= pages)
   return works
 }
-async function refreshRelated(
-  series: SeriesSummary,
-  signal: AbortSignal,
-  preserveSelection = false,
-) {
-  relatedLoading.value = true
+async function refreshRelated(series: SeriesSummary, signal: AbortSignal) {
   relatedError.value = ''
   try {
     const works = await loadRelatedAnime(series, signal)
     if (signal.aborted) return
     relatedWorks.value = works
-    originalAnimeIds.value = works.map((work) => work.id)
-    if (!preserveSelection) selectedWorks.value = [...works]
   } catch (error) {
     if (signal.aborted) return
-    relatedError.value = messageOf(error, '关联动画读取失败，不能安全保存关联变更。')
-  } finally {
-    if (!signal.aborted) relatedLoading.value = false
+    relatedError.value = messageOf(error, '关联动画读取失败，请稍后重试。')
   }
 }
 function closeDrawer() {
   if (saving.value) return
   drawerController?.abort()
-  searchController?.abort()
   drawerMode.value = null
   currentSeries.value = null
   drawerError.value = ''
 }
-async function openDrawer(mode: DrawerMode, row?: SeriesSummary) {
+async function openDrawer(mode: DrawerMode, row?: SeriesSummary | number) {
   drawerController?.abort()
   const controller = new AbortController()
   drawerController = controller
   drawerMode.value = mode
-  currentSeries.value = row ?? null
+  currentSeries.value = typeof row === 'number' ? null : row ?? null
   drawerLoading.value = mode !== 'create'
   drawerError.value = ''
   relatedError.value = ''
   relatedWorks.value = []
-  originalAnimeIds.value = []
-  selectedWorks.value = []
   form.name = ''
   form.description = ''
   nameError.value = ''
-  if (mode !== 'detail') resetWorkSearch()
   if (mode === 'create') {
     drawerLoading.value = false
     saveInitialFormState()
@@ -427,12 +322,12 @@ async function openDrawer(mode: DrawerMode, row?: SeriesSummary) {
   }
   if (!row) return
   try {
-    const detail = await getSeriesById(row.id, controller.signal)
+    const detail = await getSeriesById(typeof row === 'number' ? row : row.id, controller.signal)
     if (controller.signal.aborted) return
     currentSeries.value = detail
     form.name = detail.name
     form.description = detail.description ?? ''
-    await refreshRelated(detail, controller.signal)
+    if (mode === 'detail') await refreshRelated(detail, controller.signal)
     if (!controller.signal.aborted) saveInitialFormState()
   } catch (error) {
     if (controller.signal.aborted) return
@@ -442,67 +337,23 @@ async function openDrawer(mode: DrawerMode, row?: SeriesSummary) {
     if (!controller.signal.aborted) drawerLoading.value = false
   }
 }
+function openLinkedDetail() {
+  const id = Number(route.query.detail)
+  if (!Number.isInteger(id) || id <= 0 || route.fullPath !== ownerFullPath) return
+  void openDrawer('detail', id)
+}
 async function saveSeries() {
   nameError.value = form.name.trim() ? '' : '请填写系列名称。'
-  if (nameError.value || saving.value || relatedLoading.value) return
-  if (drawerMode.value === 'edit' && relatedError.value) {
-    drawerError.value = '请先重新读取关联动画，再保存系列。'
-    return
-  }
+  if (nameError.value || saving.value) return
   saving.value = true
   drawerError.value = ''
   try {
     const payload = { name: form.name.trim(), description: form.description.trim() || null }
-    const savedSeries =
-      drawerMode.value === 'create'
-        ? await createSeries(payload)
-        : await updateSeries({ id: currentSeries.value!.id, ...payload })
-    currentSeries.value = savedSeries
-    if (drawerMode.value === 'create') drawerMode.value = 'edit'
-    const wantedIds = selectedWorks.value
-      .filter((work) => work.type === 'anime')
-      .map((work) => work.id)
-    const changes = [
-      ...originalAnimeIds.value
-        .filter((id) => !wantedIds.includes(id))
-        .map((id) => ({ id, seriesId: null })),
-      ...wantedIds
-        .filter((id) => !originalAnimeIds.value.includes(id))
-        .map((id) => ({ id, seriesId: savedSeries.id })),
-    ]
-    const failures: string[] = []
-    for (const change of changes) {
-      try {
-        const anime = await getAnimeDetail(change.id)
-        if (change.seriesId === null && anime.seriesId !== savedSeries.id) continue
-        if (
-          change.seriesId !== null &&
-          anime.seriesId !== null &&
-          anime.seriesId !== savedSeries.id
-        )
-          throw new Error('动画已归属其他系列')
-        await updateAnime({
-          ...anime,
-          id: anime.id,
-          seriesId: change.seriesId,
-          seriesSortOrder: change.seriesId === null ? null : (anime.seriesSortOrder ?? 0),
-        })
-      } catch (error) {
-        failures.push(`#${change.id}：${messageOf(error, '保存失败')}`)
-      }
-    }
-    if (failures.length) {
-      drawerError.value = `系列基本信息已保存，但部分动画关联失败：${failures.join('；')}。请检查后重试。`
-      if (drawerController) await refreshRelated(savedSeries, drawerController.signal, true)
-      await Promise.all([loadPage(page.value.pageNum), loadTotal()])
-      return
-    }
-    const hasDemo = selectedWorks.value.some((work) => work.type !== 'anime')
+    if (drawerMode.value === 'create') await createSeries(payload)
+    else await updateSeries({ id: currentSeries.value!.id, ...payload })
     drawerMode.value = null
     currentSeries.value = null
-    showToast(
-      hasDemo ? '系列与动画关联已保存；漫画、小说仅为前端演示，未保存到服务器。' : '系列保存成功。',
-    )
+    showToast('系列保存成功。')
     await Promise.all([loadPage(page.value.pageNum), loadTotal()])
   } catch (error) {
     drawerError.value = messageOf(error, '保存失败，请稍后重试。')
@@ -542,11 +393,12 @@ async function confirmDelete() {
 }
 function openRelatedWork(work: AssociatedWork) {
   if (work.type !== 'anime') {
-    showToast('对应详情页暂未实现。')
+    showToast('对应管理页面暂未实现。')
     return
   }
   closeDrawer()
-  void router.push(`/admin/anime/${work.id}`)
+  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', work.title)
+  else void router.push({ path: '/admin/anime', query: { keyword: work.title } })
 }
 </script>
 
@@ -608,17 +460,11 @@ function openRelatedWork(work: AssociatedWork) {
         <label class="series-search"
           ><AdminIcon name="search-full" /><input
             v-model="searchName"
-            type="search"
+            type="text"
             placeholder="按系列名称搜索"
             autocomplete="off"
-            aria-label="按系列名称搜索" /><button
-            v-if="searchName"
-            type="button"
-            aria-label="清空搜索"
-            @click="searchName = ''"
-          >
-            <AdminIcon name="close" /></button
-        ></label>
+            aria-label="按系列名称搜索"
+        /></label>
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
       </form>
@@ -634,7 +480,6 @@ function openRelatedWork(work: AssociatedWork) {
                   @change="toggleAll(($event.target as HTMLInputElement).checked)"
                 />
               </th>
-              <th>ID</th>
               <th>系列名称 / 说明</th>
               <th>操作</th>
             </tr>
@@ -648,9 +493,6 @@ function openRelatedWork(work: AssociatedWork) {
                   :aria-label="`选择系列 ${row.name}`"
                   @change="toggleRow(row.id, ($event.target as HTMLInputElement).checked)"
                 />
-              </td>
-              <td>
-                <span class="series-id">#{{ row.id }}</span>
               </td>
               <td>
                 <button class="series-row-name" type="button" @click="openDrawer('detail', row)">
@@ -697,10 +539,10 @@ function openRelatedWork(work: AssociatedWork) {
             listLoading
               ? '正在读取系列档案…'
               : listError
-                ? '系列资料读取失败'
-                : appliedName
-                  ? '没有匹配的系列'
-                  : '暂无系列资料'
+              ? '系列资料读取失败'
+              : appliedName
+              ? '没有匹配的系列'
+              : '暂无系列资料'
           }}</strong>
           <p>
             {{
@@ -731,17 +573,20 @@ function openRelatedWork(work: AssociatedWork) {
       <footer class="series-pagination">
         <span>第 {{ firstResult }}–{{ lastResult }} 条，共 {{ page.total }} 条</span>
         <div class="series-page-controls">
-          <label for="seriesPageSize">每页</label
-          ><select
-            id="seriesPageSize"
-            :value="pageSize"
-            aria-label="每页条数"
-            @change="changePageSize"
-          >
-            <option :value="5">5</option>
-            <option :value="10">10</option>
-            <option :value="20">20</option></select
-          ><button
+          <label class="page-size-wrap">
+            <span>每页</span>
+            <ArchiveSelect
+              id="seriesPageSize"
+              v-model="pageSizeModel"
+              class="page-size-select"
+              label="每页条数"
+              placeholder="选择数量"
+              placement="top"
+              :show-placeholder-option="false"
+              :options="pageSizeOptions"
+            />
+          </label>
+          <button
             type="button"
             aria-label="上一页"
             :disabled="page.pageNum <= 1"
@@ -795,15 +640,15 @@ function openRelatedWork(work: AssociatedWork) {
                   drawerMode === 'create'
                     ? '新增系列'
                     : drawerMode === 'edit'
-                      ? '编辑系列'
-                      : '系列详情'
+                    ? '编辑系列'
+                    : '系列详情'
                 }}
               </h2>
               <p>
                 {{
                   drawerMode === 'create'
                     ? '在系列档案中创建一条记录'
-                    : `系列档案 · ID #${currentSeries?.id ?? '—'}`
+                    : currentSeries?.name || '系列档案'
                 }}
               </p>
             </div>
@@ -822,9 +667,6 @@ function openRelatedWork(work: AssociatedWork) {
             </div>
             <template v-else-if="drawerMode === 'detail'">
               <div class="series-detail-kv">
-                <div>
-                  <span>系列 ID</span><strong>#{{ currentSeries?.id }}</strong>
-                </div>
                 <div>
                   <span>系列名称</span><strong>{{ currentSeries?.name }}</strong>
                 </div>
@@ -900,100 +742,11 @@ function openRelatedWork(work: AssociatedWork) {
                 ></textarea>
                 <p class="series-hint">{{ form.description.length }} / 2000 · 可留空</p>
               </div>
-              <section class="series-association">
-                <header><strong>关联内容</strong><span>动画 / 漫画 / 小说</span></header>
-                <p class="series-hint">
-                  动画关联会通过现有动画接口保存。漫画、小说仅为前端演示，不会保存到服务器。
-                </p>
-                <div class="series-association-controls">
-                  <select v-model="workType" aria-label="关联作品类型">
-                    <option value="anime">动画</option>
-                    <option value="manga">漫画（演示）</option>
-                    <option value="novel">小说（演示）</option></select
-                  ><input
-                    v-model="workKeyword"
-                    type="search"
-                    :placeholder="`搜索${workTypeNames[workType]}名称`"
-                    :aria-label="`搜索${workTypeNames[workType]}名称`"
-                  /><select
-                    v-model="workChoice"
-                    aria-label="选择关联内容"
-                    :disabled="workLoading || !!workError"
-                  >
-                    <option value="">
-                      {{
-                        workLoading
-                          ? '搜索中…'
-                          : workError
-                            ? '搜索失败'
-                            : filteredWorkResults.length
-                              ? '请选择内容'
-                              : '暂无匹配内容'
-                      }}
-                    </option>
-                    <option
-                      v-for="work in filteredWorkResults"
-                      :key="`${work.type}-${work.id}`"
-                      :value="`${work.type}:${work.id}`"
-                    >
-                      {{ work.title }}{{ work.seriesName ? ` · ${work.seriesName}` : '' }}
-                    </option></select
-                  ><button type="button" @click="addAssociation">
-                    <AdminIcon name="plus" />添加关联
-                  </button>
-                </div>
-                <p v-if="workError || associationError" class="series-error" role="alert">
-                  {{ workError || associationError }}
-                </p>
-                <p v-if="relatedError" class="series-error" role="alert">
-                  {{ relatedError }}
-                  <button
-                    v-if="currentSeries"
-                    type="button"
-                    @click="refreshRelated(currentSeries, drawerController!.signal, true)"
-                  >
-                    重新读取
-                  </button>
-                </p>
-                <div v-if="!selectedWorks.length" class="series-association-empty">
-                  暂未选择关联内容
-                </div>
-                <div v-else class="series-work-list">
-                  <div
-                    v-for="work in selectedWorks"
-                    :key="`${work.type}-${work.id}`"
-                    class="series-work-item"
-                  >
-                    <img
-                      v-if="work.coverImageUrl"
-                      :src="work.coverImageUrl"
-                      :alt="`${work.title}封面`"
-                    /><span v-else class="series-work-cover">{{ work.title.slice(0, 1) }}</span
-                    ><span class="series-work-kind" :class="work.type">{{
-                      workTypeNames[work.type]
-                    }}</span
-                    ><span class="series-work-copy"
-                      ><strong>{{ work.title }}</strong
-                      ><small>{{
-                        work.type === 'anime' ? '保存后关联到系列' : '仅前端演示 · 不会保存'
-                      }}</small></span
-                    ><button
-                      type="button"
-                      :aria-label="`移除 ${work.title}`"
-                      @click="removeAssociation(work)"
-                    >
-                      <AdminIcon name="close" />
-                    </button>
-                  </div>
-                </div>
-              </section>
               <p v-if="drawerError" class="series-save-error" role="alert">{{ drawerError }}</p>
             </form>
           </div>
           <footer class="series-drawer-footer">
-            <span>{{
-              drawerMode === 'detail' ? '系列档案' : '名称必填 · 动画关联使用实际 ID'
-            }}</span>
+            <span>{{ drawerMode === 'detail' ? '系列档案' : '名称必填' }}</span>
             <div>
               <button class="secondary-button" type="button" @click="closeDrawer">
                 {{ drawerMode === 'detail' ? '关闭' : '取消' }}</button
@@ -1010,13 +763,7 @@ function openRelatedWork(work: AssociatedWork) {
                 class="primary-button"
                 type="submit"
                 form="seriesEditorForm"
-                :disabled="
-                  saving ||
-                  drawerLoading ||
-                  relatedLoading ||
-                  !!relatedError ||
-                  (drawerMode === 'edit' && !currentSeries)
-                "
+                :disabled="saving || drawerLoading || (drawerMode === 'edit' && !currentSeries)"
               >
                 {{ saving ? '保存中…' : '保存系列' }}
               </button>
@@ -1035,7 +782,9 @@ function openRelatedWork(work: AssociatedWork) {
         <div class="series-dialog">
           <span class="series-dialog-mark"><AdminIcon name="delete" /></span>
           <h2 id="seriesDeleteTitle">确认删除系列？</h2>
-          <p>删除后无法通过页面撤销。请核对以下系列；若仍有动画关联，可能需要先调整动画归属。</p>
+          <p>
+            删除后无法通过页面撤销。请核对以下系列；若仍有作品关联此系列，请先调整作品归属，直接删除会导致作品丢失关联系列。
+          </p>
           <div class="series-delete-preview">
             <strong>{{ deleteTargets.map((row) => row.name).join('、') }}</strong
             ><small>共 {{ deleteTargets.length }} 项</small>
@@ -1125,7 +874,7 @@ function openRelatedWork(work: AssociatedWork) {
   gap: 8px;
   margin: 0 0 9px;
   color: var(--accent-strong);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.16em;
 }
@@ -1137,7 +886,7 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-hero h1 {
   margin: 0;
-  font: 700 clamp(23px, 3vw, 30px)/1.25 var(--font-display);
+  font: 700 clamp(23px, 3vw, 30px) / 1.25 var(--font-display);
   letter-spacing: -0.035em;
 }
 .series-hero h1 span {
@@ -1149,12 +898,12 @@ function openRelatedWork(work: AssociatedWork) {
   max-width: 610px;
   margin: 8px 0 0;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 12px;
 }
 .series-hero .primary-button {
   flex: 0 0 auto;
   min-height: 38px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .series-hero .primary-button svg {
   width: 14px;
@@ -1178,8 +927,8 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-stat-icon {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   place-items: center;
   color: var(--violet);
@@ -1187,8 +936,8 @@ function openRelatedWork(work: AssociatedWork) {
   border-radius: 10px;
 }
 .series-stat-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 .series-stats article:nth-child(2) .series-stat-icon {
   color: var(--cyan);
@@ -1204,12 +953,12 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-stats small {
   color: var(--ink-faint);
-  font-size: 9px;
+  font-size: 10px;
 }
 .series-stats strong {
   margin-top: 2px;
   color: var(--ink);
-  font: 700 18px var(--font-display);
+  font: 700 22px var(--font-display);
 }
 .series-list-card {
   margin-top: 16px;
@@ -1229,12 +978,12 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-list-header h2 {
   margin: 0;
-  font: 700 14px var(--font-display);
+  font: 700 16px var(--font-display);
 }
 .series-list-header p {
   margin: 3px 0 0;
   color: var(--ink-faint);
-  font-size: 9px;
+  font-size: 10px;
 }
 .series-header-actions {
   display: flex;
@@ -1243,11 +992,11 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-header-actions > span {
   color: var(--ink-faint);
-  font-size: 9px;
+  font-size: 10px;
 }
 .series-header-actions .danger-button {
   min-height: 34px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-header-actions .danger-button svg {
   width: 13px;
@@ -1294,32 +1043,14 @@ function openRelatedWork(work: AssociatedWork) {
   border: 0;
   outline: none;
   box-shadow: none;
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-search input:focus {
   box-shadow: none;
 }
-.series-search button {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: var(--ink-faint);
-  background: transparent;
-  border-radius: 6px;
-}
-.series-search button:hover {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.series-search button svg {
-  width: 12px;
-  height: 12px;
-}
 .series-filter > button {
   min-height: 36px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-table-scroll {
   overflow-x: auto;
@@ -1335,7 +1066,7 @@ function openRelatedWork(work: AssociatedWork) {
   color: var(--ink-faint);
   background: var(--surface-muted);
   border-bottom: 1px solid var(--line);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1343,7 +1074,7 @@ function openRelatedWork(work: AssociatedWork) {
   padding: 12px 13px;
   color: var(--ink-soft);
   border-bottom: 1px solid var(--line);
-  font-size: 10px;
+  font-size: 11px;
   vertical-align: middle;
 }
 .series-table tbody tr:hover {
@@ -1366,20 +1097,12 @@ function openRelatedWork(work: AssociatedWork) {
 .series-delete-check input {
   accent-color: var(--accent);
 }
-.series-id {
-  color: var(--ink-faint);
-  font:
-    10px ui-monospace,
-    SFMono-Regular,
-    Consolas,
-    monospace;
-}
 .series-row-name {
   display: block;
   padding: 0;
   color: var(--ink);
   background: transparent;
-  font: 700 12px var(--font-display);
+  font: 700 13px var(--font-display);
   text-align: left;
 }
 .series-row-name:hover {
@@ -1391,7 +1114,7 @@ function openRelatedWork(work: AssociatedWork) {
   margin-top: 4px;
   overflow: hidden;
   color: var(--ink-faint);
-  font-size: 9px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1451,7 +1174,7 @@ function openRelatedWork(work: AssociatedWork) {
 .series-list-state p {
   max-width: 480px;
   margin: 5px 0 13px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-list-state.error .series-state-icon {
   color: var(--danger);
@@ -1459,36 +1182,37 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-list-state button {
   min-height: 34px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-pagination {
   display: flex;
+  min-height: 64px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 12px 20px;
   border-top: 1px solid var(--line);
 }
 .series-pagination > span,
 .series-page-controls {
   color: var(--ink-faint);
-  font-size: 9px;
+  font-size: 10px;
 }
 .series-page-controls {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
 }
 .series-page-controls button {
   display: grid;
-  min-width: 29px;
-  height: 29px;
+  min-width: 32px;
+  height: 32px;
   place-items: center;
   color: var(--ink-soft);
-  background: transparent;
+  background: var(--surface-solid);
   border: 1px solid var(--line);
-  border-radius: 7px;
-  font-size: 9px;
+  border-radius: 8px;
+  font-size: 10px;
 }
 .series-page-controls button svg {
   width: 12px;
@@ -1496,26 +1220,26 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-page-controls button:hover:not(:disabled) {
   color: var(--accent-strong);
-  border-color: var(--accent);
+  background: var(--accent-soft);
+  border-color: rgba(217, 95, 134, 0.3);
 }
 .series-page-controls button.active {
-  color: #fff;
-  background: var(--accent);
-  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: rgba(217, 95, 134, 0.3);
 }
 .series-page-controls button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
-.series-page-controls select,
 .series-page-controls input {
-  height: 29px;
+  height: 32px;
   padding: 0 7px;
   color: var(--ink-soft);
   background: var(--surface-solid);
   border: 1px solid var(--line);
-  border-radius: 7px;
-  font-size: 9px;
+  border-radius: 8px;
+  font-size: 10px;
 }
 .series-page-controls input {
   width: 43px;
@@ -1535,6 +1259,7 @@ function openRelatedWork(work: AssociatedWork) {
   background: rgba(18, 17, 30, 0.42);
   backdrop-filter: blur(2px);
   overscroll-behavior: contain;
+  animation: series-drawer-fade 0.16s ease both;
 }
 .series-drawer {
   display: flex;
@@ -1544,6 +1269,25 @@ function openRelatedWork(work: AssociatedWork) {
   overflow: hidden;
   background: var(--canvas);
   box-shadow: -24px 0 60px rgba(20, 17, 40, 0.2);
+  animation: series-drawer-slide 0.2s ease both;
+}
+@keyframes series-drawer-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes series-drawer-slide {
+  from {
+    opacity: 0.7;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .series-drawer-header {
   display: flex;
@@ -1562,7 +1306,7 @@ function openRelatedWork(work: AssociatedWork) {
 .series-drawer-header p {
   margin: 4px 0 0;
   color: var(--ink-faint);
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-drawer-header button {
   display: grid;
@@ -1610,7 +1354,7 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-drawer-footer > span {
   color: var(--ink-faint);
-  font-size: 9px;
+  font-size: 10px;
 }
 .series-drawer-footer > div {
   display: flex;
@@ -1618,7 +1362,7 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-drawer-footer button {
   min-height: 36px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-drawer-footer button:disabled {
   opacity: 0.5;
@@ -1633,16 +1377,14 @@ function openRelatedWork(work: AssociatedWork) {
   gap: 5px;
   margin-bottom: 6px;
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
 }
 .series-field label span {
   color: var(--accent-strong);
 }
 .series-field input,
-.series-field textarea,
-.series-association-controls input,
-.series-association-controls select {
+.series-field textarea {
   display: block;
   width: 100%;
   min-height: 39px;
@@ -1658,15 +1400,11 @@ function openRelatedWork(work: AssociatedWork) {
   resize: vertical;
 }
 .series-field input:hover,
-.series-field textarea:hover,
-.series-association-controls input:hover,
-.series-association-controls select:hover {
+.series-field textarea:hover {
   border-color: rgba(117, 103, 170, 0.42);
 }
 .series-field input:focus,
-.series-field textarea:focus,
-.series-association-controls input:focus,
-.series-association-controls select:focus {
+.series-field textarea:focus {
   border-color: var(--accent);
   outline: none;
   box-shadow: var(--focus);
@@ -1677,12 +1415,12 @@ function openRelatedWork(work: AssociatedWork) {
 .series-hint {
   margin: 5px 0 0;
   color: var(--ink-faint);
-  font-size: 9px;
+  font-size: 10px;
 }
 .series-error {
   margin: 6px 0;
   color: var(--danger);
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-error button {
   padding: 0 3px;
@@ -1695,7 +1433,7 @@ function openRelatedWork(work: AssociatedWork) {
   color: var(--danger);
   background: var(--danger-soft);
   border-radius: 9px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-association {
   padding: 14px;
@@ -1712,43 +1450,11 @@ function openRelatedWork(work: AssociatedWork) {
   margin-bottom: 11px;
 }
 .series-association header strong {
-  font: 700 12px var(--font-display);
+  font: 700 13px var(--font-display);
 }
 .series-association header span {
   color: var(--ink-faint);
-  font-size: 9px;
-}
-.series-association > .series-hint {
-  margin: -3px 0 11px;
-}
-.series-association-controls {
-  display: grid;
-  grid-template-columns: 110px minmax(0, 1fr);
-  gap: 7px;
-}
-.series-association-controls select,
-.series-association-controls input {
-  min-width: 0;
-  height: 37px;
-  min-height: 37px;
-  padding: 0 9px;
   font-size: 10px;
-}
-.series-association-controls > button {
-  min-height: 36px;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 8px;
-  font-size: 10px;
-  font-weight: 700;
-}
-.series-association-controls > button:hover {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.series-association-controls > button svg {
-  width: 12px;
-  height: 12px;
 }
 .series-work-list {
   display: grid;
@@ -1795,7 +1501,7 @@ function openRelatedWork(work: AssociatedWork) {
   color: var(--violet);
   background: var(--violet-soft);
   border-radius: 5px;
-  font-size: 8px;
+  font-size: 9px;
 }
 .series-work-kind.manga {
   color: #277c79;
@@ -1817,28 +1523,13 @@ function openRelatedWork(work: AssociatedWork) {
   white-space: nowrap;
 }
 .series-work-copy strong {
-  font-size: 10px;
+  font-size: 12px;
 }
 .series-work-copy small {
   margin-top: 2px;
   color: var(--ink-faint);
-  font-size: 8px;
+  font-size: 10px;
 }
-.series-work-item > button {
-  display: grid;
-  width: 27px;
-  height: 27px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: var(--ink-faint);
-  background: transparent;
-  border-radius: 7px;
-}
-.series-work-item > button:hover {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.series-work-item > button svg,
 .series-work-item.related > svg {
   width: 13px;
   height: 13px;
@@ -1851,11 +1542,11 @@ function openRelatedWork(work: AssociatedWork) {
   border: 1px dashed var(--line-strong);
   border-radius: 9px;
   text-align: center;
-  font-size: 9px;
+  font-size: 11px;
 }
 .series-detail-kv {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 9px;
   margin-bottom: 15px;
 }
@@ -1871,13 +1562,13 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-detail-kv span {
   color: var(--ink-faint);
-  font-size: 9px;
+  font-size: 10px;
 }
 .series-detail-kv strong {
   margin-top: 4px;
   overflow-wrap: anywhere;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 13px;
 }
 .series-detail-description {
   padding: 14px;
@@ -1885,7 +1576,7 @@ function openRelatedWork(work: AssociatedWork) {
   background: var(--surface-muted);
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   white-space: pre-wrap;
 }
@@ -1931,7 +1622,7 @@ function openRelatedWork(work: AssociatedWork) {
 .series-dialog p {
   margin: 7px 0 0;
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-delete-preview {
   padding: 11px 12px;
@@ -1946,12 +1637,12 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-delete-preview strong {
   color: var(--ink);
-  font-size: 11px;
+  font-size: 12px;
 }
 .series-delete-preview small {
   margin-top: 5px;
   color: var(--ink-faint);
-  font-size: 9px;
+  font-size: 10px;
 }
 .series-delete-check {
   display: flex;
@@ -1959,7 +1650,7 @@ function openRelatedWork(work: AssociatedWork) {
   gap: 7px;
   margin-top: 11px;
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-dialog .series-error {
   color: var(--danger);
@@ -1972,7 +1663,7 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-dialog-actions button {
   min-height: 36px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-toast {
   position: fixed;
@@ -1986,7 +1677,7 @@ function openRelatedWork(work: AssociatedWork) {
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: var(--shadow);
-  font-size: 10px;
+  font-size: 11px;
 }
 .series-toast.error {
   color: var(--danger);

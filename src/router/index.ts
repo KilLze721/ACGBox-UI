@@ -97,6 +97,17 @@ const router = createRouter({
           },
         },
         {
+          path: 'series/:id',
+          name: 'admin-series-detail',
+          redirect: (to) => ({ path: '/admin/series', query: { detail: String(to.params.id) } }),
+          meta: {
+            title: '系列详情',
+            section: '系列管理',
+            showInMenu: false,
+            activeMenu: '/admin/series',
+          },
+        },
+        {
           path: 'tags',
           name: 'admin-tags',
           component: () => import('@/views/admin/TagsView.vue'),

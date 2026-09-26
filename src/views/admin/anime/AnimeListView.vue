@@ -27,6 +27,7 @@ import AnimeCrudDrawer from './AnimeCrudDrawer.vue'
 
 const route = inject(routeLocationKey, null)
 const ownerFullPath = route?.fullPath ?? ''
+const initialKeyword = typeof route?.query.keyword === 'string' ? route.query.keyword.trim() : ''
 
 interface AnimeFilters {
   keyword: string
@@ -88,8 +89,8 @@ const createDefaultFilters = (): AnimeFilters => ({
   sortDirection: 'DESC',
 })
 
-const form = reactive<AnimeFilters>(createDefaultFilters())
-const appliedFilters = ref<AnimeFilters>(createDefaultFilters())
+const form = reactive<AnimeFilters>({ ...createDefaultFilters(), keyword: initialKeyword })
+const appliedFilters = ref<AnimeFilters>({ ...createDefaultFilters(), keyword: initialKeyword })
 const pageSize = ref(10)
 const pageSizeModel = computed({
   get: () => String(pageSize.value),

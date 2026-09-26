@@ -60,6 +60,8 @@ const pageWrappers = new Map<string, Component>()
 const pageInstances = new Map<string, CloseAwarePage>()
 const tabSession = Date.now().toString(36)
 let tabSequence = 0
+let pageRevision = 0
+let linkedNavigation: { tabId: string; fullPath: string } | null = null
 
 const menuItems = computed(() =>
   router
@@ -92,6 +94,7 @@ const canCloseOtherTabs = computed(() =>
 )
 
 provide('returnToAnimeList', returnToAnimeList)
+provide('navigateLinkedContent', navigateLinkedContent)
 
 watch(
   () => route.fullPath,
@@ -137,6 +140,33 @@ function openCurrentRouteTab() {
     return
   }
 
+  if (linkedNavigation?.fullPath === route.fullPath) {
+    const tab = workspaceTabs.value.find((item) => item.id === linkedNavigation?.tabId)
+    linkedNavigation = null
+    if (tab) {
+      const ordinal =
+        Math.max(
+          0,
+          ...workspaceTabs.value
+            .filter((item) => item.id !== tab.id && item.path === route.path)
+            .map((item) => item.ordinal),
+        ) + 1
+      pageWrappers.delete(tab.id)
+      pageInstances.delete(tab.id)
+      tab.path = route.path
+      tab.fullPath = route.fullPath
+      tab.title = `${route.meta.title}${ordinal > 1 ? `(${ordinal})` : ''}`
+      tab.icon = getCurrentRouteIcon()
+      tab.ordinal = ordinal
+      tab.cacheName = `WorkspaceTab-${tab.id}-${++pageRevision}`
+      activeTabId.value = tab.id
+      if (tab.path === '/admin/anime') lastAnimeTabId.value = tab.id
+      else if (lastAnimeTabId.value === tab.id) lastAnimeTabId.value = null
+      void scrollActiveTabIntoView()
+      return
+    }
+  }
+
   let tab = workspaceTabs.value.find((item) => item.fullPath === route.fullPath)
   if (!tab) {
     const ordinal =
@@ -171,6 +201,7 @@ function getTabWrapper(component: VNode) {
   const existing = pageWrappers.get(tab.id)
   if (existing) return existing
 
+  let attachedInstance: CloseAwarePage | null = null
   const wrapper = markRaw(
     defineComponent({
       name: tab.cacheName,
@@ -180,8 +211,12 @@ function getTabWrapper(component: VNode) {
             component,
             {
               ref: (instance: Element | ComponentPublicInstance | null) => {
-                if (instance) pageInstances.set(tab.id, instance as CloseAwarePage)
-                else pageInstances.delete(tab.id)
+                if (instance) {
+                  attachedInstance = instance as CloseAwarePage
+                  pageInstances.set(tab.id, attachedInstance)
+                } else if (pageInstances.get(tab.id) === attachedInstance) {
+                  pageInstances.delete(tab.id)
+                }
               },
             },
             true,
@@ -191,6 +226,23 @@ function getTabWrapper(component: VNode) {
   )
   pageWrappers.set(tab.id, wrapper)
   return wrapper
+}
+
+async function navigateLinkedContent(path: '/admin/anime' | '/admin/series', keyword: string) {
+  const tab = activeTab.value
+  if (!tab?.closable) return
+  const query = {
+    [path === '/admin/anime' ? 'keyword' : 'name']: keyword.trim(),
+    __workspaceTab: tab.id,
+  }
+  const target = router.resolve({ path, query })
+  linkedNavigation = { tabId: tab.id, fullPath: target.fullPath }
+  try {
+    await router.replace(target)
+  } finally {
+    if (linkedNavigation?.fullPath === target.fullPath && route.fullPath !== target.fullPath)
+      linkedNavigation = null
+  }
 }
 
 function openMenuPage(path: string) {
@@ -544,7 +596,7 @@ function toggleTheme() {
       <div class="content">
         <RouterView v-slot="{ Component }">
           <KeepAlive :include="cachedTabNames">
-            <component :is="getTabWrapper(Component)" :key="activeTabId" />
+            <component :is="getTabWrapper(Component)" :key="activeTab?.cacheName" />
           </KeepAlive>
         </RouterView>
       </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  inject,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -8,8 +9,9 @@ import {
   ref,
   watch,
 } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getAnimeDetail } from '@/api/anime'
+import { getSeriesById } from '@/api/series'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import AnimeEditorForm from './AnimeEditorForm.vue'
 import type { AnimeDetail, AnimePageItem } from '@/types/api'
@@ -21,6 +23,10 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+const router = useRouter()
+const navigateLinkedContent = inject<
+  (path: '/admin/anime' | '/admin/series', keyword: string) => Promise<void>
+>('navigateLinkedContent')
 const ownerFullPath = route.fullPath
 const visible = computed(() => route.fullPath === ownerFullPath)
 
@@ -34,7 +40,16 @@ const emit = defineEmits<{
 const detail = ref<AnimeDetail | null>(null)
 const loading = ref(true)
 const errorMessage = ref('')
+const seriesLinkError = ref('')
+const seriesLinkLoading = ref(false)
 const editorForm = ref<InstanceType<typeof AnimeEditorForm> | null>(null)
+const linkedSeriesName = computed(() => {
+  const seriesId = detail.value?.seriesId
+  const series = props.anime.series
+  return series && series.id === seriesId && series.name !== `#${seriesId}`
+    ? series.name.trim()
+    : ''
+})
 let controller: AbortController | undefined
 let scrollLockState:
   | {
@@ -122,6 +137,29 @@ defineExpose({ getCloseState })
 
 function openEdit() {
   emit('edit')
+}
+
+async function openSeriesDetail() {
+  if (detail.value?.seriesId == null) return
+  const seriesId = detail.value.seriesId
+  if (seriesLinkLoading.value) return
+  seriesLinkError.value = ''
+  let seriesName = linkedSeriesName.value
+  if (!seriesName) {
+    seriesLinkLoading.value = true
+    try {
+      seriesName = (await getSeriesById(seriesId)).name.trim()
+    } catch (error) {
+      seriesLinkError.value =
+        error instanceof Error ? error.message : '系列名称读取失败，请稍后重试。'
+      return
+    } finally {
+      seriesLinkLoading.value = false
+    }
+  }
+  emit('close')
+  if (navigateLinkedContent) await navigateLinkedContent('/admin/series', seriesName)
+  else await router.push({ path: '/admin/series', query: { name: seriesName } })
 }
 
 function requestClose() {
@@ -319,10 +357,17 @@ function getSafeExternalUrl(value: string) {
                 <div>
                   <span>所属系列</span>
                   <div class="anime-detail-chips">
-                    <span v-if="detail.seriesId !== null"
-                      >{{ anime.series?.name || `#${detail.seriesId}` }}</span
+                    <button
+                      v-if="detail.seriesId !== null"
+                      class="anime-detail-series-link"
+                      type="button"
+                      :aria-label="`搜索所属系列：${linkedSeriesName || '所属系列'}`"
+                      :disabled="seriesLinkLoading"
+                      @click="openSeriesDetail"
+                      >{{ linkedSeriesName || '查看所属系列' }}</button
                     ><i v-else>未关联系列</i>
                   </div>
+                  <small v-if="seriesLinkError" class="anime-detail-series-error" role="alert">{{ seriesLinkError }}</small>
                 </div>
               </div>
             </section>
@@ -387,14 +432,6 @@ function getSafeExternalUrl(value: string) {
   background: var(--canvas);
   box-shadow: -22px 0 60px rgba(20, 17, 40, 0.18);
   animation: anime-crud-slide 0.2s ease both;
-}
-.anime-crud-drawer :deep(.anime-editor-footer) {
-  position: sticky;
-  bottom: 0;
-  z-index: 3;
-  padding: 10px 0 5px;
-  background: var(--canvas);
-  box-shadow: 0 -8px 16px rgba(20, 17, 40, 0.06);
 }
 .anime-crud-drawer-close {
   position: fixed;
@@ -605,6 +642,7 @@ function getSafeExternalUrl(value: string) {
   gap: 6px;
 }
 .anime-detail-chips > span,
+.anime-detail-chips > .anime-detail-series-link,
 .anime-detail-company-list > span {
   padding: 5px 8px;
   color: var(--ink-soft);
@@ -612,6 +650,21 @@ function getSafeExternalUrl(value: string) {
   border: 1px solid var(--line);
   border-radius: 999px;
   font-size: 9px;
+}
+.anime-detail-chips > .anime-detail-series-link {
+  cursor: pointer;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.anime-detail-chips > .anime-detail-series-link:hover,
+.anime-detail-chips > .anime-detail-series-link:focus-visible {
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface-solid));
+  border-color: var(--accent);
+}
+.anime-detail-series-error {
+  color: var(--danger);
+  font-size: 10px;
 }
 .anime-detail-chips > span.tag {
   color: var(--accent-strong);
