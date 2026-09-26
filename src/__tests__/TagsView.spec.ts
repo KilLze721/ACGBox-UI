@@ -207,9 +207,13 @@ describe('标签管理页面', () => {
     await wrapper.get('button[aria-label="删除标签 奇幻"]').trigger('click')
     expect(document.body.querySelector('.tags-dialog')?.textContent).toContain('奇幻')
     expect(document.body.querySelector('.tags-dialog')?.textContent).not.toContain('17')
+    expect(document.body.querySelector('.tags-delete-note')?.textContent).toContain('关联关系')
+    const check = document.body.querySelector('.tags-delete-check')!
+    const note = document.body.querySelector('.tags-delete-note')!
+    expect(check.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     document.body.querySelector<HTMLButtonElement>('.tags-dialog-actions .danger-button')!.click()
     await flushPromises()
-    expect(document.body.querySelector('.tags-dialog .tags-error')?.textContent).toContain(
+    expect(document.body.querySelector('.tags-dialog .tags-checkbox-error')?.textContent).toContain(
       '请先勾选',
     )
     expect(requests.some((request) => request.path === '/api/tags/delete')).toBe(false)

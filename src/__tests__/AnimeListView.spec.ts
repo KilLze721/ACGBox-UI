@@ -26,6 +26,40 @@ afterEach(() => {
 })
 
 describe('动画管理分页查询页面', () => {
+  it('列表展示全部标签，超过四个仍保留每个标签', async () => {
+    const tags = ['战斗', '恋爱', '奇幻', '日常', '科幻', '冒险'].map((name, index) => ({
+      id: index + 1,
+      name,
+    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const path = new URL(String(input), 'http://localhost').pathname
+        const data = path.endsWith('/anime/page')
+          ? { pageNum: 1, pageSize: 10, total: 1, pages: 1, rows: [{ ...animeRow, tags }] }
+          : path.endsWith('/tags/page')
+            ? { pageNum: 1, pageSize: 100, total: tags.length, pages: 1, rows: tags }
+            : []
+        return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
+      }),
+    )
+
+    const wrapper = mount(AnimeListView, {
+      global: {
+        stubs: {
+          RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.findAll('.anime-table tbody .tag-list .tag').map((tag) => tag.text())).toEqual(
+      tags.map((tag) => tag.name),
+    )
+    expect(wrapper.find('.anime-table tbody .tag-list .more').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('加载分页数据并使用表单条件重新查询', async () => {
     const fetchMock = vi
       .fn<

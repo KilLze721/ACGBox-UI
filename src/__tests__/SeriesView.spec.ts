@@ -145,11 +145,17 @@ describe('系列管理页面', () => {
     const wrapper = mount(SeriesView, { attachTo: document.body, global: { plugins: [router] } })
     await flushPromises()
     await wrapper.get('.series-row-actions .danger').trigger('click')
+    expect(document.body.querySelector('.series-delete-note')?.textContent).toContain(
+      '若仍有作品关联此系列',
+    )
+    const check = document.body.querySelector('.series-delete-check')!
+    const note = document.body.querySelector('.series-delete-note')!
+    expect(check.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     ;(
       document.body.querySelector('.series-dialog-actions .danger-button') as HTMLButtonElement
     ).click()
     await flushPromises()
-    expect(document.body.querySelector('.series-dialog .series-error')?.textContent).toContain(
+    expect(document.body.querySelector('.series-dialog .series-checkbox-error')?.textContent).toContain(
       '请先勾选',
     )
     expect(requests.some((request) => request.path === '/api/series/delete')).toBe(false)

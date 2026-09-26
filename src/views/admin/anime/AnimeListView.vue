@@ -1323,20 +1323,7 @@ function getCoverGradient(id: number) {
               </td>
               <td class="tag-cell">
                 <div class="tag-list">
-                  <span v-for="tag in anime.tags.slice(0, 3)" :key="tag.id" class="tag">{{
-                    tag.name
-                  }}</span
-                  ><span
-                    v-if="anime.tags.length > 3"
-                    class="tag more"
-                    :title="
-                      anime.tags
-                        .slice(3)
-                        .map((tag) => tag.name)
-                        .join('、')
-                    "
-                    >+{{ anime.tags.length - 3 }}</span
-                  >
+                  <span v-for="tag in anime.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
                 </div>
               </td>
               <td class="meta-cell">

@@ -56,17 +56,16 @@ let previousHtmlOverflow: string | undefined
 
 const allVisibleSelected = computed(
   () =>
-    page.value.rows.length > 0 &&
-    page.value.rows.every((row) => selectedIds.value.includes(row.id)),
+    page.value.rows.length > 0 && page.value.rows.every((row) => selectedIds.value.includes(row.id))
 )
 const selectedTargets = computed(() =>
-  page.value.rows.filter((row) => selectedIds.value.includes(row.id)),
+  page.value.rows.filter((row) => selectedIds.value.includes(row.id))
 )
 const firstResult = computed(() =>
-  page.value.total ? (page.value.pageNum - 1) * page.value.pageSize + 1 : 0,
+  page.value.total ? (page.value.pageNum - 1) * page.value.pageSize + 1 : 0
 )
 const lastResult = computed(() =>
-  Math.min(page.value.pageNum * page.value.pageSize, page.value.total),
+  Math.min(page.value.pageNum * page.value.pageSize, page.value.total)
 )
 const pageNumbers = computed(() => {
   const values: Array<number | string> = []
@@ -84,7 +83,7 @@ const pageNumbers = computed(() => {
   return values
 })
 const isDirty = computed(
-  () => drawerMode.value !== null && formName.value !== initialNameValue.value,
+  () => drawerMode.value !== null && formName.value !== initialNameValue.value
 )
 
 defineExpose({
@@ -432,10 +431,10 @@ async function confirmDelete() {
             listLoading
               ? '正在读取标签…'
               : listError
-                ? '标签读取失败'
-                : appliedName
-                  ? '没有匹配的标签'
-                  : '暂无标签'
+              ? '标签读取失败'
+              : appliedName
+              ? '没有匹配的标签'
+              : '暂无标签'
           }}</strong>
           <p>
             {{
@@ -594,7 +593,7 @@ async function confirmDelete() {
         <div class="tags-dialog">
           <span class="tags-dialog-mark"><AdminIcon name="delete" /></span>
           <h2 id="tagsDeleteTitle">确认删除标签？</h2>
-          <p>删除后无法通过页面撤销。请先确认这些标签不再被作品使用。</p>
+          <p>删除后无法通过页面撤销。请核对以下标签。</p>
           <div class="tags-delete-preview">
             <strong>{{ deleteTargets.map((row) => row.name).join('、') }}</strong
             ><small>共 {{ deleteTargets.length }} 项</small>
@@ -606,7 +605,20 @@ async function confirmDelete() {
               @change="deleteError = ''"
             />我已核对要删除的标签及其关联作品。</label
           >
-          <p v-if="deleteError" class="tags-error" role="alert">{{ deleteError }}</p>
+          <p
+            v-if="deleteError"
+            class="tags-error"
+            :class="{ 'tags-checkbox-error': !deleteConfirmed }"
+            role="alert"
+          >
+            {{ deleteError }}
+          </p>
+          <div class="tags-delete-note" role="note">
+            <span aria-hidden="true">!</span>
+            <span
+              >若仍有作品使用此标签，请先检查并调整作品标签，直接删除会导致作品丢失关联信息。</span
+            >
+          </div>
           <div class="tags-dialog-actions">
             <button
               class="secondary-button"
@@ -692,7 +704,7 @@ async function confirmDelete() {
 }
 .tags-hero h1 {
   margin: 0;
-  font: 700 clamp(23px, 3vw, 30px)/1.25 var(--font-display);
+  font: 700 clamp(23px, 3vw, 30px) / 1.25 var(--font-display);
   letter-spacing: -0.035em;
 }
 .tags-hero h1 span {
@@ -1295,6 +1307,25 @@ async function confirmDelete() {
 .tags-delete-check input {
   margin-top: 2px;
   accent-color: var(--danger);
+}
+.tags-dialog .tags-error {
+  color: var(--danger);
+}
+.tags-dialog .tags-checkbox-error {
+  margin: 5px 0 0 20px;
+  color: var(--danger);
+  font-size: 11px;
+}
+.tags-delete-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 9px 10px;
+  margin-top: 12px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-radius: 9px;
+  font-size: 11px;
 }
 .tags-dialog-actions {
   display: flex;

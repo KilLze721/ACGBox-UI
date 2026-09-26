@@ -782,9 +782,7 @@ function openRelatedWork(work: AssociatedWork) {
         <div class="series-dialog">
           <span class="series-dialog-mark"><AdminIcon name="delete" /></span>
           <h2 id="seriesDeleteTitle">确认删除系列？</h2>
-          <p>
-            删除后无法通过页面撤销。请核对以下系列；若仍有作品关联此系列，请先调整作品归属，直接删除会导致作品丢失关联系列。
-          </p>
+          <p>删除后无法通过页面撤销。请核对以下系列。</p>
           <div class="series-delete-preview">
             <strong>{{ deleteTargets.map((row) => row.name).join('、') }}</strong
             ><small>共 {{ deleteTargets.length }} 项</small>
@@ -796,7 +794,20 @@ function openRelatedWork(work: AssociatedWork) {
               @change="deleteError = ''"
             />我已核对要删除的系列。</label
           >
-          <p v-if="deleteError" class="series-error" role="alert">{{ deleteError }}</p>
+          <p
+            v-if="deleteError"
+            class="series-error"
+            :class="{ 'series-checkbox-error': !deleteConfirmed }"
+            role="alert"
+          >
+            {{ deleteError }}
+          </p>
+          <div class="series-delete-note" role="note">
+            <span aria-hidden="true">!</span>
+            <span
+              >若仍有作品关联此系列，请先检查并调整作品归属，直接删除会导致作品丢失关联系列。</span
+            >
+          </div>
           <div class="series-dialog-actions">
             <button
               class="secondary-button"
@@ -1654,6 +1665,21 @@ function openRelatedWork(work: AssociatedWork) {
 }
 .series-dialog .series-error {
   color: var(--danger);
+}
+.series-dialog .series-checkbox-error {
+  margin: 5px 0 0 20px;
+  font-size: 11px;
+}
+.series-delete-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 9px 10px;
+  margin-top: 12px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-radius: 9px;
+  font-size: 11px;
 }
 .series-dialog-actions {
   display: flex;

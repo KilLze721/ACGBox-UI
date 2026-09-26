@@ -3929,6 +3929,57 @@ svg {
   width: 100%;
 }
 
+.anime-management-page .anime-table {
+  min-width: 1300px;
+}
+
+.anime-management-page .anime-table .tag-cell {
+  width: 220px;
+}
+
+.anime-management-page .anime-table td.tag-cell {
+  padding-left: 4px;
+}
+
+.anime-management-page .anime-table .tag-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.anime-management-page .anime-table .tag-list .tag {
+  min-width: 0;
+  height: auto;
+  min-height: 24px;
+  justify-content: center;
+  padding: 3px 4px;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.anime-management-page .dialog h2 {
+  font-size: 17px;
+}
+
+.anime-management-page .delete-target > span > span {
+  font-size: 10px;
+}
+
+.anime-management-page .dialog-delete-confirm,
+.anime-management-page .dialog-checkbox-error,
+.anime-management-page .dialog-note,
+.anime-management-page .dialog-actions button {
+  font-size: 11px;
+}
+
+.anime-management-page .dialog-delete-confirm {
+  align-items: center;
+}
+
+.anime-management-page .dialog-delete-confirm input {
+  margin: 0;
+}
+
 .cover img {
   width: 100%;
   height: 100%;
