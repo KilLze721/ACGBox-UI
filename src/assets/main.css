@@ -3938,16 +3938,18 @@ svg {
 }
 
 .anime-management-page .anime-table td.tag-cell {
-  padding-left: 4px;
+  padding-left: 6px;
 }
 
 .anime-management-page .anime-table .tag-list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, 44px);
+  column-gap: 7px;
 }
 
 .anime-management-page .anime-table .tag-list .tag {
   min-width: 0;
+  width: 44px;
   height: auto;
   min-height: 24px;
   justify-content: center;
