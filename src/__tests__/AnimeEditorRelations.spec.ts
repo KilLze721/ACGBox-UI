@@ -65,6 +65,9 @@ function stubRequests() {
       } else if (url.pathname.endsWith('/anime/create')) {
         submittedPayload = JSON.parse(String(init?.body)) as Record<string, unknown>
         data = { id: 20 }
+      } else if (url.pathname.endsWith('/anime/update')) {
+        submittedPayload = JSON.parse(String(init?.body)) as Record<string, unknown>
+        data = { id: 15, name: submittedPayload.name }
       } else if (url.pathname.endsWith('/broadcast-type/list')) {
         data = [{ id: 1, name: 'TV' }]
       } else if (url.pathname.endsWith('/adaptation-type/list')) {
@@ -156,6 +159,28 @@ describe('新增和修改动画的关联资料', () => {
     expect((wrapper.find('#animeSeries').element as HTMLInputElement).value).toBe('物语系列')
     expect((wrapper.find('#animeCompanyRole-0').element as HTMLInputElement).value).toBe('动画制作')
     expect((wrapper.find('#animeExternalTitle-0').element as HTMLInputElement).value).toBe('官网')
+  })
+
+  it('修改保存成功后直接通知列表，不再出现二次成功弹窗', async () => {
+    stubRequests()
+    await router.push('/admin/anime')
+    wrapper = mount(AnimeEditorForm, {
+      props: { mode: 'edit', animeId: 15 },
+      attachTo: document.body,
+      global: { plugins: [router] },
+    })
+    await flushPromises()
+
+    await wrapper.find('input[placeholder="输入正式名称"]').setValue('更新后的动画')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(document.querySelector('.anime-confirm-dialog')?.textContent).toContain('确认保存动画')
+    document.querySelector<HTMLButtonElement>('.anime-confirm-actions .primary-button')?.click()
+    await flushPromises()
+
+    expect(submittedPayload?.id).toBe(15)
+    expect(wrapper.emitted('saved')).toHaveLength(1)
+    expect(document.querySelector('.anime-confirm-dialog')).toBeNull()
   })
 
   it('输入不存在或未选中的公司名称时提示并阻止提交', async () => {

@@ -7,6 +7,7 @@ declare module 'vue-router' {
     icon?: string
     order?: number
     section?: string
+    menuParent?: string
     showInMenu?: boolean
     activeMenu?: string
   }
@@ -116,7 +117,7 @@ const router = createRouter({
             menuName: '标签管理',
             icon: 'tags',
             order: 40,
-            section: '内容管理',
+            section: '基础资料',
             showInMenu: true,
           },
         },
@@ -151,7 +152,8 @@ const router = createRouter({
             menuName: '放送类型管理',
             icon: 'broadcast-types',
             order: 60,
-            section: '内容管理',
+            section: '动画管理',
+            menuParent: '/admin/anime',
             showInMenu: true,
           },
         },
@@ -164,7 +166,7 @@ const router = createRouter({
             menuName: '改编类型管理',
             icon: 'adaptation-types',
             order: 61,
-            section: '内容管理',
+            section: '基础资料',
             showInMenu: true,
           },
         },
@@ -177,7 +179,7 @@ const router = createRouter({
             menuName: '地区管理',
             icon: 'regions',
             order: 70,
-            section: '内容管理',
+            section: '基础资料',
             showInMenu: true,
           },
         },

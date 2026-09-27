@@ -9,8 +9,40 @@ export function getAdaptationTypes(signal?: AbortSignal) {
   return get<NamedOption[]>('/adaptation-type/list', {}, signal)
 }
 
+export function getAdaptationTypeById(id: number, signal?: AbortSignal) {
+  return get<NamedOption>(`/adaptation-type/${id}`, {}, signal)
+}
+
+export function createAdaptationType(payload: { name: string }) {
+  return post<NamedOption>('/adaptation-type/create', payload)
+}
+
+export function updateAdaptationType(payload: NamedOption) {
+  return post<NamedOption>('/adaptation-type/update', payload)
+}
+
+export function deleteAdaptationTypes(ids: number[]) {
+  return post<null>('/adaptation-type/delete', ids)
+}
+
 export function getRegions(signal?: AbortSignal) {
   return get<NamedOption[]>('/region/list', {}, signal)
+}
+
+export function getRegionById(id: number, signal?: AbortSignal) {
+  return get<NamedOption>(`/region/${id}`, {}, signal)
+}
+
+export function createRegion(payload: { name: string }) {
+  return post<NamedOption>('/region/create', payload)
+}
+
+export function updateRegion(payload: NamedOption) {
+  return post<NamedOption>('/region/update', payload)
+}
+
+export function deleteRegions(ids: number[]) {
+  return post<null>('/region/delete', ids)
 }
 
 export function getTags(pageNum = 1, pageSize = 100, signal?: AbortSignal) {

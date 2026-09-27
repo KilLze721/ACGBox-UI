@@ -24,7 +24,7 @@ const animeRow = {
   series: null,
 }
 
-function stubCatalogRequests(withAnime = false, withSeries = false) {
+function stubCatalogRequests(withAnime = false, withSeries = false, withCompany = false) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string | URL | Request) => {
@@ -32,9 +32,12 @@ function stubCatalogRequests(withAnime = false, withSeries = false) {
       const path = url.pathname
       let data: unknown = []
       if (path.endsWith('/anime/page')) {
-        const row = withSeries
+        const seriesRow = withSeries
           ? { ...animeRow, series: { id: 7, name: '测试动画系列', description: null } }
           : animeRow
+        const row = withCompany
+          ? { ...seriesRow, companies: [{ companyId: 5, companyName: '测试公司', role: '动画制作' }] }
+          : seriesRow
         const keyword = url.searchParams.get('keyword')
         const matches =
           withAnime &&
@@ -45,6 +48,17 @@ function stubCatalogRequests(withAnime = false, withSeries = false) {
           total: matches ? 1 : 0,
           pages: matches ? 1 : 0,
           rows: matches ? [row] : [],
+        }
+      } else if (withCompany && path.endsWith('/companies/5')) {
+        data = { id: 5, name: '测试公司', description: '公司简介' }
+      } else if (withCompany && path.endsWith('/companies/page')) {
+        const matches = !url.searchParams.get('name') || '测试公司'.includes(url.searchParams.get('name')!)
+        data = {
+          pageNum: 1,
+          pageSize: Number(url.searchParams.get('pageSize')),
+          total: matches ? 1 : 0,
+          pages: matches ? 1 : 0,
+          rows: matches ? [{ id: 5, name: '测试公司', description: '公司简介' }] : [],
         }
       } else if (withSeries && path.endsWith('/series/7')) {
         data = { id: 7, name: '测试动画系列', description: '测试系列说明' }
@@ -73,7 +87,7 @@ function stubCatalogRequests(withAnime = false, withSeries = false) {
           status: 1,
           description: null,
           aliasNames: [],
-          companies: [],
+          companies: withCompany ? [{ companyId: 5, role: '动画制作' }] : [],
           externalLinks: [],
           tagIds: [],
           seriesId: withSeries ? 7 : null,
@@ -91,6 +105,23 @@ function stubCatalogRequests(withAnime = false, withSeries = false) {
 }
 
 describe('工作台页面标签', () => {
+  it('点击动画列表名称在当前页面打开详情抽屉', async () => {
+    stubCatalogRequests(true)
+    await router.push('/admin/dashboard')
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
+    await flushPromises()
+
+    const tabCount = wrapper.findAll('.workspace-tab').length
+    await wrapper.find('.anime-table .work-title').trigger('click')
+    await flushPromises()
+
+    expect(document.body.querySelector('.anime-crud-drawer')?.textContent).toContain('测试动画')
+    expect(router.currentRoute.value.path).toBe('/admin/anime')
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(tabCount)
+    wrapper.unmount()
+  })
+
   it('关联内容在当前标签内切换管理列表并立即按名称搜索', async () => {
     stubCatalogRequests(true, true)
     await router.push('/admin/dashboard')
@@ -151,6 +182,47 @@ describe('工作台页面标签', () => {
         )
       }),
     ).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('动画与公司详情双向跳转时复用当前标签并按名称从第一页搜索', async () => {
+    stubCatalogRequests(true, false, true)
+    await router.push('/admin/dashboard')
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+
+    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
+    await flushPromises()
+    const workspaceTab = wrapper.find('.workspace-tab.active').element
+    await wrapper.find('button[aria-label="查看 测试动画"]').trigger('click')
+    await flushPromises()
+    document.querySelector<HTMLButtonElement>('.anime-detail-company-link')?.click()
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/companies'))
+    await flushPromises()
+
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
+    expect(wrapper.find('.workspace-tab.active').element).toBe(workspaceTab)
+    expect(router.currentRoute.value.query.name).toBe('测试公司')
+    expect((wrapper.find('.companies-search input').element as HTMLInputElement).value).toBe('测试公司')
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls.some(([input]) => {
+      const url = new URL(String(input), 'http://localhost')
+      return url.pathname.endsWith('/companies/page') && url.searchParams.get('name') === '测试公司' && url.searchParams.get('pageNum') === '1'
+    })).toBe(true)
+
+    await wrapper.find('.companies-row-name').trigger('click')
+    await flushPromises()
+    document.querySelector<HTMLButtonElement>('.companies-association-anime')?.click()
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/anime'))
+    await flushPromises()
+
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
+    expect(wrapper.find('.workspace-tab.active').element).toBe(workspaceTab)
+    expect(router.currentRoute.value.query.keyword).toBe('测试动画')
+    expect((wrapper.find('input[placeholder="输入动画名称、别名或系列"]').element as HTMLInputElement).value).toBe('测试动画')
+    expect(fetchMock.mock.calls.some(([input]) => {
+      const url = new URL(String(input), 'http://localhost')
+      return url.pathname.endsWith('/anime/page') && url.searchParams.get('keyword') === '测试动画' && url.searchParams.get('pageNum') === '1'
+    })).toBe(true)
     wrapper.unmount()
   })
 

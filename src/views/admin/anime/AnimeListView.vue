@@ -1313,7 +1313,13 @@ function getCoverGradient(id: number) {
                 </div>
               </td>
               <td class="work-cell">
-                <strong class="work-title" :title="anime.name">{{ anime.name }}</strong>
+                <button
+                  class="work-title"
+                  type="button"
+                  :title="anime.name"
+                  :aria-label="`查看 ${anime.name} 详情`"
+                  @click="openCrudDrawer('detail', anime)"
+                >{{ anime.name }}</button>
                 <span class="work-alias" :title="anime.aliasNames.join(' · ')">{{
                   anime.aliasNames.join(' · ') || '暂无别名'
                 }}</span>
@@ -2080,6 +2086,19 @@ function getCoverGradient(id: number) {
 </template>
 
 <style scoped>
+.anime-management-page .work-title {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.anime-management-page .work-title:hover,
+.anime-management-page .work-title:focus-visible {
+  color: var(--accent-strong);
+}
 @media not all {
   .anime-page {
     display: grid;

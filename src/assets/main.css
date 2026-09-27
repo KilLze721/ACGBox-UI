@@ -279,6 +279,29 @@ svg {
   list-style: none;
 }
 
+.nav-section + .nav-section {
+  margin-top: 20px;
+}
+
+.nav-sublist {
+  display: grid;
+  gap: 4px;
+  padding: 4px 0 0 12px;
+  margin: 0 0 3px 22px;
+  border-left: 1px solid rgba(238, 237, 248, 0.16);
+  list-style: none;
+}
+
+.nav-sublist .nav-subitem {
+  height: 38px;
+  padding-left: 10px;
+  font-size: 12px;
+}
+
+.nav-subitem .nav-icon {
+  width: 18px;
+}
+
 .nav-item {
   position: relative;
   display: flex;
@@ -296,6 +319,7 @@ svg {
     color 160ms ease,
     background 160ms ease,
     transform 160ms ease;
+  text-decoration: none;
 }
 
 .nav-item:hover {
@@ -529,6 +553,7 @@ svg {
   color: inherit;
   background: transparent;
   text-align: left;
+  text-decoration: none;
 }
 
 .workspace-tab-icon svg {
@@ -3569,6 +3594,12 @@ svg {
   padding: 0;
 }
 
+.app-shell.sidebar-collapsed .nav-sublist {
+  padding: 4px 0 0;
+  margin-left: 0;
+  border-left: 0;
+}
+
 .app-shell.sidebar-collapsed .nav-note {
   padding: 16px;
 }
@@ -3679,6 +3710,12 @@ svg {
   .app-shell.sidebar-collapsed .nav-item {
     justify-content: flex-start;
     padding: 0 13px;
+  }
+
+  .app-shell.sidebar-collapsed .nav-sublist {
+    padding: 4px 0 0 12px;
+    margin-left: 22px;
+    border-left: 1px solid rgba(238, 237, 248, 0.16);
   }
 
   .app-shell.sidebar-collapsed .nav-note {

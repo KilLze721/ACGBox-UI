@@ -5,7 +5,7 @@ import CompaniesView from '@/views/admin/CompaniesView.vue'
 
 const initialCompany = { id: 5, name: 'MADHOUSE', description: '日本动画制作公司' }
 
-function mockApi() {
+function mockApi(animeCount = 1) {
   const requests: Array<{ path: string; query: string; body?: unknown }> = []
   let companies = [{ ...initialCompany }]
   let rejectDelete = false
@@ -33,18 +33,22 @@ function mockApi() {
       } else if (url.pathname.endsWith('/companies/5'))
         data = companies.find((company) => company.id === 5)
       else if (url.pathname.endsWith('/anime/page')) {
+        const pageNum = Number(url.searchParams.get('pageNum'))
+        const pageSize = Number(url.searchParams.get('pageSize'))
+        const anime = Array.from({ length: animeCount }, (_, index) => ({
+          id: 17 + index,
+          name: index === 0 ? '葬送的芙莉莲' : `关联动画${index + 1}`,
+          airDate: '2026-09-26',
+          coverImageUrl: null,
+          personalRating: 8,
+          companies: [{ companyId: 5, companyName: 'MADHOUSE', role: '动画制作' }],
+        }))
         data = {
-          pageNum: 1,
-          pageSize: 100,
-          total: 1,
-          pages: 1,
-          rows: [
-            {
-              id: 17,
-              name: '葬送的芙莉莲',
-              companies: [{ companyId: 5, companyName: 'MADHOUSE', role: '动画制作' }],
-            },
-          ],
+          pageNum,
+          pageSize,
+          total: anime.length,
+          pages: Math.ceil(anime.length / pageSize),
+          rows: anime.slice((pageNum - 1) * pageSize, pageNum * pageSize),
         }
       } else if (url.pathname.endsWith('/companies/create')) {
         const company = { id: 6, ...body }
@@ -132,6 +136,37 @@ describe('制作公司管理页面', () => {
         (request) => request.path === '/api/anime/page' && request.query.includes('companyId=5'),
       ),
     ).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('公司关联动画由接口按公司分页，并可切换放送日期或评分的排序方向', async () => {
+    const { requests } = mockApi(12)
+    await router.push('/admin/companies')
+    const wrapper = mount(CompaniesView, { attachTo: document.body, global: { plugins: [router] } })
+    await flushPromises()
+    await wrapper.get('.companies-row-name').trigger('click')
+    await flushPromises()
+
+    expect(document.body.querySelector('.companies-association-list')?.children).toHaveLength(5)
+    expect(document.body.querySelector('.companies-association-pagination')?.textContent).toContain('共 12 条')
+    expect(requests.some((request) => request.path === '/api/anime/page' && request.query.includes('companyId=5') && request.query.includes('sortBy=BROADCAST_DATE') && request.query.includes('sortDirection=DESC') && request.query.includes('pageSize=5'))).toBe(true)
+
+    document.body.querySelector<HTMLButtonElement>('[aria-label="下一页关联动画"]')?.click()
+    await flushPromises()
+    expect(requests.some((request) => request.path === '/api/anime/page' && request.query.includes('pageNum=2') && request.query.includes('companyId=5'))).toBe(true)
+
+    document.body.querySelectorAll<HTMLButtonElement>('.companies-association-toolbar button')[1]?.click()
+    await flushPromises()
+    expect(requests.some((request) => request.path === '/api/anime/page' && request.query.includes('pageNum=1') && request.query.includes('sortBy=PERSONAL_RATING'))).toBe(true)
+    document.body.querySelector<HTMLButtonElement>('.companies-association-direction')?.click()
+    await flushPromises()
+    expect(requests.some((request) => request.path === '/api/anime/page' && request.query.includes('sortBy=PERSONAL_RATING') && request.query.includes('sortDirection=ASC'))).toBe(true)
+    document.body.querySelector<HTMLButtonElement>('#relatedAnimePageSize')?.click()
+    await flushPromises()
+    const tenPerPage = Array.from(document.body.querySelectorAll<HTMLButtonElement>('.archive-select-option')).find((option) => option.textContent?.includes('10 条'))
+    tenPerPage?.click()
+    await flushPromises()
+    expect(requests.some((request) => request.path === '/api/anime/page' && request.query.includes('pageNum=1') && request.query.includes('pageSize=10') && request.query.includes('companyId=5'))).toBe(true)
     wrapper.unmount()
   })
 

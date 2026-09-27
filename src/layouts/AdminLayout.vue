@@ -70,6 +70,26 @@ const menuItems = computed(() =>
     .sort((left, right) => (left.meta.order ?? 0) - (right.meta.order ?? 0)),
 )
 
+const menuSectionLabels = [
+  { name: '工作台', label: '工作台 / Workspace' },
+  { name: '内容管理', label: '内容管理 / Content' },
+  { name: '基础资料', label: '基础资料 / Catalog' },
+  { name: '系统管理', label: '系统管理 / System' },
+]
+const menuSections = computed(() =>
+  menuSectionLabels
+    .map((section) => ({
+      label: section.label,
+      items: menuItems.value.filter(
+        (item) => item.meta.section === section.name && !item.meta.menuParent,
+      ),
+    }))
+    .filter((section) => section.items.length > 0),
+)
+function childMenuItems(path: string) {
+  return menuItems.value.filter((item) => item.meta.menuParent === path)
+}
+
 const activeMenu = computed(() => route.meta.activeMenu ?? route.path)
 const breadcrumbSection = computed(() => route.meta.section ?? '管理后台')
 const currentTitle = computed(() => route.meta.title)
@@ -228,7 +248,7 @@ function getTabWrapper(component: VNode) {
   return wrapper
 }
 
-async function navigateLinkedContent(path: '/admin/anime' | '/admin/series', keyword: string) {
+async function navigateLinkedContent(path: '/admin/anime' | '/admin/series' | '/admin/companies', keyword: string) {
   const tab = activeTab.value
   if (!tab?.closable) return
   const query = {
@@ -434,25 +454,45 @@ function toggleTheme() {
       </RouterLink>
 
       <nav class="nav-wrap">
-        <p class="nav-label">工作台 / Workspace</p>
-        <ul class="nav-list">
-          <li v-for="item in menuItems" :key="item.path">
-            <RouterLink :to="item.path" custom v-slot="{ href }">
-              <a
-                class="nav-item"
-                :class="{ active: activeMenu === item.path }"
-                :href="href"
-                :aria-current="activeMenu === item.path ? 'page' : undefined"
-                @click.prevent="openMenuPage(item.path)"
-              >
-                <span class="nav-icon" aria-hidden="true">
-                  <AdminIcon :name="item.meta.icon ?? 'dashboard'" />
-                </span>
-                <span class="nav-text">{{ item.meta.menuName }}</span>
-              </a>
-            </RouterLink>
-          </li>
-        </ul>
+        <section v-for="section in menuSections" :key="section.label" class="nav-section">
+          <p class="nav-label">{{ section.label }}</p>
+          <ul class="nav-list">
+            <li v-for="item in section.items" :key="item.path">
+              <RouterLink :to="item.path" custom v-slot="{ href }">
+                <a
+                  class="nav-item"
+                  :class="{ active: activeMenu === item.path }"
+                  :href="href"
+                  :aria-current="activeMenu === item.path ? 'page' : undefined"
+                  @click.prevent="openMenuPage(item.path)"
+                >
+                  <span class="nav-icon" aria-hidden="true">
+                    <AdminIcon :name="item.meta.icon ?? 'dashboard'" />
+                  </span>
+                  <span class="nav-text">{{ item.meta.menuName }}</span>
+                </a>
+              </RouterLink>
+              <ul v-if="childMenuItems(item.path).length" class="nav-sublist">
+                <li v-for="child in childMenuItems(item.path)" :key="child.path">
+                  <RouterLink :to="child.path" custom v-slot="{ href }">
+                    <a
+                      class="nav-item nav-subitem"
+                      :class="{ active: activeMenu === child.path }"
+                      :href="href"
+                      :aria-current="activeMenu === child.path ? 'page' : undefined"
+                      @click.prevent="openMenuPage(child.path)"
+                    >
+                      <span class="nav-icon" aria-hidden="true">
+                        <AdminIcon :name="child.meta.icon ?? 'dashboard'" />
+                      </span>
+                      <span class="nav-text">{{ child.meta.menuName }}</span>
+                    </a>
+                  </RouterLink>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </section>
       </nav>
 
       <div class="nav-note">

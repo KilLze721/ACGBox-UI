@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   computed,
+  inject,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -9,7 +10,7 @@ import {
   ref,
   watch,
 } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getAnimePage } from '@/api/anime'
 import {
   createCompany,
@@ -20,16 +21,18 @@ import {
 } from '@/api/catalog'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
-import type { CompanyOption, NamedOption, PageResult } from '@/types/api'
+import type { AnimePageItem, AnimeSortField, CompanyOption, NamedOption, PageResult, SortDirection } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
-type RelatedAnime = { id: number; name: string; role: string | null }
-
 const pageSizeOptions: NamedOption[] = [5, 10, 20].map((value) => ({
   id: value,
   name: `${value} 条`,
 }))
 const route = useRoute()
+const router = useRouter()
+const navigateLinkedContent = inject<
+  (path: '/admin/anime' | '/admin/series' | '/admin/companies', keyword: string) => Promise<void>
+>('navigateLinkedContent')
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<CompanyOption>>({
   pageNum: 1,
@@ -59,7 +62,16 @@ const form = reactive({ name: '', description: '' })
 const initialFormState = ref('')
 const nameError = ref('')
 const saving = ref(false)
-const relatedAnime = ref<RelatedAnime[]>([])
+const relatedAnime = ref<PageResult<AnimePageItem>>({
+  pageNum: 1,
+  pageSize: 5,
+  total: 0,
+  pages: 0,
+  rows: [],
+})
+const relatedPageSize = ref(5)
+const relatedSortBy = ref<AnimeSortField>('BROADCAST_DATE')
+const relatedSortDirection = ref<SortDirection>('DESC')
 const relatedLoading = ref(false)
 const relatedError = ref('')
 const deleteTargets = ref<CompanyOption[]>([])
@@ -70,6 +82,7 @@ const toast = ref<{ message: string; error: boolean } | null>(null)
 
 let pageController: AbortController | undefined
 let drawerController: AbortController | undefined
+let relatedController: AbortController | undefined
 let toastTimer: number | undefined
 let previousBodyOverflow: string | undefined
 let previousHtmlOverflow: string | undefined
@@ -128,6 +141,7 @@ onDeactivated(() => {
 onBeforeUnmount(() => {
   pageController?.abort()
   drawerController?.abort()
+  relatedController?.abort()
   if (toastTimer) window.clearTimeout(toastTimer)
   unlockScroll()
 })
@@ -233,19 +247,24 @@ function toggleAll(checked: boolean) {
 function closeDrawer() {
   if (saving.value) return
   drawerController?.abort()
+  relatedController?.abort()
   drawerMode.value = null
   currentCompany.value = null
   drawerError.value = ''
 }
 async function openDrawer(mode: DrawerMode, row?: CompanyOption) {
   drawerController?.abort()
+  relatedController?.abort()
   const controller = new AbortController()
   drawerController = controller
   drawerMode.value = mode
   currentCompany.value = row ?? null
   drawerLoading.value = mode !== 'create'
   drawerError.value = ''
-  relatedAnime.value = []
+  relatedAnime.value = { pageNum: 1, pageSize: 5, total: 0, pages: 0, rows: [] }
+  relatedPageSize.value = 5
+  relatedSortBy.value = 'BROADCAST_DATE'
+  relatedSortDirection.value = 'DESC'
   relatedError.value = ''
   relatedLoading.value = false
   form.name = ''
@@ -264,7 +283,7 @@ async function openDrawer(mode: DrawerMode, row?: CompanyOption) {
     form.name = company.name
     form.description = company.description ?? ''
     initialFormState.value = JSON.stringify(form)
-    if (mode === 'detail') void loadRelatedAnime(company, controller.signal)
+    if (mode === 'detail') void loadRelatedAnime(company, 1)
   } catch (error) {
     if (controller.signal.aborted) return
     currentCompany.value = null
@@ -273,35 +292,53 @@ async function openDrawer(mode: DrawerMode, row?: CompanyOption) {
     if (!controller.signal.aborted) drawerLoading.value = false
   }
 }
-async function loadRelatedAnime(company: CompanyOption, signal: AbortSignal) {
+async function loadRelatedAnime(company: CompanyOption, pageNum: number) {
+  relatedController?.abort()
+  const controller = new AbortController()
+  relatedController = controller
   relatedLoading.value = true
   relatedError.value = ''
-  relatedAnime.value = []
   try {
-    const works: RelatedAnime[] = []
-    let currentPage = 1
-    let pages = 1
-    do {
-      const result = await getAnimePage(
-        { pageNum: currentPage, pageSize: 100, companyId: company.id },
-        signal,
-      )
-      works.push(
-        ...result.rows.map((anime) => ({
-          id: anime.id,
-          name: anime.name,
-          role: anime.companies.find((item) => item.companyId === company.id)?.role ?? null,
-        })),
-      )
-      pages = result.pages
-      currentPage++
-    } while (currentPage <= pages)
-    if (!signal.aborted) relatedAnime.value = works
+    const result = await getAnimePage(
+      {
+        pageNum,
+        pageSize: relatedPageSize.value,
+        companyId: company.id,
+        sortBy: relatedSortBy.value,
+        sortDirection: relatedSortDirection.value,
+      },
+      controller.signal,
+    )
+    if (!controller.signal.aborted) relatedAnime.value = result
   } catch (error) {
-    if (!signal.aborted) relatedError.value = messageOf(error, '关联动画读取失败，请稍后重试。')
+    if (!controller.signal.aborted) relatedError.value = messageOf(error, '关联动画读取失败，请稍后重试。')
   } finally {
-    if (!signal.aborted) relatedLoading.value = false
+    if (relatedController === controller) relatedLoading.value = false
   }
+}
+
+function changeRelatedSort(value: AnimeSortField) {
+  if (!currentCompany.value || relatedSortBy.value === value) return
+  relatedSortBy.value = value
+  void loadRelatedAnime(currentCompany.value, 1)
+}
+
+function toggleRelatedDirection() {
+  if (!currentCompany.value) return
+  relatedSortDirection.value = relatedSortDirection.value === 'DESC' ? 'ASC' : 'DESC'
+  void loadRelatedAnime(currentCompany.value, 1)
+}
+
+function changeRelatedPageSize(value: string) {
+  if (!currentCompany.value) return
+  relatedPageSize.value = Number(value)
+  void loadRelatedAnime(currentCompany.value, 1)
+}
+
+function openRelatedAnime(anime: AnimePageItem) {
+  closeDrawer()
+  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', anime.name)
+  else void router.push({ path: '/admin/anime', query: { keyword: anime.name } })
 }
 async function saveCompany() {
   const name = form.name.trim()
@@ -644,28 +681,100 @@ async function confirmDelete() {
                     <h3>关联内容与负责职责</h3>
                     <p>关联动画和该公司在作品中的职责</p>
                   </div>
-                  <span>{{ relatedAnime.length }} 条</span>
+                  <span>共 {{ relatedAnime.total }} 条</span>
                 </header>
+                <div class="companies-association-toolbar">
+                  <div role="group" aria-label="关联动画排序字段">
+                    <button
+                      type="button"
+                      :class="{ active: relatedSortBy === 'BROADCAST_DATE' }"
+                      @click="changeRelatedSort('BROADCAST_DATE')"
+                    >放送时间</button>
+                    <button
+                      type="button"
+                      :class="{ active: relatedSortBy === 'PERSONAL_RATING' }"
+                      @click="changeRelatedSort('PERSONAL_RATING')"
+                    >个人评分</button>
+                  </div>
+                  <button
+                    type="button"
+                    class="companies-association-direction"
+                    @click="toggleRelatedDirection"
+                  >{{ relatedSortDirection === 'DESC' ? '倒序 ↓' : '升序 ↑' }}</button>
+                </div>
                 <p v-if="relatedLoading" class="companies-association-state">正在读取关联动画…</p>
                 <p v-else-if="relatedError" class="companies-association-state error" role="alert">
                   {{ relatedError }}
                   <button
                     v-if="currentCompany"
                     type="button"
-                    @click="loadRelatedAnime(currentCompany, drawerController!.signal)"
+                    @click="loadRelatedAnime(currentCompany, relatedAnime.pageNum)"
                   >
                     重新读取
                   </button>
                 </p>
-                <p v-else-if="!relatedAnime.length" class="companies-association-state">
+                <p v-else-if="!relatedAnime.rows.length" class="companies-association-state">
                   暂无关联动画
                 </p>
                 <div v-else class="companies-association-list">
-                  <article v-for="anime in relatedAnime" :key="anime.id">
-                    <strong>{{ anime.name }}</strong
-                    ><span>动画</span><small>{{ anime.role || '未注明职责' }}</small>
-                  </article>
+                  <button
+                    v-for="anime in relatedAnime.rows"
+                    :key="anime.id"
+                    type="button"
+                    class="companies-association-anime"
+                    :aria-label="`搜索关联动画：${anime.name}`"
+                    @click="openRelatedAnime(anime)"
+                  >
+                    <img
+                      v-if="anime.coverImageUrl"
+                      :src="anime.coverImageUrl"
+                      :alt="`${anime.name}封面`"
+                    />
+                    <span v-else class="companies-association-cover">{{ anime.name.slice(0, 1) }}</span>
+                    <span class="companies-association-info">
+                      <strong>{{ anime.name }}</strong>
+                      <small>{{ anime.companies.find((item) => item.companyId === currentCompany?.id)?.role || '未注明职责' }}</small>
+                    </span>
+                    <span class="companies-association-meta">
+                      <small>{{ anime.airDate || '日期未定' }}</small>
+                      <small>评分 {{ anime.personalRating ?? '未评分' }}</small>
+                    </span>
+                  </button>
                 </div>
+                <footer
+                  v-if="!relatedLoading && !relatedError && relatedAnime.total"
+                  class="companies-association-pagination"
+                >
+                  <span>
+                    第 {{ (relatedAnime.pageNum - 1) * relatedAnime.pageSize + 1 }}–{{
+                      Math.min(relatedAnime.pageNum * relatedAnime.pageSize, relatedAnime.total)
+                    }} 条，共 {{ relatedAnime.total }} 条
+                  </span>
+                  <div>
+                    <ArchiveSelect
+                      id="relatedAnimePageSize"
+                      :model-value="String(relatedPageSize)"
+                      :options="pageSizeOptions"
+                      placeholder="每页数量"
+                      label="关联动画每页数量"
+                      :show-placeholder-option="false"
+                      @update:model-value="changeRelatedPageSize"
+                    />
+                    <button
+                      type="button"
+                      aria-label="上一页关联动画"
+                      :disabled="relatedAnime.pageNum <= 1"
+                      @click="currentCompany && loadRelatedAnime(currentCompany, relatedAnime.pageNum - 1)"
+                    ><AdminIcon name="left" /></button>
+                    <span>{{ relatedAnime.pageNum }} / {{ relatedAnime.pages }}</span>
+                    <button
+                      type="button"
+                      aria-label="下一页关联动画"
+                      :disabled="relatedAnime.pageNum >= relatedAnime.pages"
+                      @click="currentCompany && loadRelatedAnime(currentCompany, relatedAnime.pageNum + 1)"
+                    ><AdminIcon name="right" /></button>
+                  </div>
+                </footer>
               </section>
             </template>
             <form v-else id="companyEditorForm" @submit.prevent="saveCompany">
@@ -1454,40 +1563,114 @@ async function confirmDelete() {
 .companies-association-state.error {
   color: var(--danger);
 }
+.companies-association-toolbar,
+.companies-association-pagination,
+.companies-association-pagination > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.companies-association-toolbar {
+  padding-top: 12px;
+}
+.companies-association-toolbar > div {
+  display: flex;
+  gap: 5px;
+}
+.companies-association-toolbar button,
+.companies-association-pagination button {
+  padding: 6px 9px;
+  color: var(--ink-soft);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 10px;
+}
+.companies-association-toolbar button.active,
+.companies-association-toolbar button:hover,
+.companies-association-pagination button:hover:not(:disabled) {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.companies-association-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.companies-association-pagination button svg {
+  width: 12px;
+  height: 12px;
+}
 .companies-association-list {
   display: grid;
   gap: 8px;
   padding-top: 12px;
 }
-.companies-association-list article {
+.companies-association-anime {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 8px;
   padding: 10px 11px;
   background: var(--surface-muted);
   border: 1px solid var(--line);
   border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+}
+.companies-association-anime:hover,
+.companies-association-anime:focus-visible {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.companies-association-anime img,
+.companies-association-cover {
+  width: 36px;
+  height: 48px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.companies-association-cover {
+  display: grid;
+  place-items: center;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+.companies-association-info,
+.companies-association-meta {
+  display: grid;
+  gap: 5px;
+}
+.companies-association-info {
+  min-width: 0;
+  flex: 1;
+}
+.companies-association-meta {
+  flex: 0 0 auto;
+  text-align: right;
 }
 .companies-association-list strong {
   min-width: 0;
-  flex: 1;
   color: var(--ink);
   font-size: 11px;
   overflow-wrap: anywhere;
 }
-.companies-association-list article > span {
-  padding: 3px 7px;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 999px;
+.companies-association-list small {
+  color: var(--ink-faint);
   font-size: 10px;
 }
-.companies-association-list small {
-  padding: 3px 7px;
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border-radius: 999px;
+.companies-association-pagination {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
   font-size: 10px;
+}
+.companies-association-pagination .archive-select {
+  width: 72px;
 }
 .companies-dialog-layer {
   position: fixed;
@@ -1566,8 +1749,12 @@ async function confirmDelete() {
   margin: 0;
   accent-color: var(--danger);
 }
-.companies-checkbox-error {
-  margin-left: 20px;
+.companies-dialog .companies-error {
+  color: var(--danger);
+}
+.companies-dialog .companies-checkbox-error {
+  margin: 5px 0 0 20px;
+  font-size: 11px;
 }
 .companies-delete-note {
   display: flex;

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '../App.vue'
@@ -37,6 +37,20 @@ describe('App', () => {
     expect(wrapper.find('a[href="/admin/adaptation-types"]').text()).toContain('改编类型管理')
     expect(wrapper.find('a[href="/admin/regions"]').text()).toContain('地区管理')
 
+    const sections = wrapper.findAll('.nav-section')
+    const baseSection = sections.find((section) =>
+      section.find('.nav-label').text().includes('基础资料'),
+    )
+    expect(baseSection?.findAll('a.nav-item').map((item) => item.text())).toEqual([
+      '标签管理',
+      '改编类型管理',
+      '地区管理',
+    ])
+    const animeItem = wrapper.find('a.nav-item[href="/admin/anime"]')
+    expect(
+      animeItem.element.parentElement?.querySelector('.nav-sublist a')?.getAttribute('href'),
+    ).toBe('/admin/broadcast-types')
+
     const seriesLink = wrapper.find('a[href="/admin/series"]')
     expect(seriesLink.attributes('href')).toBe('/admin/series')
 
@@ -46,6 +60,12 @@ describe('App', () => {
     expect(router.currentRoute.value.path).toBe('/admin/series')
     expect(wrapper.find('.nav-item.active').text()).toContain('系列管理')
     expect(wrapper.text()).toContain('系列档案列表')
+
+    await wrapper.find('a.nav-item[href="/admin/broadcast-types"]').trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/broadcast-types'))
+    await flushPromises()
+    expect(wrapper.find('.nav-subitem.active').text()).toContain('放送类型管理')
+    expect(wrapper.find('.breadcrumb').text()).toContain('动画管理')
 
     wrapper.unmount()
   })

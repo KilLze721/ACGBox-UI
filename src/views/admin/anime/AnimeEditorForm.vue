@@ -69,8 +69,7 @@ const regions = ref<NamedOption[]>([])
 const tags = ref<NamedOption[]>([])
 const loading = ref(true)
 const submitting = ref(false)
-const confirmationAction = ref<'save' | 'reset' | 'cancel' | 'saved' | null>(null)
-const savedAnime = ref<AnimeDetail | null>(null)
+const confirmationAction = ref<'save' | 'reset' | 'cancel' | null>(null)
 const loadError = ref('')
 const errorMessage = ref('')
 const errors = reactive<Record<string, string>>({})
@@ -347,10 +346,7 @@ async function saveForm() {
         ? await createAnime(payload)
         : await updateAnime(payload as AnimePayload & { id: number })
     initialFormState.value = submittedFormState
-    if (props.mode === 'edit') {
-      savedAnime.value = saved
-      confirmationAction.value = 'saved'
-    } else emit('saved', saved)
+    emit('saved', saved)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '保存动画资料失败，请稍后重试。'
   } finally {
@@ -381,7 +377,7 @@ function getCloseState() {
 defineExpose({ requestCancel, getCloseState })
 
 function dismissConfirmation() {
-  if (confirmationAction.value !== 'saved') confirmationAction.value = null
+  confirmationAction.value = null
 }
 
 async function confirmAction() {
@@ -390,7 +386,6 @@ async function confirmAction() {
   if (action === 'save') await saveForm()
   else if (action === 'reset') resetForm()
   else if (action === 'cancel') emit('cancelled')
-  else if (action === 'saved' && savedAnime.value) emit('saved', savedAnime.value)
 }
 </script>
 
@@ -792,22 +787,21 @@ async function confirmAction() {
           aria-modal="true"
           aria-labelledby="animeConfirmTitle"
         >
-          <span class="anime-confirm-mark" aria-hidden="true">{{ confirmationAction === 'saved' ? '✓' : '?' }}</span>
+          <span class="anime-confirm-mark" aria-hidden="true">?</span>
           <h2 id="animeConfirmTitle">
-            {{ confirmationAction === 'saved' ? '动画修改成功' : confirmationAction === 'save' ? '确认保存动画？' : confirmationAction === 'reset' ? '确认重置表单？' : '确认取消编辑？' }}
+            {{ confirmationAction === 'save' ? '确认保存动画？' : confirmationAction === 'reset' ? '确认重置表单？' : '确认取消编辑？' }}
           </h2>
           <p>
-            {{ confirmationAction === 'saved' ? '动画资料已保存，点击确认返回动画列表。' : confirmationAction === 'save' ? '请确认当前动画资料无误后继续保存。' : confirmationAction === 'reset' ? '当前填写的内容将被清空，是否继续？' : '尚未保存的修改将会丢失，是否离开？' }}
+            {{ confirmationAction === 'save' ? '请确认当前动画资料无误后继续保存。' : confirmationAction === 'reset' ? '当前填写的内容将被清空，是否继续？' : '尚未保存的修改将会丢失，是否离开？' }}
           </p>
           <div class="anime-confirm-actions">
             <button
-              v-if="confirmationAction !== 'saved'"
               class="secondary-button"
               type="button"
               @click="dismissConfirmation"
             >返回</button>
             <button class="primary-button" type="button" :disabled="submitting" @click="confirmAction">
-              {{ confirmationAction === 'saved' ? '确认' : confirmationAction === 'save' ? '确认保存' : confirmationAction === 'reset' ? '确认重置' : '确认离开' }}
+              {{ confirmationAction === 'save' ? '确认保存' : confirmationAction === 'reset' ? '确认重置' : '确认离开' }}
             </button>
           </div>
         </section>

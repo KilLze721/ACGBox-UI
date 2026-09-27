@@ -11,6 +11,7 @@ import {
 } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getAnimeDetail } from '@/api/anime'
+import { getCompanyById } from '@/api/catalog'
 import { getSeriesById } from '@/api/series'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import AnimeEditorForm from './AnimeEditorForm.vue'
@@ -25,7 +26,7 @@ const props = defineProps<{
 const route = useRoute()
 const router = useRouter()
 const navigateLinkedContent = inject<
-  (path: '/admin/anime' | '/admin/series', keyword: string) => Promise<void>
+  (path: '/admin/anime' | '/admin/series' | '/admin/companies', keyword: string) => Promise<void>
 >('navigateLinkedContent')
 const ownerFullPath = route.fullPath
 const visible = computed(() => route.fullPath === ownerFullPath)
@@ -42,6 +43,8 @@ const loading = ref(true)
 const errorMessage = ref('')
 const seriesLinkError = ref('')
 const seriesLinkLoading = ref(false)
+const companyLinkError = ref('')
+const companyLinkLoading = ref<number | null>(null)
 const editorForm = ref<InstanceType<typeof AnimeEditorForm> | null>(null)
 const linkedSeriesName = computed(() => {
   const seriesId = detail.value?.seriesId
@@ -50,6 +53,10 @@ const linkedSeriesName = computed(() => {
     ? series.name.trim()
     : ''
 })
+function linkedCompanyName(companyId: number) {
+  const name = props.anime.companies.find((item) => item.companyId === companyId)?.companyName.trim()
+  return name && name !== `#${companyId}` ? name : '查看制作公司'
+}
 let controller: AbortController | undefined
 let scrollLockState:
   | {
@@ -160,6 +167,27 @@ async function openSeriesDetail() {
   emit('close')
   if (navigateLinkedContent) await navigateLinkedContent('/admin/series', seriesName)
   else await router.push({ path: '/admin/series', query: { name: seriesName } })
+}
+
+async function openCompanyDetail(companyId: number) {
+  if (companyLinkLoading.value !== null) return
+  companyLinkError.value = ''
+  let companyName = props.anime.companies.find((item) => item.companyId === companyId)?.companyName.trim()
+  if (!companyName || companyName === `#${companyId}`) {
+    companyLinkLoading.value = companyId
+    try {
+      companyName = (await getCompanyById(companyId)).name.trim()
+    } catch (error) {
+      companyLinkError.value =
+        error instanceof Error ? error.message : '公司名称读取失败，请稍后重试。'
+      return
+    } finally {
+      companyLinkLoading.value = null
+    }
+  }
+  emit('close')
+  if (navigateLinkedContent) await navigateLinkedContent('/admin/companies', companyName)
+  else await router.push({ path: '/admin/companies', query: { name: companyName } })
 }
 
 function requestClose() {
@@ -345,14 +373,19 @@ function getSafeExternalUrl(value: string) {
                 </div>
                 <div>
                   <span>制作公司</span>
-                  <div class="anime-detail-company-list">
-                    <span v-for="company in detail.companies" :key="company.companyId"
-                      >{{
-                        anime.companies.find((item) => item.companyId === company.companyId)
-                          ?.companyName || `#${company.companyId}`
-                      }}<i>{{ company.role || '未注明职责' }}</i></span
+                  <div class="anime-detail-chips anime-detail-company-list">
+                    <button
+                      v-for="company in detail.companies"
+                      :key="company.companyId"
+                      type="button"
+                      class="anime-detail-series-link anime-detail-company-link"
+                      :disabled="companyLinkLoading !== null"
+                      :aria-label="`搜索制作公司：${linkedCompanyName(company.companyId)}`"
+                      @click="openCompanyDetail(company.companyId)"
+                      >{{ linkedCompanyName(company.companyId) }}<i>{{ company.role || '未注明职责' }}</i></button
                     ><i v-if="!detail.companies.length">—</i>
                   </div>
+                  <small v-if="companyLinkError" class="anime-detail-series-error" role="alert">{{ companyLinkError }}</small>
                 </div>
                 <div>
                   <span>所属系列</span>
@@ -642,8 +675,7 @@ function getSafeExternalUrl(value: string) {
   gap: 6px;
 }
 .anime-detail-chips > span,
-.anime-detail-chips > .anime-detail-series-link,
-.anime-detail-company-list > span {
+.anime-detail-chips > .anime-detail-series-link {
   padding: 5px 8px;
   color: var(--ink-soft);
   background: var(--surface-solid);
@@ -671,22 +703,19 @@ function getSafeExternalUrl(value: string) {
   background: var(--accent-soft);
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
-.anime-detail-chips i,
-.anime-detail-company-list > i {
+.anime-detail-chips i {
   color: var(--ink-faint);
   font-size: 9px;
   font-style: normal;
 }
-.anime-detail-company-list {
-  display: flex;
-  flex-wrap: wrap;
+.anime-detail-company-list > .anime-detail-company-link {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
 }
-.anime-detail-company-list > span i {
-  margin-left: 6px;
-  color: var(--ink-faint);
-  font-size: 8px;
-  font-style: normal;
+.anime-detail-company-link i {
+  padding-left: 6px;
+  border-left: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
 }
 .anime-detail-links {
   display: grid;
