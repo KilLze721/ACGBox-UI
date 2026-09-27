@@ -1,4 +1,4 @@
-import { get } from './http'
+import { get, post } from './http'
 import type { CompanyOption, NamedOption, PageResult } from '@/types/api'
 
 export function getBroadcastTypes(signal?: AbortSignal) {
@@ -23,4 +23,16 @@ export function getCompanies(name = '', pageSize = 10, signal?: AbortSignal, pag
 
 export function getCompanyById(id: number, signal?: AbortSignal) {
   return get<CompanyOption>(`/companies/${id}`, {}, signal)
+}
+
+export function createCompany(payload: { name: string; description: string | null }) {
+  return post<CompanyOption>('/companies/create', payload)
+}
+
+export function updateCompany(payload: CompanyOption) {
+  return post<CompanyOption>('/companies/update', payload)
+}
+
+export function deleteCompanies(ids: number[]) {
+  return post<null>('/companies/delete', ids)
 }

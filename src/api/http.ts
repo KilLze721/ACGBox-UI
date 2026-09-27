@@ -35,12 +35,17 @@ export async function get<T>(path: string, query: object = {}, signal?: AbortSig
 }
 
 export async function post<T>(path: string, body: object, signal?: AbortSignal): Promise<T> {
+  const csrfToken = document.cookie
+    .split('; ')
+    .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+    ?.slice('XSRF-TOKEN='.length)
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: 'POST',
     signal,
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+      ...(csrfToken ? { 'X-XSRF-TOKEN': decodeURIComponent(csrfToken) } : {}),
     },
     body: JSON.stringify(body),
   })

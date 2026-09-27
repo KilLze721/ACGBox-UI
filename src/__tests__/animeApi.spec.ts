@@ -3,6 +3,7 @@ import { deleteAnime, getAnimePage } from '@/api/anime'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  document.cookie = 'XSRF-TOKEN=; Max-Age=0; Path=/'
 })
 
 describe('动画分页接口', () => {
@@ -83,6 +84,7 @@ describe('动画分页接口', () => {
   })
 
   it('按照接口文档提交批量删除请求', async () => {
+    document.cookie = 'XSRF-TOKEN=test-token; Path=/'
     const fetchMock = vi
       .fn<
         (
@@ -103,6 +105,7 @@ describe('动画分页接口', () => {
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
       method: 'POST',
       body: JSON.stringify([17, 18]),
+      headers: expect.objectContaining({ 'X-XSRF-TOKEN': 'test-token' }),
     })
   })
 })
