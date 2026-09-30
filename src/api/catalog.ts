@@ -5,6 +5,22 @@ export function getBroadcastTypes(signal?: AbortSignal) {
   return get<NamedOption[]>('/broadcast-type/list', {}, signal)
 }
 
+export function getBroadcastTypeById(id: number, signal?: AbortSignal) {
+  return get<NamedOption>(`/broadcast-type/${id}`, {}, signal)
+}
+
+export function createBroadcastType(payload: { name: string }) {
+  return post<NamedOption>('/broadcast-type/create', payload)
+}
+
+export function updateBroadcastType(payload: NamedOption) {
+  return post<NamedOption>('/broadcast-type/update', payload)
+}
+
+export function deleteBroadcastTypes(ids: number[]) {
+  return post<null>('/broadcast-type/delete', ids)
+}
+
 export function getAdaptationTypes(signal?: AbortSignal) {
   return get<NamedOption[]>('/adaptation-type/list', {}, signal)
 }
