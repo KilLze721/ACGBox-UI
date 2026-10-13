@@ -26,29 +26,37 @@ export async function get<T>(path: string, query: object = {}, signal?: AbortSig
   const queryString = searchParams.toString()
   const response = await fetch(`${apiBaseUrl}${path}${queryString ? `?${queryString}` : ''}`, {
     signal,
-    headers: {
-      Accept: 'application/json',
-    },
+    headers: getHeaders(),
   })
 
   return parseResult<T>(response)
 }
 
 export async function post<T>(path: string, body: object, signal?: AbortSignal): Promise<T> {
-  const csrfToken = document.cookie
-    .split('; ')
-    .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
-    ?.slice('XSRF-TOKEN='.length)
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: 'POST',
     signal,
     headers: {
-      Accept: 'application/json',
+      ...getHeaders(),
       'Content-Type': 'application/json',
-      ...(csrfToken ? { 'X-XSRF-TOKEN': decodeURIComponent(csrfToken) } : {}),
     },
     body: JSON.stringify(body),
   })
 
   return parseResult<T>(response)
 }
+
+/**
+ * 读取登录令牌并生成公共请求头。
+ */
+function getHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  }
+  const token = sessionStorage.getItem('acgbox-token')
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
+  return headers
+}
+
