@@ -58,10 +58,12 @@ const currentUser = getCurrentUser()
 const userName = currentUser?.username || '当前用户'
 const userRoleLabels: Record<string, string> = {
   ADMIN: '管理员',
-  EDITOR: '内容编辑',
+  EDITOR: '编辑',
   USER: '用户',
 }
 const userRole = currentUser?.role ? userRoleLabels[currentUser.role] || currentUser.role : '已登录'
+const userAvatarIcon =
+  currentUser?.role === 'ADMIN' ? 'admin' : currentUser?.role === 'EDITOR' ? 'edit' : 'user'
 const userMenuOpen = ref(false)
 const userMenuRef = ref<HTMLElement>()
 const activeTabId = ref('dashboard')
@@ -78,7 +80,7 @@ const menuItems = computed(() =>
   router
     .getRoutes()
     .filter((item) => item.meta.showInMenu)
-    .sort((left, right) => (left.meta.order ?? 0) - (right.meta.order ?? 0)),
+    .sort((left, right) => (left.meta.order ?? 0) - (right.meta.order ?? 0))
 )
 
 const menuSectionLabels = [
@@ -92,10 +94,10 @@ const menuSections = computed(() =>
     .map((section) => ({
       label: section.label,
       items: menuItems.value.filter(
-        (item) => item.meta.section === section.name && !item.meta.menuParent,
+        (item) => item.meta.section === section.name && !item.meta.menuParent
       ),
     }))
-    .filter((section) => section.items.length > 0),
+    .filter((section) => section.items.length > 0)
 )
 function childMenuItems(path: string) {
   return menuItems.value.filter((item) => item.meta.menuParent === path)
@@ -121,7 +123,7 @@ const workspaceTabs = ref<WorkspaceTab[]>([
 const activeTab = computed(() => workspaceTabs.value.find((tab) => tab.id === activeTabId.value))
 const cachedTabNames = computed(() => workspaceTabs.value.map((tab) => tab.cacheName))
 const canCloseOtherTabs = computed(() =>
-  workspaceTabs.value.some((tab) => tab.closable && tab.id !== activeTabId.value),
+  workspaceTabs.value.some((tab) => tab.closable && tab.id !== activeTabId.value)
 )
 
 provide('returnToAnimeList', returnToAnimeList)
@@ -134,14 +136,14 @@ watch(
     userMenuOpen.value = false
     openCurrentRouteTab()
   },
-  { immediate: true },
+  { immediate: true }
 )
 
 watchEffect(() => {
   const pending = pendingTabClose.value
   if (!pending?.submitting) return
   const stillSubmitting = workspaceTabs.value.some(
-    (tab) => pending.ids.includes(tab.id) && getCloseState(tab).submitting,
+    (tab) => pending.ids.includes(tab.id) && getCloseState(tab).submitting
   )
   if (!stillSubmitting) pendingTabClose.value = null
 })
@@ -187,7 +189,7 @@ function openCurrentRouteTab() {
           0,
           ...workspaceTabs.value
             .filter((item) => item.id !== tab.id && item.path === route.path)
-            .map((item) => item.ordinal),
+            .map((item) => item.ordinal)
         ) + 1
       pageWrappers.delete(tab.id)
       pageInstances.delete(tab.id)
@@ -212,7 +214,7 @@ function openCurrentRouteTab() {
         0,
         ...workspaceTabs.value
           .filter((item) => item.path === route.path)
-          .map((item) => item.ordinal),
+          .map((item) => item.ordinal)
       ) + 1
     const id = `tab-${tabSession}-${++tabSequence}`
     tab = {
@@ -257,16 +259,19 @@ function getTabWrapper(component: VNode) {
                 }
               },
             },
-            true,
+            true
           )
       },
-    }),
+    })
   )
   pageWrappers.set(tab.id, wrapper)
   return wrapper
 }
 
-async function navigateLinkedContent(path: '/admin/anime' | '/admin/series' | '/admin/companies', keyword: string) {
+async function navigateLinkedContent(
+  path: '/admin/anime' | '/admin/series' | '/admin/companies',
+  keyword: string
+) {
   const tab = activeTab.value
   if (!tab?.closable) return
   const query = {
@@ -360,13 +365,13 @@ async function finishClosingTabs(ids: string[], keepId: string | null) {
 
 async function returnToAnimeList(createFullPath: string) {
   const createTab = workspaceTabs.value.find(
-    (tab) => tab.fullPath === createFullPath && tab.path === '/admin/anime/create',
+    (tab) => tab.fullPath === createFullPath && tab.path === '/admin/anime/create'
   )
   if (!createTab) return
 
   const animeTab =
     workspaceTabs.value.find(
-      (tab) => tab.id === lastAnimeTabId.value && tab.path === '/admin/anime',
+      (tab) => tab.id === lastAnimeTabId.value && tab.path === '/admin/anime'
     ) ?? workspaceTabs.value.find((tab) => tab.path === '/admin/anime')
   const animePath = animeTab?.fullPath ?? '/admin/anime'
   await router.replace(animePath)
@@ -424,7 +429,7 @@ function confirmTabClose() {
   const pending = pendingTabClose.value
   if (!pending || pending.submitting) return
   const submittingTab = workspaceTabs.value.find(
-    (tab) => pending.ids.includes(tab.id) && getCloseState(tab).submitting,
+    (tab) => pending.ids.includes(tab.id) && getCloseState(tab).submitting
   )
   if (submittingTab) {
     pendingTabClose.value = {
@@ -568,9 +573,7 @@ function toggleTheme() {
               aria-controls="currentUserMenu"
               @click="userMenuOpen = !userMenuOpen"
             >
-              <span class="avatar" aria-hidden="true">{{
-                Array.from(userName)[0]?.toUpperCase()
-              }}</span>
+              <span class="avatar" aria-hidden="true"><AdminIcon :name="userAvatarIcon" /></span>
               <span class="avatar-copy">
                 <strong :title="userName">{{ userName }}</strong>
                 <span>{{ userRole }}</span>
@@ -743,6 +746,10 @@ function toggleTheme() {
 .user-menu .avatar {
   flex: 0 0 auto;
 }
+.user-menu .avatar svg {
+  width: 18px;
+  height: 18px;
+}
 .user-menu .avatar-copy strong {
   max-width: 140px;
   overflow: hidden;
@@ -808,9 +815,7 @@ function toggleTheme() {
 }
 .user-menu-enter-active,
 .user-menu-leave-active {
-  transition:
-    opacity 150ms ease,
-    transform 150ms ease;
+  transition: opacity 150ms ease, transform 150ms ease;
 }
 .user-menu-enter-from,
 .user-menu-leave-to {

@@ -6,7 +6,15 @@ defineProps<{
 
 <template>
   <svg viewBox="0 0 24 24" aria-hidden="true">
-    <g v-if="name === 'dashboard'">
+    <g v-if="name === 'admin'">
+      <path d="m12 3 8 3v6c0 4-3.5 7-8 9-4.5-2-8-5-8-9V6l8-3Z" />
+      <path d="m8.5 12 2.5 2.5 4.5-5" />
+    </g>
+    <g v-else-if="name === 'user'">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+    </g>
+    <g v-else-if="name === 'dashboard'">
       <path d="M4 13h6V4H4v9Zm0 7h6v-3H4v3Zm10 0h6v-9h-6v9Zm0-16v3h6V4h-6Z" />
     </g>
     <g v-else-if="name === 'anime'">
