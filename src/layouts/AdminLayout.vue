@@ -17,6 +17,7 @@ import {
 } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import { getCurrentUser } from '@/utils/auth'
 
 interface WorkspaceTab {
   id: string
@@ -53,6 +54,16 @@ const tabViewport = ref<HTMLElement>()
 const canScrollTabsLeft = ref(false)
 const canScrollTabsRight = ref(false)
 const darkTheme = ref(false)
+const currentUser = getCurrentUser()
+const userName = currentUser?.username || '当前用户'
+const userRoleLabels: Record<string, string> = {
+  ADMIN: '管理员',
+  EDITOR: '内容编辑',
+  USER: '用户',
+}
+const userRole = currentUser?.role ? userRoleLabels[currentUser.role] || currentUser.role : '已登录'
+const userMenuOpen = ref(false)
+const userMenuRef = ref<HTMLElement>()
 const activeTabId = ref('dashboard')
 const lastAnimeTabId = ref<string | null>(null)
 const pendingTabClose = ref<PendingTabClose | null>(null)
@@ -120,6 +131,7 @@ watch(
   () => route.fullPath,
   () => {
     mobileSidebarOpen.value = false
+    userMenuOpen.value = false
     openCurrentRouteTab()
   },
   { immediate: true },
@@ -138,12 +150,18 @@ onMounted(() => {
   darkTheme.value = localStorage.getItem('acgbox-theme') === 'dark'
   document.body.dataset.theme = darkTheme.value ? 'dark' : 'light'
   window.addEventListener('resize', updateTabScrollState)
+  document.addEventListener('pointerdown', closeUserMenuOnOutside)
   updateTabScrollState()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateTabScrollState)
+  document.removeEventListener('pointerdown', closeUserMenuOnOutside)
 })
+
+function closeUserMenuOnOutside(event: PointerEvent) {
+  if (!userMenuRef.value?.contains(event.target as Node)) userMenuOpen.value = false
+}
 
 function getCurrentRouteIcon() {
   if (route.meta.icon) return route.meta.icon
@@ -540,12 +558,50 @@ function toggleTheme() {
           >
             <AdminIcon :name="darkTheme ? 'moon' : 'sun'" />
           </button>
-          <div class="avatar-button" aria-label="当前用户">
-            <span class="avatar" aria-hidden="true">编</span>
-            <span class="avatar-copy">
-              <strong>内容编辑</strong>
-              <span>原型状态预览</span>
-            </span>
+          <div ref="userMenuRef" class="user-menu" @keydown.esc.stop.prevent="userMenuOpen = false">
+            <button
+              class="avatar-button"
+              type="button"
+              :aria-label="`当前用户：${userName}，${userRole}`"
+              aria-haspopup="menu"
+              :aria-expanded="userMenuOpen"
+              aria-controls="currentUserMenu"
+              @click="userMenuOpen = !userMenuOpen"
+            >
+              <span class="avatar" aria-hidden="true">{{
+                Array.from(userName)[0]?.toUpperCase()
+              }}</span>
+              <span class="avatar-copy">
+                <strong :title="userName">{{ userName }}</strong>
+                <span>{{ userRole }}</span>
+              </span>
+              <AdminIcon class="user-menu-chevron" name="right" />
+            </button>
+            <Transition name="user-menu">
+              <div
+                v-if="userMenuOpen"
+                id="currentUserMenu"
+                class="user-menu-panel"
+                role="menu"
+                aria-label="账号操作"
+              >
+                <p class="user-menu-note">以下功能暂未开放</p>
+                <button class="user-menu-item" type="button" role="menuitem" disabled>
+                  <AdminIcon name="edit" />账号编辑
+                </button>
+                <button class="user-menu-item" type="button" role="menuitem" disabled>
+                  <AdminIcon name="refresh" />切换账号
+                </button>
+                <button
+                  class="user-menu-item user-menu-logout"
+                  type="button"
+                  role="menuitem"
+                  disabled
+                >
+                  <AdminIcon name="back" />退出登录
+                </button>
+              </div>
+            </Transition>
           </div>
         </div>
       </header>
@@ -681,6 +737,93 @@ function toggleTheme() {
 </template>
 
 <style scoped>
+.user-menu {
+  position: relative;
+}
+.user-menu .avatar {
+  flex: 0 0 auto;
+}
+.user-menu .avatar-copy strong {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-menu-chevron {
+  width: 13px;
+  height: 13px;
+  margin-left: 3px;
+  color: var(--ink-faint);
+  transform: rotate(90deg);
+  transition: transform 150ms ease;
+}
+.avatar-button[aria-expanded='true'] .user-menu-chevron {
+  transform: rotate(-90deg);
+}
+.user-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 80;
+  width: min(210px, calc(100vw - 32px));
+  padding: 7px;
+  color: var(--ink);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-soft);
+}
+.user-menu-note {
+  margin: 0 0 5px;
+  padding: 6px 9px 9px;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.user-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  color: var(--ink-soft);
+  background: transparent;
+  border-radius: 8px;
+  cursor: not-allowed;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: left;
+}
+.user-menu-item svg {
+  width: 15px;
+  height: 15px;
+}
+.user-menu-item:hover {
+  background: var(--surface-muted);
+}
+.user-menu-logout {
+  color: var(--danger);
+}
+.user-menu-enter-active,
+.user-menu-leave-active {
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+.user-menu-enter-from,
+.user-menu-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .user-menu-chevron,
+  .user-menu-enter-active,
+  .user-menu-leave-active {
+    transition: none;
+  }
+}
 .workspace-close-layer {
   z-index: 400;
   overscroll-behavior: contain;

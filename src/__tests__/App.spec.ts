@@ -5,6 +5,36 @@ import App from '../App.vue'
 import router from '../router'
 
 describe('App', () => {
+  it('显示登录用户，账号菜单仅展示，并支持 Escape 和点击外部关闭', async () => {
+    sessionStorage.setItem(
+      'acgbox-user',
+      JSON.stringify({ id: 1, username: 'ArchiveAdmin', role: 'ADMIN' }),
+    )
+    const token = sessionStorage.getItem('acgbox-token')
+    await router.push('/admin/dashboard')
+    const wrapper = mount(App, { global: { plugins: [router] } })
+
+    const userCard = wrapper.get('.avatar-button')
+    expect(userCard.text()).toContain('ArchiveAdmin')
+    expect(userCard.text()).toContain('管理员')
+    await userCard.trigger('click')
+    expect(userCard.attributes('aria-expanded')).toBe('true')
+    const items = wrapper.findAll('[role="menuitem"]')
+    expect(items.map((item) => item.text())).toEqual(['账号编辑', '切换账号', '退出登录'])
+    expect(items.every((item) => item.attributes('disabled') !== undefined)).toBe(true)
+    await items[2]!.trigger('click')
+    expect(sessionStorage.getItem('acgbox-token')).toBe(token)
+    expect(router.currentRoute.value.path).toBe('/admin/dashboard')
+
+    await userCard.trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+    await userCard.trigger('click')
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await flushPromises()
+    expect(wrapper.find('[role="menu"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('渲染管理端路由页面', async () => {
     await router.push('/admin/anime/42')
     await router.isReady()

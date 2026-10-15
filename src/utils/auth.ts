@@ -19,6 +19,16 @@ export function saveLogin(result: LoginResult) {
   sessionStorage.setItem('acgbox-user', JSON.stringify({ id, username, role }))
 }
 
+export function getCurrentUser(): Pick<LoginResult, 'id' | 'username' | 'role'> | null {
+  const user = sessionStorage.getItem('acgbox-user')
+  if (!user) return null
+  try {
+    return JSON.parse(user)
+  } catch {
+    return null
+  }
+}
+
 export function clearLogin() {
   sessionStorage.removeItem('acgbox-token')
   sessionStorage.removeItem('acgbox-token-expires-at')

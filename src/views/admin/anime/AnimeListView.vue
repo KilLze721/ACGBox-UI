@@ -2086,6 +2086,10 @@ function getCoverGradient(id: number) {
 </template>
 
 <style scoped>
+.primary-button[href],
+.primary-action[href] {
+  text-decoration: none;
+}
 .anime-management-page .work-title {
   width: fit-content;
   max-width: 100%;
