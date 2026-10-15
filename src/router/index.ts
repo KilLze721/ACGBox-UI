@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { authExpiredEvent, getToken } from '@/utils/auth'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -10,6 +11,7 @@ declare module 'vue-router' {
     menuParent?: string
     showInMenu?: boolean
     activeMenu?: string
+    requiresAuth?: boolean
   }
 }
 
@@ -17,12 +19,19 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { title: '登录', showInMenu: false },
+    },
+    {
       path: '/',
       redirect: '/admin/dashboard',
     },
     {
       path: '/admin',
       component: () => import('@/layouts/AdminLayout.vue'),
+      meta: { title: '管理工作台', requiresAuth: true },
       redirect: '/admin/dashboard',
       children: [
         {
@@ -210,10 +219,25 @@ const router = createRouter({
   ],
 })
 
+router.beforeEach((to) => {
+  const token = getToken()
+  if (to.meta.requiresAuth && !token) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  if (to.name === 'login' && token) return '/admin/dashboard'
+})
+
 router.afterEach((to) => {
   document.title = `${to.meta.title} · ACGBox`
 })
 
-// 当前项目尚未提供登录和权限机制，后续可在此处注册全局前置守卫。
+window.addEventListener(authExpiredEvent, () => {
+  const currentRoute = router.currentRoute.value
+  if (!currentRoute.meta.requiresAuth) return
+  void router.replace({
+    name: 'login',
+    query: { redirect: currentRoute.fullPath, reason: 'expired' },
+  })
+})
 
 export default router

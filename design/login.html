@@ -413,11 +413,11 @@
           emailTab.setAttribute('aria-selected', String(isEmail));
           usernameTab.tabIndex = isEmail ? -1 : 0;
           emailTab.tabIndex = isEmail ? 0 : -1;
-          identityLabel.textContent = isEmail ? '邮箱地址' : '登录账号';
+          identityLabel.textContent = isEmail ? '登录邮箱' : '登录账号';
           identityInput.name = isEmail ? 'email' : 'username';
           identityInput.type = isEmail ? 'email' : 'text';
           identityInput.autocomplete = isEmail ? 'email' : 'username';
-          identityInput.placeholder = isEmail ? 'name@example.com' : '请输入账号';
+          identityInput.placeholder = isEmail ? '请输入邮箱' : '请输入账号';
           identityInput.value = '';
           clearFieldError('identity');
           clearFieldError('password');
@@ -428,7 +428,7 @@
           const item = fieldParts[key];
           const value = item.input.value;
           if (!value.trim()) {
-            setFieldError(key, key === 'password' ? '请输入密码。' : mode === 'email' ? '请输入邮箱地址。' : '请输入账号。');
+            setFieldError(key, key === 'password' ? '请输入密码。' : mode === 'email' ? '请输入邮箱。' : '请输入账号。');
             return false;
           }
           if (key === 'identity' && mode === 'email' && !item.input.validity.valid) {

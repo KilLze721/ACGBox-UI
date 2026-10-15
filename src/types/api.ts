@@ -4,6 +4,14 @@ export interface ApiResult<T> {
   data: T
 }
 
+export interface LoginResult {
+  token: string
+  expiresIn: number
+  id: number
+  username: string
+  role: string
+}
+
 export interface PageResult<T> {
   pageNum: number
   pageSize: number
