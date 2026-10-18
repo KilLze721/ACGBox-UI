@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { authExpiredEvent, getToken } from '@/utils/auth'
+import { authExpiredEvent, getCurrentUser, getToken } from '@/utils/auth'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -12,6 +12,7 @@ declare module 'vue-router' {
     showInMenu?: boolean
     activeMenu?: string
     requiresAuth?: boolean
+    roles?: string[]
   }
 }
 
@@ -193,6 +194,20 @@ const router = createRouter({
           },
         },
         {
+          path: 'users',
+          name: 'admin-users',
+          component: () => import('@/views/admin/UsersView.vue'),
+          meta: {
+            title: '用户管理',
+            menuName: '用户管理',
+            icon: 'user',
+            order: 79,
+            section: '系统管理',
+            showInMenu: true,
+            roles: ['ADMIN'],
+          },
+        },
+        {
           path: 'settings',
           name: 'admin-settings',
           component: () => import('@/views/admin/SettingsView.vue'),
@@ -223,6 +238,9 @@ router.beforeEach((to) => {
   const token = getToken()
   if (to.meta.requiresAuth && !token) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.roles && !to.meta.roles.includes(getCurrentUser()?.role ?? '')) {
+    return '/admin/dashboard'
   }
   if (to.name === 'login' && token) return '/admin/dashboard'
 })

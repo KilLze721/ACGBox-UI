@@ -12,6 +12,45 @@ export interface LoginResult {
   role: string
 }
 
+export type UserRole = 'ADMIN' | 'EDITOR' | 'USER'
+
+export interface UserAccount {
+  id: number
+  username: string
+  email: string | null
+  role: UserRole
+  enabled: boolean
+  emailVerifiedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserAccountPageQuery {
+  pageNum: number
+  pageSize: number
+  username?: string
+  email?: string
+  role?: UserRole
+  enabled?: boolean
+}
+
+export interface UserAccountCreateDTO {
+  username: string
+  email: string | null
+  password: string
+  role: 'EDITOR' | 'USER'
+  enabled: boolean
+}
+
+export interface UserAccountDTO {
+  id: number
+  username: string
+  email: string | null
+  role: UserRole
+  enabled: boolean
+  currentPassword?: string
+}
+
 export interface PageResult<T> {
   pageNum: number
   pageSize: number

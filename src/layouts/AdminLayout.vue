@@ -79,7 +79,9 @@ let linkedNavigation: { tabId: string; fullPath: string } | null = null
 const menuItems = computed(() =>
   router
     .getRoutes()
-    .filter((item) => item.meta.showInMenu)
+    .filter(
+      (item) => item.meta.showInMenu && (!item.meta.roles || item.meta.roles.includes(currentUser?.role ?? '')),
+    )
     .sort((left, right) => (left.meta.order ?? 0) - (right.meta.order ?? 0))
 )
 
