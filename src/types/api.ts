@@ -25,6 +25,13 @@ export interface UserAccount {
   updatedAt: string
 }
 
+export type UserAccountEmailPurpose = 'BIND' | 'CHANGE' | 'UNBIND'
+
+export interface UserAccountEmailChangeVO {
+  emailChangeToken: string
+  expiresIn: number
+}
+
 export interface UserAccountPageQuery {
   pageNum: number
   pageSize: number

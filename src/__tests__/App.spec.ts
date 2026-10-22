@@ -5,7 +5,7 @@ import App from '../App.vue'
 import router from '../router'
 
 describe('App', () => {
-  it('显示登录用户，账号菜单仅展示，并支持 Escape 和点击外部关闭', async () => {
+  it('显示登录用户和退出入口，并支持 Escape 和点击外部关闭', async () => {
     sessionStorage.setItem(
       'acgbox-user',
       JSON.stringify({ id: 1, username: 'ArchiveAdmin', role: 'ADMIN' }),
@@ -20,9 +20,9 @@ describe('App', () => {
     await userCard.trigger('click')
     expect(userCard.attributes('aria-expanded')).toBe('true')
     const items = wrapper.findAll('[role="menuitem"]')
-    expect(items.map((item) => item.text())).toEqual(['账号编辑', '切换账号', '退出登录'])
-    expect(items.every((item) => item.attributes('disabled') !== undefined)).toBe(true)
-    await items[2]!.trigger('click')
+    expect(items.map((item) => item.text())).toEqual(['账号编辑', '退出登录'])
+    expect(items[0]!.attributes('disabled')).toBeUndefined()
+    expect(items[1]!.attributes('disabled')).toBeUndefined()
     expect(sessionStorage.getItem('acgbox-token')).toBe(token)
     expect(router.currentRoute.value.path).toBe('/admin/dashboard')
 

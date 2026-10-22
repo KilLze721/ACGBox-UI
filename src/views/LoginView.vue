@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { loginByEmail, loginByUsername } from '@/api/auth'
+import { loginByEmail, loginByEmailCode, loginByUsername, sendLoginEmailCode } from '@/api/auth'
 import { saveLogin } from '@/utils/auth'
 
 type LoginMode = 'username' | 'email'
@@ -21,15 +21,85 @@ const passwordInput = ref<HTMLInputElement>()
 const usernameTab = ref<HTMLButtonElement>()
 const emailTab = ref<HTMLButtonElement>()
 const isEmail = computed(() => mode.value === 'email')
+const isEmailCode = ref(false)
+const verificationCode = ref('')
+const sendingCode = ref(false)
+const codeNotice = ref('')
+const cooldowns = ref<Record<string, number>>({})
+const now = ref(Date.now())
+const busy = computed(() => submitting.value || sendingCode.value)
+const cooldown = computed(() =>
+  Math.max(0, Math.ceil(((cooldowns.value[identity.value.trim()] ?? 0) - now.value) / 1000)),
+)
+let cooldownTimer: ReturnType<typeof setInterval> | undefined
+
+onUnmounted(() => clearInterval(cooldownTimer))
+
+function startCooldown(email: string) {
+  now.value = Date.now()
+  cooldowns.value[email] = now.value + 60_000
+  if (cooldownTimer) return
+  cooldownTimer = setInterval(() => {
+    now.value = Date.now()
+    if (Object.values(cooldowns.value).every((deadline) => deadline <= now.value)) {
+      clearInterval(cooldownTimer)
+      cooldownTimer = undefined
+    }
+  }, 1000)
+}
+
+async function toggleEmailCode() {
+  if (busy.value) return
+  isEmailCode.value = !isEmailCode.value
+  password.value = ''
+  verificationCode.value = ''
+  showPassword.value = false
+  passwordError.value = ''
+  feedback.value = ''
+  codeNotice.value = ''
+  await nextTick()
+  passwordInput.value?.focus()
+}
+
+async function sendCode() {
+  if (busy.value || cooldown.value || !isEmailCode.value) return
+  if (!validateIdentity()) {
+    identityInput.value?.focus()
+    return
+  }
+  const email = identity.value
+  sendingCode.value = true
+  feedback.value = ''
+  codeNotice.value = ''
+  startCooldown(email)
+  try {
+    await sendLoginEmailCode({ email })
+    startCooldown(email)
+    codeNotice.value = '符合条件的邮箱将收到验证码，请查收。'
+    passwordInput.value?.focus()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '验证码发送失败，请稍后重试。'
+    // 邮件发送失败或网络结果不确定时保留冷却，避免重复触发后端限流。
+    if (['邮箱验证码功能尚未启用', '邮件服务尚未配置'].includes(message)) {
+      delete cooldowns.value[email]
+    }
+    feedback.value = message
+  } finally {
+    sendingCode.value = false
+  }
+}
 
 function setMode(nextMode: LoginMode) {
-  if (submitting.value || nextMode === mode.value) return
+  if (busy.value || nextMode === mode.value) return
   mode.value = nextMode
   identity.value = ''
   identityError.value = ''
   passwordError.value = ''
   feedback.value = ''
   showPassword.value = false
+  isEmailCode.value = false
+  verificationCode.value = ''
+  codeNotice.value = ''
 }
 
 async function moveMode() {
@@ -44,20 +114,36 @@ function validateIdentity() {
     ? isEmail.value
       ? '请输入邮箱。'
       : '请输入账号。'
-    : isEmail.value && identityInput.value?.validity.typeMismatch
-    ? '邮箱格式不正确，请检查后重试。'
-    : ''
+    : isEmail.value && identity.value.length > 254
+      ? '邮箱长度不能超过 254 个字符。'
+      : isEmail.value && identityInput.value?.validity.typeMismatch
+        ? '邮箱格式不正确，请检查后重试。'
+        : ''
   return !identityError.value
 }
 
 function validatePassword() {
-  passwordError.value = password.value.trim() ? '' : '请输入密码。'
+  passwordError.value = isEmailCode.value
+    ? /^[0-9]{6}$/.test(verificationCode.value)
+      ? ''
+      : '请输入 6 位数字验证码。'
+    : password.value.trim()
+      ? ''
+      : '请输入密码。'
   return !passwordError.value
 }
 
+function inputVerificationCode() {
+  verificationCode.value = verificationCode.value.replace(/[^0-9]/g, '')
+  clearFieldError('password')
+}
+
 function clearFieldError(key: 'identity' | 'password') {
-  if (key === 'identity') identityError.value = ''
-  else passwordError.value = ''
+  if (key === 'identity') {
+    identityError.value = ''
+    verificationCode.value = ''
+    codeNotice.value = ''
+  } else passwordError.value = ''
   feedback.value = ''
 }
 
@@ -71,7 +157,7 @@ function loginTarget() {
 }
 
 async function submit() {
-  if (submitting.value) return
+  if (busy.value) return
   feedback.value = ''
   const identityValid = validateIdentity()
   const passwordValid = validatePassword()
@@ -85,19 +171,26 @@ async function submit() {
   }
   submitting.value = true
   try {
-    const result = isEmail.value
-      ? await loginByEmail({ email: identity.value, password: password.value })
-      : await loginByUsername({ username: identity.value, password: password.value })
+    const result =
+      isEmail.value && isEmailCode.value
+        ? await loginByEmailCode({
+            email: identity.value,
+            verificationCode: verificationCode.value,
+          })
+        : isEmail.value
+          ? await loginByEmail({ email: identity.value, password: password.value })
+          : await loginByUsername({ username: identity.value, password: password.value })
     saveLogin(result)
     password.value = ''
+    verificationCode.value = ''
     await router.replace(loginTarget())
   } catch (error) {
     feedback.value =
       error instanceof TypeError
         ? '无法连接登录服务，请检查网络后重试。'
         : error instanceof Error
-        ? error.message
-        : '登录失败，请稍后重试。'
+          ? error.message
+          : '登录失败，请稍后重试。'
   } finally {
     submitting.value = false
   }
@@ -156,7 +249,7 @@ async function submit() {
             :aria-selected="!isEmail"
             aria-controls="loginPanel"
             :tabindex="isEmail ? -1 : 0"
-            :disabled="submitting"
+            :disabled="busy"
             @click="setMode('username')"
           >
             <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -173,7 +266,7 @@ async function submit() {
             :aria-selected="isEmail"
             aria-controls="loginPanel"
             :tabindex="isEmail ? 0 : -1"
-            :disabled="submitting"
+            :disabled="busy"
             @click="setMode('email')"
           >
             <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -219,7 +312,7 @@ async function submit() {
                   :type="isEmail ? 'email' : 'text'"
                   :autocomplete="isEmail ? 'email' : 'username'"
                   :placeholder="isEmail ? '请输入邮箱' : '请输入账号'"
-                  :readonly="submitting"
+                  :readonly="busy"
                   required
                   :aria-invalid="!!identityError"
                   aria-describedby="identityError"
@@ -233,9 +326,20 @@ async function submit() {
             </div>
 
             <div class="field" :class="{ 'has-error': !!passwordError }">
-              <label class="field-label" for="passwordInput"
-                >登录密码 <span class="required-mark">必填</span></label
-              >
+              <div class="field-label">
+                <label for="passwordInput">{{ isEmailCode ? '邮箱验证码' : '登录密码' }}</label>
+                <button
+                  v-if="isEmail"
+                  class="credential-mode"
+                  type="button"
+                  :disabled="busy"
+                  :aria-pressed="isEmailCode"
+                  @click="toggleEmailCode"
+                >
+                  {{ isEmailCode ? '密码登录' : '验证码登录' }}
+                </button>
+                <span v-else class="required-mark">必填</span>
+              </div>
               <div class="input-shell" :class="{ invalid: !!passwordError }">
                 <span class="field-icon" aria-hidden="true"
                   ><svg viewBox="0 0 20 20">
@@ -243,6 +347,25 @@ async function submit() {
                     <path d="M6.3 8.3V5.9a3.7 3.7 0 0 1 7.4 0v2.4M10 11.8v2" /></svg
                 ></span>
                 <input
+                  v-if="isEmailCode"
+                  id="passwordInput"
+                  ref="passwordInput"
+                  v-model="verificationCode"
+                  name="verificationCode"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  maxlength="6"
+                  placeholder="请输入 6 位验证码"
+                  :readonly="busy"
+                  required
+                  :aria-invalid="!!passwordError"
+                  aria-describedby="passwordError"
+                  @blur="validatePassword"
+                  @input="inputVerificationCode"
+                />
+                <input
+                  v-else
                   id="passwordInput"
                   ref="passwordInput"
                   v-model="password"
@@ -250,7 +373,7 @@ async function submit() {
                   :type="showPassword ? 'text' : 'password'"
                   autocomplete="current-password"
                   placeholder="请输入密码"
-                  :readonly="submitting"
+                  :readonly="busy"
                   required
                   :aria-invalid="!!passwordError"
                   aria-describedby="passwordError"
@@ -258,11 +381,21 @@ async function submit() {
                   @input="clearFieldError('password')"
                 />
                 <button
+                  v-if="isEmailCode"
+                  class="send-code"
+                  type="button"
+                  :disabled="busy || cooldown > 0"
+                  @click="sendCode"
+                >
+                  {{ sendingCode ? '发送中…' : cooldown ? `${cooldown} 秒后重试` : '获取验证码' }}
+                </button>
+                <button
+                  v-else
                   class="password-toggle"
                   type="button"
                   :aria-label="showPassword ? '隐藏密码' : '显示密码'"
                   :aria-pressed="showPassword"
-                  :disabled="submitting"
+                  :disabled="busy"
                   @click="showPassword = !showPassword"
                 >
                   <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -272,7 +405,14 @@ async function submit() {
                   </svg>
                 </button>
               </div>
-              <p id="passwordError" class="field-error" aria-live="polite">{{ passwordError }}</p>
+              <p
+                id="passwordError"
+                class="field-error"
+                :class="{ 'code-notice': !passwordError && !!codeNotice }"
+                aria-live="polite"
+              >
+                {{ passwordError || codeNotice }}
+              </p>
             </div>
 
             <div v-if="feedback" class="feedback show" role="alert">
@@ -285,7 +425,7 @@ async function submit() {
               class="submit-button"
               :class="{ 'is-loading': submitting }"
               type="submit"
-              :disabled="submitting"
+              :disabled="busy"
               :aria-busy="submitting"
             >
               <span class="spinner" aria-hidden="true"></span
@@ -316,7 +456,8 @@ async function submit() {
   min-height: 100vh;
   margin: 0;
   color: var(--ink);
-  background: radial-gradient(ellipse at 4% 90%, rgba(45, 169, 162, 0.09), transparent 31rem),
+  background:
+    radial-gradient(ellipse at 4% 90%, rgba(45, 169, 162, 0.09), transparent 31rem),
     radial-gradient(ellipse at 89% 11%, rgba(217, 95, 134, 0.14), transparent 29rem), var(--canvas);
   font-family: var(--font-body);
   font-size: 14px;
@@ -483,7 +624,9 @@ async function submit() {
   content: '';
   border: 1px solid rgba(217, 95, 134, 0.28);
   border-radius: 50%;
-  box-shadow: 0 0 0 15px rgba(217, 95, 134, 0.035), 0 0 0 31px rgba(117, 103, 170, 0.035);
+  box-shadow:
+    0 0 0 15px rgba(217, 95, 134, 0.035),
+    0 0 0 31px rgba(117, 103, 170, 0.035);
 }
 .login-page .artboard-frame::after {
   position: absolute;
@@ -502,7 +645,11 @@ async function submit() {
   top: 19px;
   left: 20px;
   color: var(--ink-faint);
-  font: 9px ui-monospace, SFMono-Regular, Consolas, monospace;
+  font:
+    9px ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
   letter-spacing: 0.08em;
 }
 .login-page .orbit-core {
@@ -579,7 +726,9 @@ async function submit() {
   background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 24px;
-  box-shadow: var(--login-shadow), inset 0 1px rgba(255, 255, 255, 0.72);
+  box-shadow:
+    var(--login-shadow),
+    inset 0 1px rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(18px);
 }
 .login-page .card-kicker {
@@ -637,7 +786,10 @@ async function submit() {
   cursor: pointer;
   font-size: 11px;
   font-weight: 650;
-  transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease,
+  transition:
+    color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease,
     border-color 150ms ease;
 }
 .login-page .mode-tab:hover {
@@ -681,6 +833,44 @@ async function submit() {
 .login-page .required-mark {
   color: var(--accent-strong);
 }
+.login-page .credential-mode,
+.login-page .send-code {
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--accent-strong);
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 650;
+}
+.login-page .credential-mode {
+  padding: 2px 5px;
+  margin: -2px -5px;
+}
+.login-page .send-code {
+  min-height: 30px;
+  padding: 0 8px;
+  background: var(--accent-soft);
+}
+.login-page .credential-mode:hover:not(:disabled),
+.login-page .send-code:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.login-page .credential-mode:focus-visible,
+.login-page .send-code:focus-visible {
+  box-shadow: var(--focus);
+}
+.login-page .credential-mode:disabled,
+.login-page .send-code:disabled {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+.login-page .field-error.code-notice {
+  color: var(--ink-soft);
+  visibility: visible;
+}
 .login-page .input-shell {
   position: relative;
   display: flex;
@@ -691,7 +881,10 @@ async function submit() {
   background: var(--surface-solid);
   border: 1px solid var(--line-strong);
   border-radius: 10px;
-  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
 }
 .login-page .input-shell:hover {
   border-color: rgba(117, 103, 170, 0.42);
@@ -823,7 +1016,10 @@ async function submit() {
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.035em;
-  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease;
 }
 .login-page .submit-button:hover:not(:disabled) {
   filter: saturate(1.07);
@@ -831,7 +1027,9 @@ async function submit() {
   transform: translateY(-1px);
 }
 .login-page .submit-button:focus-visible {
-  box-shadow: var(--focus), 0 9px 19px rgba(189, 63, 105, 0.19);
+  box-shadow:
+    var(--focus),
+    0 9px 19px rgba(189, 63, 105, 0.19);
 }
 .login-page .submit-button:disabled {
   cursor: wait;

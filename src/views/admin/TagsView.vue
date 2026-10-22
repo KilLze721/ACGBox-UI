@@ -5,10 +5,11 @@ import { createTag, deleteTags, getTagById, getTagPage, updateTag } from '@/api/
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import type { NamedOption, PageResult } from '@/types/api'
+import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 
 type DrawerMode = 'create' | 'edit'
 
-const pageSizeOptions: NamedOption[] = [5, 10, 20].map((value) => ({
+const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
   id: value,
   name: `${value} 条`,
 }))
@@ -16,13 +17,13 @@ const route = useRoute()
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<NamedOption>>({
   pageNum: 1,
-  pageSize: 10,
+  pageSize: resolvePageSize(pageSizeOptions.map((option) => option.id), 10),
   total: 0,
   pages: 0,
   rows: [],
 })
 const totalTags = ref<number | null>(null)
-const pageSize = ref(10)
+const pageSize = ref(page.value.pageSize)
 const pageSizeModel = computed({
   get: () => String(pageSize.value),
   set: (value: string) => changePageSize(value),
@@ -173,6 +174,7 @@ function runSearch() {
   void loadPage(1)
 }
 function resetSearch() {
+  pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
   searchName.value = ''
   appliedName.value = ''
   void loadPage(1)

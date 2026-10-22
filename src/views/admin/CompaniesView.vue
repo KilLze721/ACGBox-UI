@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 import {
   computed,
   inject,
@@ -24,7 +25,7 @@ import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import type { AnimePageItem, AnimeSortField, CompanyOption, NamedOption, PageResult, SortDirection } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
-const pageSizeOptions: NamedOption[] = [5, 10, 20].map((value) => ({
+const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
   id: value,
   name: `${value} 条`,
 }))
@@ -36,13 +37,13 @@ const navigateLinkedContent = inject<
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<CompanyOption>>({
   pageNum: 1,
-  pageSize: 10,
+  pageSize: resolvePageSize(pageSizeOptions.map((option) => option.id), 10),
   total: 0,
   pages: 0,
   rows: [],
 })
 const totalCompanies = ref<number | null>(null)
-const pageSize = ref(10)
+const pageSize = ref(page.value.pageSize)
 const pageSizeModel = computed({
   get: () => String(pageSize.value),
   set: (value: string) => changePageSize(value),
@@ -64,12 +65,12 @@ const nameError = ref('')
 const saving = ref(false)
 const relatedAnime = ref<PageResult<AnimePageItem>>({
   pageNum: 1,
-  pageSize: 5,
+  pageSize: resolvePageSize(pageSizeOptions.map((option) => option.id), 10),
   total: 0,
   pages: 0,
   rows: [],
 })
-const relatedPageSize = ref(5)
+const relatedPageSize = ref(relatedAnime.value.pageSize)
 const relatedSortBy = ref<AnimeSortField>('BROADCAST_DATE')
 const relatedSortDirection = ref<SortDirection>('DESC')
 const relatedLoading = ref(false)
@@ -210,6 +211,7 @@ function runSearch() {
   void loadPage(1)
 }
 function resetSearch() {
+  pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
   searchName.value = ''
   appliedName.value = ''
   void loadPage(1)
@@ -261,8 +263,8 @@ async function openDrawer(mode: DrawerMode, row?: CompanyOption) {
   currentCompany.value = row ?? null
   drawerLoading.value = mode !== 'create'
   drawerError.value = ''
-  relatedAnime.value = { pageNum: 1, pageSize: 5, total: 0, pages: 0, rows: [] }
-  relatedPageSize.value = 5
+  relatedPageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
+  relatedAnime.value = { pageNum: 1, pageSize: relatedPageSize.value, total: 0, pages: 0, rows: [] }
   relatedSortBy.value = 'BROADCAST_DATE'
   relatedSortDirection.value = 'DESC'
   relatedError.value = ''
@@ -1663,14 +1665,26 @@ async function confirmDelete() {
   font-size: 10px;
 }
 .companies-association-pagination {
+  flex-wrap: wrap;
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
   color: var(--ink-faint);
   font-size: 10px;
 }
+.companies-association-pagination > div {
+  flex-shrink: 0;
+}
 .companies-association-pagination .archive-select {
-  width: 72px;
+  width: 80px;
+  flex: 0 0 80px;
+}
+.companies-association-pagination :deep(.archive-select-trigger) {
+  gap: 6px;
+  white-space: nowrap;
+}
+.companies-association-pagination :deep(.archive-select-option) {
+  white-space: nowrap;
 }
 .companies-dialog-layer {
   position: fixed;

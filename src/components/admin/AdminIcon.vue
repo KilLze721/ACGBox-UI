@@ -6,7 +6,19 @@ defineProps<{
 
 <template>
   <svg viewBox="0 0 24 24" aria-hidden="true">
-    <g v-if="name === 'admin'">
+    <g v-if="name === 'mail'">
+      <rect x="3" y="5" width="18" height="14" rx="3" />
+      <path d="m4 7 8 6 8-6" />
+    </g>
+    <g v-else-if="name === 'lock'">
+      <rect x="5" y="10" width="14" height="11" rx="3" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2" />
+    </g>
+    <g v-else-if="name === 'info'">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v6m0-10v.01" />
+    </g>
+    <g v-else-if="name === 'admin'">
       <path d="m12 3 8 3v6c0 4-3.5 7-8 9-4.5-2-8-5-8-9V6l8-3Z" />
       <path d="m8.5 12 2.5 2.5 4.5-5" />
     </g>
@@ -103,6 +115,16 @@ defineProps<{
     <g v-else-if="name === 'view'">
       <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
       <circle cx="12" cy="12" r="2.5" />
+    </g>
+    <g v-else-if="name === 'view-off'">
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="m3 3 18 18" />
+    </g>
+    <g v-else-if="name === 'unlink'">
+      <path
+        d="m18.84 12.25 1.41-1.41a5 5 0 0 0-7.07-7.07l-1.41 1.41M5.16 11.75l-1.41 1.41a5 5 0 0 0 7.07 7.07l1.41-1.41M2 2l20 20"
+      />
     </g>
     <g v-else-if="name === 'edit'">
       <path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" />

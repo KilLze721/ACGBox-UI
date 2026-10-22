@@ -14,6 +14,7 @@ function mockApi() {
     { id: 58, name: '治愈' },
     { id: 62, name: '日常' },
     { id: 75, name: '校园' },
+    ...Array.from({ length: 5 }, (_, index) => ({ id: 80 + index, name: `分页测试${index + 1}` })),
   ]
   const requests: Array<{ path: string; query: string; method: string; body?: unknown }> = []
   vi.stubGlobal(
@@ -128,10 +129,14 @@ describe('标签管理页面', () => {
     await flushPromises()
     expect(
       requests.some(
-        (request) => request.path === '/api/tags/page' && request.query.includes('pageSize=5'),
+        (request) => request.path === '/api/tags/page' && request.query.includes('pageSize=10'),
       ),
     ).toBe(true)
     await wrapper.get('.tags-filter .ghost-button').trigger('click')
+    await flushPromises()
+    expect(requests[requests.length - 1]?.query).toContain('pageSize=20')
+    await wrapper.get('#tagsPageSize').trigger('click')
+    await wrapper.get('.archive-select-option').trigger('click')
     await flushPromises()
     await wrapper.get('button[aria-label="下一页"]').trigger('click')
     await flushPromises()
@@ -140,7 +145,7 @@ describe('标签管理页面', () => {
         (request) =>
           request.path === '/api/tags/page' &&
           request.query.includes('pageNum=2') &&
-          request.query.includes('pageSize=5'),
+          request.query.includes('pageSize=10'),
       ),
     ).toBe(true)
     wrapper.unmount()

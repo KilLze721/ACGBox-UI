@@ -16,8 +16,10 @@ import {
   type VNode,
 } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { logout } from '@/api/auth'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
-import { getCurrentUser } from '@/utils/auth'
+import { clearLogin, getCurrentUser, getToken } from '@/utils/auth'
+import { effectiveDarkTheme, initializeTheme, setThemeMode, themeMode } from '@/utils/preferences'
 
 interface WorkspaceTab {
   id: string
@@ -44,6 +46,7 @@ interface PendingTabClose {
   keepId: string | null
   affectedTitles: string[]
   submitting: boolean
+  action?: 'logout'
 }
 
 const route = useRoute()
@@ -53,7 +56,8 @@ const mobileSidebarOpen = ref(false)
 const tabViewport = ref<HTMLElement>()
 const canScrollTabsLeft = ref(false)
 const canScrollTabsRight = ref(false)
-const darkTheme = ref(false)
+const darkTheme = effectiveDarkTheme
+let releaseTheme: (() => void) | undefined
 const currentUser = getCurrentUser()
 const userName = currentUser?.username || '当前用户'
 const userRoleLabels: Record<string, string> = {
@@ -65,6 +69,8 @@ const userRole = currentUser?.role ? userRoleLabels[currentUser.role] || current
 const userAvatarIcon =
   currentUser?.role === 'ADMIN' ? 'admin' : currentUser?.role === 'EDITOR' ? 'edit' : 'user'
 const userMenuOpen = ref(false)
+const loggingOut = ref(false)
+const logoutError = ref('')
 const userMenuRef = ref<HTMLElement>()
 const activeTabId = ref('dashboard')
 const lastAnimeTabId = ref<string | null>(null)
@@ -151,20 +157,56 @@ watchEffect(() => {
 })
 
 onMounted(() => {
-  darkTheme.value = localStorage.getItem('acgbox-theme') === 'dark'
-  document.body.dataset.theme = darkTheme.value ? 'dark' : 'light'
+  releaseTheme = initializeTheme()
   window.addEventListener('resize', updateTabScrollState)
   document.addEventListener('pointerdown', closeUserMenuOnOutside)
   updateTabScrollState()
 })
 
 onBeforeUnmount(() => {
+  releaseTheme?.()
   window.removeEventListener('resize', updateTabScrollState)
   document.removeEventListener('pointerdown', closeUserMenuOnOutside)
 })
 
 function closeUserMenuOnOutside(event: PointerEvent) {
   if (!userMenuRef.value?.contains(event.target as Node)) userMenuOpen.value = false
+}
+
+function requestLogout() {
+  if (loggingOut.value || pendingTabClose.value) return
+  userMenuOpen.value = false
+  logoutError.value = ''
+  const ids = workspaceTabs.value.filter((tab) => tab.closable).map((tab) => tab.id)
+  void requestCloseTabs(ids, null, 'logout')
+}
+
+function openAccountPage() {
+  userMenuOpen.value = false
+  const tab = workspaceTabs.value.find((item) => item.path === '/admin/account')
+  if (tab) void activateTab(tab)
+  else void router.push({ name: 'admin-account' })
+}
+
+async function performLogout() {
+  if (loggingOut.value) return
+  loggingOut.value = true
+  const token = getToken()
+  try {
+    await logout()
+    if (token !== sessionStorage.getItem('acgbox-token')) return
+    clearLogin()
+    await router.replace({ name: 'login' })
+  } catch (error) {
+    if (!getToken()) {
+      if (route.name !== 'login') await router.replace({ name: 'login' })
+      return
+    }
+    logoutError.value = error instanceof Error ? error.message : '退出登录失败，请稍后重试。'
+    userMenuOpen.value = true
+  } finally {
+    loggingOut.value = false
+  }
 }
 
 function getCurrentRouteIcon() {
@@ -384,10 +426,13 @@ async function returnToAnimeList(createFullPath: string) {
   await finishClosingTabs([createTab.id], null)
 }
 
-async function requestCloseTabs(ids: string[], keepId: string | null = null) {
-  if (pendingTabClose.value) return
+async function requestCloseTabs(ids: string[], keepId: string | null = null, action?: 'logout') {
+  if (pendingTabClose.value || loggingOut.value) return
   const targets = workspaceTabs.value.filter((tab) => tab.closable && ids.includes(tab.id))
-  if (!targets.length) return
+  if (!targets.length) {
+    if (action === 'logout') await performLogout()
+    return
+  }
 
   const submittingTab = targets.find((tab) => getCloseState(tab).submitting)
   if (submittingTab) {
@@ -397,6 +442,7 @@ async function requestCloseTabs(ids: string[], keepId: string | null = null) {
       keepId,
       affectedTitles: [submittingTab.title],
       submitting: true,
+      action,
     }
     return
   }
@@ -409,11 +455,13 @@ async function requestCloseTabs(ids: string[], keepId: string | null = null) {
       keepId,
       affectedTitles: dirtyTabs.map((tab) => tab.title),
       submitting: false,
+      action,
     }
     return
   }
 
-  await finishClosingTabs(ids, keepId)
+  if (action === 'logout') await performLogout()
+  else await finishClosingTabs(ids, keepId)
 }
 
 function closeWorkspaceTab(id: string) {
@@ -442,7 +490,8 @@ function confirmTabClose() {
     return
   }
   pendingTabClose.value = null
-  void finishClosingTabs(pending.ids, pending.keepId)
+  if (pending.action === 'logout') void performLogout()
+  else void finishClosingTabs(pending.ids, pending.keepId)
 }
 
 function toggleSidebar() {
@@ -455,9 +504,7 @@ function toggleSidebar() {
 }
 
 function toggleTheme() {
-  darkTheme.value = !darkTheme.value
-  document.body.dataset.theme = darkTheme.value ? 'dark' : 'light'
-  localStorage.setItem('acgbox-theme', darkTheme.value ? 'dark' : 'light')
+  setThemeMode(themeMode.value === 'light' ? 'dark' : themeMode.value === 'dark' ? 'system' : 'light')
 }
 </script>
 
@@ -560,7 +607,7 @@ function toggleTheme() {
           <button
             class="icon-button"
             type="button"
-            :aria-label="darkTheme ? '切换浅色主题' : '切换深色主题'"
+            :aria-label="`当前主题：${themeMode === 'system' ? '跟随系统' : themeMode === 'dark' ? '深色' : '浅色'}，点击切换主题模式`"
             @click="toggleTheme"
           >
             <AdminIcon :name="darkTheme ? 'moon' : 'sun'" />
@@ -590,21 +637,21 @@ function toggleTheme() {
                 role="menu"
                 aria-label="账号操作"
               >
-                <p class="user-menu-note">以下功能暂未开放</p>
-                <button class="user-menu-item" type="button" role="menuitem" disabled>
+                <p class="user-menu-note">个人账号与登录安全</p>
+                <button class="user-menu-item" type="button" role="menuitem" @click="openAccountPage">
                   <AdminIcon name="edit" />账号编辑
-                </button>
-                <button class="user-menu-item" type="button" role="menuitem" disabled>
-                  <AdminIcon name="refresh" />切换账号
                 </button>
                 <button
                   class="user-menu-item user-menu-logout"
                   type="button"
                   role="menuitem"
-                  disabled
+                  :disabled="loggingOut"
+                  :aria-busy="loggingOut"
+                  @click="requestLogout"
                 >
-                  <AdminIcon name="back" />退出登录
+                  <AdminIcon name="back" />{{ loggingOut ? '正在退出…' : '退出登录' }}
                 </button>
+                <p v-if="logoutError" class="user-menu-error" role="alert">{{ logoutError }}</p>
               </div>
             </Transition>
           </div>
@@ -706,6 +753,7 @@ function toggleTheme() {
       <div
         v-if="pendingTabClose"
         class="modal-layer open workspace-close-layer"
+        :class="{ 'workspace-logout-layer': pendingTabClose.action === 'logout' }"
         role="dialog"
         aria-modal="true"
         aria-labelledby="workspaceCloseTitle"
@@ -716,11 +764,17 @@ function toggleTheme() {
             {{ pendingTabClose.submitting ? '页面正在保存' : '页面有未保存的内容' }}
           </h2>
           <p v-if="pendingTabClose.submitting">
-            {{ pendingTabClose.affectedTitles.join('、') }}正在提交，请等待保存结束后再关闭。
+            {{ pendingTabClose.affectedTitles.join('、') }}正在提交，请等待保存结束后再{{
+              pendingTabClose.action === 'logout' ? '退出登录' : '关闭'
+            }}。
           </p>
           <p v-else>
             {{ pendingTabClose.affectedTitles.join('、') }}中有尚未保存的新增或修改内容。
-            放弃更改后将关闭本次操作涉及的页面标签。
+            {{
+              pendingTabClose.action === 'logout'
+                ? '退出登录将关闭所有页面，尚未保存的内容将丢失。'
+                : '放弃更改后将关闭本次操作涉及的页面标签。'
+            }}
           </p>
           <div class="dialog-actions">
             <button class="secondary-button" type="button" @click="pendingTabClose = null">
@@ -732,7 +786,7 @@ function toggleTheme() {
               type="button"
               @click="confirmTabClose"
             >
-              放弃更改并关闭
+              {{ pendingTabClose.action === 'logout' ? '放弃更改并退出登录' : '放弃更改并关闭' }}
             </button>
           </div>
         </section>
@@ -815,6 +869,16 @@ function toggleTheme() {
 .user-menu-logout {
   color: var(--danger);
 }
+.user-menu-item:not(:disabled) {
+  cursor: pointer;
+}
+.user-menu-error {
+  margin: 5px 0 0;
+  padding: 7px 10px;
+  color: var(--danger);
+  font-size: 11px;
+  line-height: 1.5;
+}
 .user-menu-enter-active,
 .user-menu-leave-active {
   transition: opacity 150ms ease, transform 150ms ease;
@@ -834,6 +898,9 @@ function toggleTheme() {
 .workspace-close-layer {
   z-index: 400;
   overscroll-behavior: contain;
+}
+.workspace-logout-layer {
+  z-index: 2000;
 }
 .workspace-close-layer .dialog {
   max-height: calc(100dvh - 40px);

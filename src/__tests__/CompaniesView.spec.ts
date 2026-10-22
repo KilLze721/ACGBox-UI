@@ -110,7 +110,7 @@ describe('制作公司管理页面', () => {
     await flushPromises()
     expect(
       requests.some(
-        (request) => request.path === '/api/companies/page' && request.query.includes('pageSize=5'),
+        (request) => request.path === '/api/companies/page' && request.query.includes('pageSize=10'),
       ),
     ).toBe(true)
     wrapper.unmount()
@@ -147,9 +147,15 @@ describe('制作公司管理页面', () => {
     await wrapper.get('.companies-row-name').trigger('click')
     await flushPromises()
 
-    expect(document.body.querySelector('.companies-association-list')?.children).toHaveLength(5)
+    expect(document.body.querySelector('.companies-association-list')?.children).toHaveLength(12)
+    document.body.querySelector<HTMLButtonElement>('#relatedAnimePageSize')?.click()
+    await flushPromises()
+    expect(Array.from(document.body.querySelectorAll<HTMLButtonElement>('.archive-select-option')).map((option) => option.textContent)).toEqual(['10 条', '20 条', '50 条'])
+    Array.from(document.body.querySelectorAll<HTMLButtonElement>('.archive-select-option')).find((option) => option.textContent === '10 条')?.click()
+    await flushPromises()
+    expect(document.body.querySelector('.companies-association-list')?.children).toHaveLength(10)
     expect(document.body.querySelector('.companies-association-pagination')?.textContent).toContain('共 12 条')
-    expect(requests.some((request) => request.path === '/api/anime/page' && request.query.includes('companyId=5') && request.query.includes('sortBy=BROADCAST_DATE') && request.query.includes('sortDirection=DESC') && request.query.includes('pageSize=5'))).toBe(true)
+    expect(requests.some((request) => request.path === '/api/anime/page' && request.query.includes('companyId=5') && request.query.includes('sortBy=BROADCAST_DATE') && request.query.includes('sortDirection=DESC') && request.query.includes('pageSize=10'))).toBe(true)
 
     document.body.querySelector<HTMLButtonElement>('[aria-label="下一页关联动画"]')?.click()
     await flushPromises()

@@ -87,7 +87,7 @@ describe('系列管理页面', () => {
     await flushPromises()
     expect(
       requests.some(
-        (request) => request.path === '/api/series/page' && request.query.includes('pageSize=5'),
+        (request) => request.path === '/api/series/page' && request.query.includes('pageSize=10'),
       ),
     ).toBe(true)
 

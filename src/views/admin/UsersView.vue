@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 import {
   computed,
   nextTick,
@@ -37,7 +38,7 @@ const enabledOptions = [
   { id: 1, name: '已启用' },
   { id: 2, name: '已停用' },
 ]
-const pageSizeOptions = [10, 20, 50, 100].map((id) => ({ id, name: `${id} 条` }))
+const pageSizeOptions = pageSizeValues.map((id) => ({ id, name: `${id} 条` }))
 const editableFields: { key: EditableField; label: string }[] = [
   { key: 'username', label: '用户名' },
   { key: 'email', label: '邮箱' },
@@ -49,12 +50,12 @@ const filters = reactive({ username: '', email: '', role: '' as UserRole | '', e
 const appliedFilters = ref<Omit<UserAccountPageQuery, 'pageNum' | 'pageSize'>>({})
 const page = ref<PageResult<UserAccount>>({
   pageNum: 1,
-  pageSize: 20,
+  pageSize: resolvePageSize(pageSizeOptions.map((option) => option.id), 20),
   total: 0,
   pages: 0,
   rows: [],
 })
-const pageSize = ref(20)
+const pageSize = ref(page.value.pageSize)
 const requestedPage = ref(1)
 const jumpPage = ref('1')
 const loading = ref(true)
@@ -306,6 +307,7 @@ function runSearch() {
   void loadUsers(1)
 }
 function resetFilters() {
+  pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 20)
   Object.assign(filters, { username: '', email: '', role: '', enabled: '' })
   appliedFilters.value = {}
   void loadUsers(1)

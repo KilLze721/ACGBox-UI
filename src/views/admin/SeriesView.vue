@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 import {
   computed,
   inject,
@@ -33,7 +34,7 @@ type AssociatedWork = {
 }
 
 const workTypeNames: Record<WorkType, string> = { anime: '动画', manga: '漫画', novel: '小说' }
-const pageSizeOptions: NamedOption[] = [5, 10, 20].map((value) => ({
+const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
   id: value,
   name: `${value} 条`,
 }))
@@ -48,13 +49,13 @@ const navigateLinkedContent =
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<SeriesSummary>>({
   pageNum: 1,
-  pageSize: 10,
+  pageSize: resolvePageSize(pageSizeOptions.map((option) => option.id), 10),
   total: 0,
   pages: 0,
   rows: [],
 })
 const totalSeries = ref(0)
-const pageSize = ref(10)
+const pageSize = ref(page.value.pageSize)
 const pageSizeModel = computed({
   get: () => String(pageSize.value),
   set: (value: string) => changePageSize(value),
@@ -225,6 +226,7 @@ function runSearch() {
   void loadPage(1)
 }
 function resetSearch() {
+  pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
   searchName.value = ''
   appliedName.value = ''
   void loadPage(1)

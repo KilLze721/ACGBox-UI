@@ -16,7 +16,8 @@ import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import AnimeAirDateInput from '@/components/admin/AnimeAirDateInput.vue'
 import AnimeSuggestionInput from '@/components/admin/AnimeSuggestionInput.vue'
 import AnimeEntitySelect from '@/components/admin/AnimeEntitySelect.vue'
-import { companyRoles, linkTitleSuggestions } from './animeFormOptions'
+import { companyRoles as defaultCompanyRoles, linkTitleSuggestions as defaultLinkTitles } from './animeFormOptions'
+import { readPreferences } from '@/utils/preferences'
 import type {
   AnimeDetail,
   AnimePayload,
@@ -30,6 +31,11 @@ const props = defineProps<{
   mode: 'create' | 'edit'
   animeId?: number
 }>()
+
+// 每个新建表单只读取一次偏好，已打开的表单与修改已有作品不受后续设置影响。
+const entryPreferences = props.mode === 'create' ? readPreferences() : null
+const companyRoles = entryPreferences?.companyRoles ?? [...defaultCompanyRoles]
+const linkTitleSuggestions = entryPreferences?.linkTitles ?? [...defaultLinkTitles]
 
 const route = useRoute()
 const ownerFullPath = route.fullPath
@@ -84,9 +90,9 @@ const statusOptions: NamedOption[] = [
 function createDefaultForm(): AnimeForm {
   return {
     name: '',
-    broadcastTypeId: '',
+    broadcastTypeId: entryPreferences?.broadcastTypeId ?? '',
     adaptationTypeId: '',
-    regionId: '',
+    regionId: entryPreferences?.regionId ?? '',
     status: props.mode === 'create' ? '' : '1',
     airDate: '',
     episodeCount: '',
@@ -173,6 +179,11 @@ onMounted(async () => {
     adaptationTypes.value = adaptation
     regions.value = region
     tags.value = allTags
+    if (entryPreferences) {
+      if (!broadcast.some((option) => String(option.id) === form.broadcastTypeId)) entryPreferences.broadcastTypeId = form.broadcastTypeId = ''
+      if (!region.some((option) => String(option.id) === form.regionId)) entryPreferences.regionId = form.regionId = ''
+      initialFormState.value = getFormSnapshot()
+    }
     if (anime) {
       const [companyNames, selectedSeries] = await Promise.all([
         Promise.all(

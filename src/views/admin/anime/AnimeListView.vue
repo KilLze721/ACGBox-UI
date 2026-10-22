@@ -23,6 +23,7 @@ import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveDateInput from '@/components/admin/ArchiveDateInput.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import { getArchiveDateBound, validateArchiveDate } from '@/utils/archiveDate'
+import { pageSizeValues, readPreferences, resolvePageSize } from '@/utils/preferences'
 import AnimeCrudDrawer from './AnimeCrudDrawer.vue'
 
 const route = inject(routeLocationKey, null)
@@ -66,7 +67,7 @@ const statusOptions: NamedOption[] = Object.entries(statusNames).map(([id, name]
   name,
 }))
 
-const pageSizeOptions: NamedOption[] = [5, 10, 20, 50].map((value) => ({
+const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
   id: value,
   name: `${value} 条`,
 }))
@@ -85,13 +86,13 @@ const createDefaultFilters = (): AnimeFilters => ({
   companyKeyword: '',
   ratingMin: '',
   ratingMax: '',
-  sortBy: 'BROADCAST_DATE',
-  sortDirection: 'DESC',
+  sortBy: readPreferences().sortBy,
+  sortDirection: readPreferences().sortDirection,
 })
 
 const form = reactive<AnimeFilters>({ ...createDefaultFilters(), keyword: initialKeyword })
 const appliedFilters = ref<AnimeFilters>({ ...createDefaultFilters(), keyword: initialKeyword })
-const pageSize = ref(10)
+const pageSize = ref(resolvePageSize(pageSizeOptions.map((option) => option.id), 10))
 const pageSizeModel = computed({
   get: () => String(pageSize.value),
   set: (value: string) => {
@@ -137,7 +138,7 @@ const drawerAnime = ref<AnimePageItem | null>(null)
 const toast = ref<{ title: string; message: string; type: 'success' | 'error' } | null>(null)
 const page = ref<PageResult<AnimePageItem>>({
   pageNum: 1,
-  pageSize: 10,
+  pageSize: pageSize.value,
   total: 0,
   pages: 0,
   rows: [],
@@ -561,6 +562,7 @@ function submitQuery() {
 }
 
 function resetFilters() {
+  pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
   Object.assign(form, createDefaultFilters())
   appliedFilters.value = createDefaultFilters()
   validationMessage.value = ''
@@ -2040,10 +2042,7 @@ function getCoverGradient(id: number) {
           <label>
             每页
             <select v-model.number="pageSize" aria-label="每页数量" @change="changePageSize">
-              <option :value="5">5 条</option>
-              <option :value="10">10 条</option>
-              <option :value="20">20 条</option>
-              <option :value="50">50 条</option>
+              <option v-for="option in pageSizeOptions" :key="option.id" :value="option.id">{{ option.name }}</option>
             </select>
           </label>
           <button type="button" :disabled="page.pageNum <= 1" @click="goToPage(page.pageNum - 1)">
