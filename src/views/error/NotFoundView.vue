@@ -1,3 +1,4 @@
+<!-- 未匹配路由的错误页面：展示页面不存在的提示，并提供返回管理首页的入口。 -->
 <template>
   <main class="error-page">
     <section class="error-card">

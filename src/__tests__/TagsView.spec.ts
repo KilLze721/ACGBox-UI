@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import App from '@/App.vue'
 import router from '@/router'
-import TagsView from '@/views/admin/TagsView.vue'
+import TagsView from '@/views/admin/tags/TagsView.vue'
 
 type Tag = { id: number; name: string }
 

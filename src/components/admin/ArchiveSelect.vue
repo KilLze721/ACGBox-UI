@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 管理端共用单选下拉框：展示选项名称，通过双向绑定返回对应的选项标识字符串。
+ * 支持占位选项、向上或向下展开，以及点击外部或按 Escape 关闭菜单。
+ */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { NamedOption } from '@/types/api'
 

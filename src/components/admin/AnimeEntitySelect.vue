@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 远程业务实体搜索选择框：用于公司、系列等实际资料，搜索方法由父组件传入。
+ * 区分显示名称与选中标识，输入变化时清除旧标识，并管理防抖、分页及搜索错误。
+ */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import type { NamedOption, PageResult } from '@/types/api'
 
@@ -114,6 +118,7 @@ async function loadPage(nextPage: number) {
   }
 }
 
+// 文字被修改后原选择不再有效，先清空标识再搜索，避免提交与显示名称不符的数据。
 function handleInput(event: Event) {
   const value = (event.target as HTMLInputElement).value
   emit('update:modelValue', '')

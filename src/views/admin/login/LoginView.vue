@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 登录页面：提供账号密码、邮箱密码和邮箱验证码三种登录方式。
+ * 负责表单校验、验证码冷却和错误提示，成功后保存登录状态并返回目标管理页面。
+ */
 import { computed, nextTick, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { loginByEmail, loginByEmailCode, loginByUsername, sendLoginEmailCode } from '@/api/auth'
@@ -35,6 +39,7 @@ let cooldownTimer: ReturnType<typeof setInterval> | undefined
 
 onUnmounted(() => clearInterval(cooldownTimer))
 
+// 用邮箱对应的截止时间计算冷却，切换登录方式不会重置同一邮箱的发送限制。
 function startCooldown(email: string) {
   now.value = Date.now()
   cooldowns.value[email] = now.value + 60_000
@@ -147,6 +152,7 @@ function clearFieldError(key: 'identity' | 'password') {
   feedback.value = ''
 }
 
+// 只接受项目内需要登录的返回地址，防止登录后被重定向到外部网站。
 function loginTarget() {
   const redirect = route.query.redirect
   if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
@@ -156,6 +162,7 @@ function loginTarget() {
   return '/admin/dashboard'
 }
 
+// 根据当前方式提交密码或验证码，保存后端签发的登录信息后再进行路由跳转。
 async function submit() {
   if (busy.value) return
   feedback.value = ''

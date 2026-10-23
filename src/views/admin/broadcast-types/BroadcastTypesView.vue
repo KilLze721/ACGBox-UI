@@ -1,7 +1,17 @@
 <script setup lang="ts">
+/**
+ * 放送类型字典管理页面：维护动画使用的放送类型，支持名称筛选和多项选择。
+ * 新增、修改在抽屉内完成，删除需确认；当前列表由已有字典接口一次读取。
+ */
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { createRegion, deleteRegions, getRegionById, getRegions, updateRegion } from '@/api/catalog'
+import {
+  createBroadcastType,
+  deleteBroadcastTypes,
+  getBroadcastTypeById,
+  getBroadcastTypes,
+  updateBroadcastType,
+} from '@/api/catalog'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import type { NamedOption } from '@/types/api'
 
@@ -9,14 +19,14 @@ type DrawerMode = 'create' | 'edit'
 
 const route = useRoute()
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
-const regions = ref<NamedOption[]>([])
+const types = ref<NamedOption[]>([])
 const searchName = ref(initialName)
 const appliedName = ref(initialName)
 const selectedIds = ref<number[]>([])
 const loading = ref(false)
 const listError = ref('')
 const drawerMode = ref<DrawerMode | null>(null)
-const currentRegion = ref<NamedOption | null>(null)
+const currentType = ref<NamedOption | null>(null)
 const drawerLoading = ref(false)
 const drawerError = ref('')
 const formName = ref('')
@@ -36,19 +46,19 @@ let toastTimer: number | undefined
 let previousBodyOverflow: string | undefined
 let previousHtmlOverflow: string | undefined
 
-const filteredRegions = computed(() => {
+const filteredTypes = computed(() => {
   const keyword = appliedName.value.toLocaleLowerCase()
-  return regions.value
-    .filter((region) => !keyword || region.name.toLocaleLowerCase().includes(keyword))
+  return types.value
+    .filter((type) => !keyword || type.name.toLocaleLowerCase().includes(keyword))
     .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
 })
 const allVisibleSelected = computed(
   () =>
-    filteredRegions.value.length > 0 &&
-    filteredRegions.value.every((region) => selectedIds.value.includes(region.id)),
+    filteredTypes.value.length > 0 &&
+    filteredTypes.value.every((type) => selectedIds.value.includes(type.id)),
 )
 const selectedTargets = computed(() =>
-  regions.value.filter((region) => selectedIds.value.includes(region.id)),
+  types.value.filter((type) => selectedIds.value.includes(type.id)),
 )
 const isDirty = computed(
   () => drawerMode.value !== null && formName.value !== initialFormName.value,
@@ -58,7 +68,7 @@ defineExpose({
   getCloseState: () => ({ dirty: isDirty.value, submitting: saving.value || deleting.value }),
 })
 
-onMounted(() => void loadRegions())
+onMounted(() => void loadTypes())
 onActivated(() => {
   tabActive.value = true
   if (drawerMode.value || deleteTargets.value.length) lockScroll()
@@ -102,19 +112,20 @@ function showToast(message: string) {
   if (toastTimer) window.clearTimeout(toastTimer)
   toastTimer = window.setTimeout(() => (toast.value = ''), 5000)
 }
-async function loadRegions() {
+async function loadTypes() {
   listController?.abort()
   const controller = new AbortController()
   listController = controller
   loading.value = true
   listError.value = ''
   try {
-    const result = await getRegions(controller.signal)
+    const result = await getBroadcastTypes(controller.signal)
     if (controller.signal.aborted) return
-    regions.value = result
+    types.value = result
     selectedIds.value = []
   } catch (error) {
-    if (!controller.signal.aborted) listError.value = messageOf(error, '地区读取失败，请稍后重试。')
+    if (!controller.signal.aborted)
+      listError.value = messageOf(error, '放送类型读取失败，请稍后重试。')
   } finally {
     if (listController === controller) loading.value = false
   }
@@ -135,7 +146,7 @@ function toggleRow(id: number, checked: boolean) {
     : selectedIds.value.filter((value) => value !== id)
 }
 function toggleAll(checked: boolean) {
-  const visibleIds = filteredRegions.value.map((region) => region.id)
+  const visibleIds = filteredTypes.value.map((type) => type.id)
   selectedIds.value = checked
     ? [...new Set([...selectedIds.value, ...visibleIds])]
     : selectedIds.value.filter((id) => !visibleIds.includes(id))
@@ -145,7 +156,7 @@ function closeDrawer() {
   if (saving.value) return
   drawerController?.abort()
   drawerMode.value = null
-  currentRegion.value = null
+  currentType.value = null
   drawerError.value = ''
 }
 async function openDrawer(mode: DrawerMode, row?: NamedOption) {
@@ -153,7 +164,7 @@ async function openDrawer(mode: DrawerMode, row?: NamedOption) {
   const controller = new AbortController()
   drawerController = controller
   drawerMode.value = mode
-  currentRegion.value = row ?? null
+  currentType.value = row ?? null
   formName.value = row?.name ?? ''
   initialFormName.value = formName.value
   nameError.value = ''
@@ -161,35 +172,35 @@ async function openDrawer(mode: DrawerMode, row?: NamedOption) {
   drawerLoading.value = mode === 'edit'
   if (mode === 'create' || !row) return
   try {
-    const region = await getRegionById(row.id, controller.signal)
+    const type = await getBroadcastTypeById(row.id, controller.signal)
     if (controller.signal.aborted) return
-    currentRegion.value = region
-    formName.value = region.name
-    initialFormName.value = region.name
+    currentType.value = type
+    formName.value = type.name
+    initialFormName.value = type.name
   } catch (error) {
     if (controller.signal.aborted) return
-    currentRegion.value = null
-    drawerError.value = messageOf(error, '地区读取失败，请重试。')
+    currentType.value = null
+    drawerError.value = messageOf(error, '放送类型读取失败，请重试。')
   } finally {
     if (!controller.signal.aborted) drawerLoading.value = false
   }
 }
-async function saveRegion() {
+async function saveType() {
   const name = formName.value.trim()
-  nameError.value = name ? '' : '地区名称不能为空。'
+  nameError.value = name ? '' : '放送类型名称不能为空。'
   if (nameError.value || saving.value || drawerLoading.value) return
-  if (drawerMode.value === 'edit' && !currentRegion.value) return
+  if (drawerMode.value === 'edit' && !currentType.value) return
   saving.value = true
   drawerError.value = ''
   try {
     const created = drawerMode.value === 'create'
-    if (created) await createRegion({ name })
-    else await updateRegion({ id: currentRegion.value!.id, name })
+    if (created) await createBroadcastType({ name })
+    else await updateBroadcastType({ id: currentType.value!.id, name })
     drawerMode.value = null
-    currentRegion.value = null
+    currentType.value = null
     if (created) resetSearch()
-    showToast(created ? '地区已添加。' : '地区已修改。')
-    await loadRegions()
+    showToast(created ? '放送类型已添加。' : '放送类型已修改。')
+    await loadTypes()
   } catch (error) {
     const message = messageOf(error, '保存失败，请稍后重试。')
     if (message.includes('已存在') || message.includes('重复')) nameError.value = message
@@ -209,7 +220,7 @@ function closeDelete() {
 }
 async function confirmDelete() {
   if (!deleteConfirmed.value) {
-    deleteError.value = '请先勾选确认框，再删除地区。'
+    deleteError.value = '请先勾选确认框，再删除放送类型。'
     return
   }
   if (!deleteTargets.value.length || deleting.value) return
@@ -217,10 +228,10 @@ async function confirmDelete() {
   deleteError.value = ''
   const count = deleteTargets.value.length
   try {
-    await deleteRegions(deleteTargets.value.map((region) => region.id))
+    await deleteBroadcastTypes(deleteTargets.value.map((type) => type.id))
     deleteTargets.value = []
-    showToast(`已删除 ${count} 个地区。`)
-    await loadRegions()
+    showToast(`已删除 ${count} 个放送类型。`)
+    await loadTypes()
   } catch (error) {
     deleteError.value = messageOf(error, '删除失败，请稍后重试。')
   } finally {
@@ -230,47 +241,47 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <section class="regions-management">
-    <section class="regions-hero">
+  <section class="broadcast-management">
+    <section class="broadcast-hero">
       <div>
-        <p class="regions-eyebrow">CONTENT ARCHIVE / REGION INDEX</p>
-        <h1>地区管理 <span>REGION ARCHIVE</span></h1>
-        <p>维护动画资料的地区词条，统一地区名称供筛选和档案标注使用。</p>
+        <p class="broadcast-eyebrow">CONTENT ARCHIVE / BROADCAST INDEX</p>
+        <h1>放送类型管理 <span>BROADCAST TYPES</span></h1>
+        <p>统一维护动画的播出形式，例如 TV、WEB、OVA 与剧场版。</p>
       </div>
       <button class="primary-button" type="button" @click="openDrawer('create')">
-        <AdminIcon name="plus" />新增地区
+        <AdminIcon name="plus" />新增放送类型
       </button>
     </section>
 
-    <section class="regions-stats" aria-label="地区统计">
+    <section class="broadcast-stats" aria-label="放送类型统计">
       <article>
-        <span class="regions-stat-icon"><AdminIcon name="regions" /></span>
+        <span class="broadcast-stat-icon"><AdminIcon name="broadcast-types" /></span>
         <span
-          ><small>地区总数</small><strong>{{ regions.length }}</strong></span
+          ><small>类型总数</small><strong>{{ types.length }}</strong></span
         >
       </article>
       <article>
-        <span class="regions-stat-icon"><AdminIcon name="search-full" /></span>
+        <span class="broadcast-stat-icon"><AdminIcon name="search-full" /></span>
         <span
-          ><small>当前匹配</small><strong>{{ filteredRegions.length }}</strong></span
+          ><small>当前匹配</small><strong>{{ filteredTypes.length }}</strong></span
         >
       </article>
       <article>
-        <span class="regions-stat-icon"><AdminIcon name="check" /></span>
+        <span class="broadcast-stat-icon"><AdminIcon name="check" /></span>
         <span
-          ><small>已选地区</small><strong>{{ selectedIds.length }}</strong></span
+          ><small>已选类型</small><strong>{{ selectedIds.length }}</strong></span
         >
       </article>
     </section>
 
-    <section class="regions-list-card" aria-labelledby="regionsListTitle">
-      <header class="regions-list-header">
+    <section class="broadcast-list-card" aria-labelledby="broadcastListTitle">
+      <header class="broadcast-list-header">
         <div>
-          <h2 id="regionsListTitle">地区词条列表</h2>
+          <h2 id="broadcastListTitle">放送类型词条</h2>
           <p>全量读取 · 按名称升序 · 名称在页面内筛选</p>
         </div>
-        <div class="regions-header-actions">
-          <span>显示 {{ filteredRegions.length }} 条</span>
+        <div class="broadcast-header-actions">
+          <span>显示 {{ filteredTypes.length }} 条</span>
           <button
             class="danger-button"
             type="button"
@@ -281,56 +292,56 @@ async function confirmDelete() {
           </button>
         </div>
       </header>
-      <form class="regions-filter" @submit.prevent="runSearch">
-        <label class="regions-search">
+      <form class="broadcast-filter" @submit.prevent="runSearch">
+        <label class="broadcast-search">
           <AdminIcon name="search-full" />
           <input
             v-model="searchName"
             type="text"
-            placeholder="按地区名称搜索"
+            placeholder="按放送类型名称搜索"
             autocomplete="off"
-            aria-label="按地区名称搜索"
+            aria-label="按放送类型名称搜索"
           />
         </label>
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
       </form>
-      <div class="regions-table-scroll">
-        <table v-if="!loading && !listError && filteredRegions.length" class="regions-table">
+      <div class="broadcast-table-scroll">
+        <table v-if="!loading && !listError && filteredTypes.length" class="broadcast-table">
           <thead>
             <tr>
-              <th class="regions-check-cell">
+              <th class="broadcast-check-cell">
                 <input
                   type="checkbox"
                   :checked="allVisibleSelected"
-                  aria-label="选择当前结果全部地区"
+                  aria-label="选择当前结果全部放送类型"
                   @change="toggleAll(($event.target as HTMLInputElement).checked)"
                 />
               </th>
-              <th>地区名称</th>
+              <th>放送类型名称</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="region in filteredRegions" :key="region.id">
-              <td class="regions-check-cell">
+            <tr v-for="type in filteredTypes" :key="type.id">
+              <td class="broadcast-check-cell">
                 <input
                   type="checkbox"
-                  :checked="selectedIds.includes(region.id)"
-                  :aria-label="`选择地区 ${region.name}`"
-                  @change="toggleRow(region.id, ($event.target as HTMLInputElement).checked)"
+                  :checked="selectedIds.includes(type.id)"
+                  :aria-label="`选择放送类型 ${type.name}`"
+                  @change="toggleRow(type.id, ($event.target as HTMLInputElement).checked)"
                 />
               </td>
               <td>
-                <span class="regions-name">{{ region.name }}</span>
+                <span class="broadcast-name">{{ type.name }}</span>
               </td>
               <td>
-                <div class="regions-row-actions">
+                <div class="broadcast-row-actions">
                   <button
                     type="button"
                     title="编辑"
-                    :aria-label="`编辑地区 ${region.name}`"
-                    @click="openDrawer('edit', region)"
+                    :aria-label="`编辑放送类型 ${type.name}`"
+                    @click="openDrawer('edit', type)"
                   >
                     <AdminIcon name="edit" />
                   </button>
@@ -338,8 +349,8 @@ async function confirmDelete() {
                     class="danger"
                     type="button"
                     title="删除"
-                    :aria-label="`删除地区 ${region.name}`"
-                    @click="openDelete([region])"
+                    :aria-label="`删除放送类型 ${type.name}`"
+                    @click="openDelete([type])"
                   >
                     <AdminIcon name="delete" />
                   </button>
@@ -348,28 +359,28 @@ async function confirmDelete() {
             </tr>
           </tbody>
         </table>
-        <div v-else class="regions-list-state" :class="{ error: !!listError }">
-          <span class="regions-state-icon"
-            ><AdminIcon :name="listError ? 'refresh' : 'regions'"
+        <div v-else class="broadcast-list-state" :class="{ error: !!listError }">
+          <span class="broadcast-state-icon"
+            ><AdminIcon :name="listError ? 'refresh' : 'broadcast-types'"
           /></span>
           <strong>{{
             loading
-              ? '正在读取地区…'
+              ? '正在读取放送类型…'
               : listError
-                ? '地区读取失败'
+                ? '放送类型读取失败'
                 : appliedName
-                  ? '没有匹配的地区'
-                  : '暂无地区'
+                  ? '没有匹配的放送类型'
+                  : '暂无放送类型'
           }}</strong>
           <p>
             {{
               listError ||
               (appliedName
                 ? '请尝试其他名称，或清空查询条件。'
-                : '创建一个地区词条后，将显示在此处。')
+                : '创建一个放送类型词条后，将显示在此处。')
             }}
           </p>
-          <button v-if="listError" class="secondary-button" type="button" @click="loadRegions">
+          <button v-if="listError" class="secondary-button" type="button" @click="loadTypes">
             重新加载
           </button>
           <button
@@ -378,28 +389,28 @@ async function confirmDelete() {
             type="button"
             @click="openDrawer('create')"
           >
-            新增地区
+            新增放送类型
           </button>
         </div>
       </div>
     </section>
 
     <Teleport to="body">
-      <div v-if="drawerMode && tabActive" class="regions-drawer-layer" @click.self="closeDrawer">
+      <div v-if="drawerMode && tabActive" class="broadcast-drawer-layer" @click.self="closeDrawer">
         <aside
-          class="regions-drawer"
+          class="broadcast-drawer"
           role="dialog"
           aria-modal="true"
-          :aria-label="drawerMode === 'create' ? '新增地区' : '编辑地区'"
+          :aria-label="drawerMode === 'create' ? '新增放送类型' : '编辑放送类型'"
         >
-          <header class="regions-drawer-header">
+          <header class="broadcast-drawer-header">
             <div>
-              <h2>{{ drawerMode === 'create' ? '新增地区' : '编辑地区' }}</h2>
+              <h2>{{ drawerMode === 'create' ? '新增放送类型' : '编辑放送类型' }}</h2>
               <p>
                 {{
                   drawerMode === 'create'
-                    ? '在动画资料库中创建一个地区词条'
-                    : `正在修改 ${currentRegion?.name || '地区'}`
+                    ? '为动画资料建立一个播出形式词条'
+                    : `正在修改 ${currentType?.name || '放送类型'}`
                 }}
               </p>
             </div>
@@ -407,42 +418,42 @@ async function confirmDelete() {
               <AdminIcon name="close" />
             </button>
           </header>
-          <div class="regions-drawer-body">
-            <div v-if="drawerLoading" class="regions-drawer-state">正在读取地区…</div>
+          <div class="broadcast-drawer-body">
+            <div v-if="drawerLoading" class="broadcast-drawer-state">正在读取放送类型…</div>
             <div
-              v-else-if="drawerError && !currentRegion && drawerMode === 'edit'"
-              class="regions-drawer-state error"
+              v-else-if="drawerError && !currentType && drawerMode === 'edit'"
+              class="broadcast-drawer-state error"
               role="alert"
             >
               {{ drawerError }}
             </div>
-            <form v-else id="regionsEditorForm" @submit.prevent="saveRegion">
-              <div class="regions-field" :class="{ invalid: !!nameError }">
-                <label for="regionsEditorName">地区名称 <span>*</span></label>
+            <form v-else id="broadcastEditorForm" @submit.prevent="saveType">
+              <div class="broadcast-field" :class="{ invalid: !!nameError }">
+                <label for="broadcastEditorName">放送类型名称 <span>*</span></label>
                 <input
-                  id="regionsEditorName"
+                  id="broadcastEditorName"
                   v-model="formName"
-                  placeholder="输入地区名称，例如：日本"
+                  placeholder="例如：TV、WEB、OVA、剧场版"
                   autocomplete="off"
                   @input="nameError = ''"
                 />
-                <p v-if="nameError" class="regions-error" role="alert">{{ nameError }}</p>
-                <p class="regions-hint">名称需唯一；当前仅维护地区名称。</p>
+                <p v-if="nameError" class="broadcast-error" role="alert">{{ nameError }}</p>
+                <p class="broadcast-hint">名称需唯一；当前仅维护放送类型名称。</p>
               </div>
-              <p v-if="drawerError" class="regions-save-error" role="alert">{{ drawerError }}</p>
+              <p v-if="drawerError" class="broadcast-save-error" role="alert">{{ drawerError }}</p>
             </form>
           </div>
-          <footer class="regions-drawer-footer">
-            <span>地区名称必填</span>
+          <footer class="broadcast-drawer-footer">
+            <span>放送类型名称必填</span>
             <div>
               <button class="secondary-button" type="button" @click="closeDrawer">取消</button>
               <button
                 class="primary-button"
                 type="submit"
-                form="regionsEditorForm"
-                :disabled="saving || drawerLoading || (drawerMode === 'edit' && !currentRegion)"
+                form="broadcastEditorForm"
+                :disabled="saving || drawerLoading || (drawerMode === 'edit' && !currentType)"
               >
-                {{ saving ? '保存中…' : '保存地区' }}
+                {{ saving ? '保存中…' : '保存放送类型' }}
               </button>
             </div>
           </footer>
@@ -450,35 +461,35 @@ async function confirmDelete() {
       </div>
       <div
         v-if="deleteTargets.length && tabActive"
-        class="regions-dialog-layer"
+        class="broadcast-dialog-layer"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="regionsDeleteTitle"
+        aria-labelledby="broadcastDeleteTitle"
         @click.self="closeDelete"
       >
-        <div class="regions-dialog">
-          <span class="regions-dialog-mark"><AdminIcon name="delete" /></span>
-          <h2 id="regionsDeleteTitle">确认删除地区？</h2>
-          <p>删除后无法通过页面撤销。请核对以下地区。</p>
-          <div class="regions-delete-preview">
-            <strong>{{ deleteTargets.map((region) => region.name).join('、') }}</strong
+        <div class="broadcast-dialog">
+          <span class="broadcast-dialog-mark"><AdminIcon name="delete" /></span>
+          <h2 id="broadcastDeleteTitle">确认删除放送类型？</h2>
+          <p>删除后无法通过页面撤销。请核对以下放送类型。</p>
+          <div class="broadcast-delete-preview">
+            <strong>{{ deleteTargets.map((type) => type.name).join('、') }}</strong
             ><small>共 {{ deleteTargets.length }} 项</small>
           </div>
-          <label class="regions-delete-check"
+          <label class="broadcast-delete-check"
             ><input
               v-model="deleteConfirmed"
               type="checkbox"
               @change="deleteError = ''"
-            />我已核对要删除的地区及其关联作品。</label
+            />我已核对要删除的放送类型及其关联作品。</label
           >
-          <p v-if="deleteError" class="regions-delete-error" role="alert">{{ deleteError }}</p>
-          <div class="regions-delete-note" role="note">
+          <p v-if="deleteError" class="broadcast-delete-error" role="alert">{{ deleteError }}</p>
+          <div class="broadcast-delete-note" role="note">
             <span aria-hidden="true">!</span
             ><span
-              >若作品仍在使用这些地区，请先检查并调整作品资料；删除请求及关联关系按后端规则处理。</span
+              >若作品仍在使用这些放送类型，请先检查并调整作品资料；删除请求及关联关系按后端规则处理。</span
             >
           </div>
-          <div class="regions-dialog-actions">
+          <div class="broadcast-dialog-actions">
             <button
               class="secondary-button"
               type="button"
@@ -493,21 +504,21 @@ async function confirmDelete() {
           </div>
         </div>
       </div>
-      <div v-if="toast && tabActive" class="regions-toast" role="status">{{ toast }}</div>
+      <div v-if="toast && tabActive" class="broadcast-toast" role="status">{{ toast }}</div>
     </Teleport>
   </section>
 </template>
 
 <style scoped>
-.regions-management {
+.broadcast-management {
   max-width: 1440px;
   margin: 0 auto;
   padding-bottom: 14px;
 }
-.regions-management button {
+.broadcast-management button {
   cursor: pointer;
 }
-.regions-hero {
+.broadcast-hero {
   position: relative;
   display: flex;
   min-height: 150px;
@@ -521,7 +532,7 @@ async function confirmDelete() {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-soft);
 }
-.regions-hero::before {
+.broadcast-hero::before {
   position: absolute;
   top: -54px;
   right: 13%;
@@ -532,28 +543,28 @@ async function confirmDelete() {
   border-radius: 43% 57% 63% 37%;
   transform: rotate(28deg);
 }
-.regions-hero > * {
+.broadcast-hero > * {
   position: relative;
   z-index: 1;
 }
-.regions-eyebrow {
+.broadcast-eyebrow {
   margin: 0 0 9px;
   color: var(--accent-strong);
   font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.16em;
 }
-.regions-hero h1 {
+.broadcast-hero h1 {
   margin: 0;
   font: 700 clamp(23px, 3vw, 30px)/1.25 var(--font-display);
   letter-spacing: -0.035em;
 }
-.regions-hero h1 span {
+.broadcast-hero h1 span {
   color: var(--ink-faint);
   font: 500 12px var(--font-body);
   letter-spacing: 0;
 }
-.regions-hero p:last-child {
+.broadcast-hero p:last-child {
   max-width: 610px;
   margin: 8px 0 0;
   color: var(--ink-soft);
@@ -610,13 +621,13 @@ async function confirmDelete() {
   box-shadow: none;
   cursor: not-allowed;
 }
-.regions-stats {
+.broadcast-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 11px;
   margin-top: 16px;
 }
-.regions-stats article {
+.broadcast-stats article {
   display: flex;
   align-items: center;
   gap: 11px;
@@ -626,7 +637,7 @@ async function confirmDelete() {
   border-radius: 14px;
   box-shadow: var(--shadow-soft);
 }
-.regions-stat-icon {
+.broadcast-stat-icon {
   display: grid;
   width: 34px;
   height: 34px;
@@ -635,31 +646,31 @@ async function confirmDelete() {
   background: var(--violet-soft);
   border-radius: 10px;
 }
-.regions-stat-icon svg {
+.broadcast-stat-icon svg {
   width: 17px;
   height: 17px;
 }
-.regions-stats article:nth-child(2) .regions-stat-icon {
+.broadcast-stats article:nth-child(2) .broadcast-stat-icon {
   color: var(--cyan);
   background: var(--cyan-soft);
 }
-.regions-stats article:nth-child(3) .regions-stat-icon {
+.broadcast-stats article:nth-child(3) .broadcast-stat-icon {
   color: var(--accent);
   background: var(--accent-soft);
 }
-.regions-stats small,
-.regions-stats strong {
+.broadcast-stats small,
+.broadcast-stats strong {
   display: block;
 }
-.regions-stats small {
+.broadcast-stats small {
   color: var(--ink-faint);
   font-size: 10px;
 }
-.regions-stats strong {
+.broadcast-stats strong {
   margin-top: 2px;
   font: 700 18px var(--font-display);
 }
-.regions-list-card {
+.broadcast-list-card {
   margin-top: 16px;
   overflow: hidden;
   background: var(--surface);
@@ -667,7 +678,7 @@ async function confirmDelete() {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
 }
-.regions-list-header {
+.broadcast-list-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -675,16 +686,16 @@ async function confirmDelete() {
   padding: 18px 20px;
   border-bottom: 1px solid var(--line);
 }
-.regions-list-header h2 {
+.broadcast-list-header h2 {
   margin: 0;
   font: 700 16px var(--font-display);
 }
-.regions-list-header p {
+.broadcast-list-header p {
   margin: 4px 0 0;
   color: var(--ink-faint);
   font-size: 11px;
 }
-.regions-header-actions {
+.broadcast-header-actions {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -692,13 +703,13 @@ async function confirmDelete() {
   font-size: 11px;
   white-space: nowrap;
 }
-.regions-filter {
+.broadcast-filter {
   display: flex;
   align-items: center;
   gap: 9px;
   padding: 15px 20px;
 }
-.regions-search {
+.broadcast-search {
   display: flex;
   width: min(390px, 100%);
   height: 40px;
@@ -709,16 +720,16 @@ async function confirmDelete() {
   border: 1px solid var(--line-strong);
   border-radius: 10px;
 }
-.regions-search:focus-within {
+.broadcast-search:focus-within {
   border-color: var(--accent);
   box-shadow: var(--focus);
 }
-.regions-search svg {
+.broadcast-search svg {
   width: 16px;
   height: 16px;
   color: var(--ink-faint);
 }
-.regions-search input {
+.broadcast-search input {
   width: 100%;
   min-width: 0;
   color: var(--ink);
@@ -727,19 +738,19 @@ async function confirmDelete() {
   outline: 0;
   font: 11px var(--font-body);
 }
-.regions-search input::placeholder {
+.broadcast-search input::placeholder {
   color: var(--ink-faint);
 }
-.regions-table-scroll {
+.broadcast-table-scroll {
   overflow-x: auto;
 }
-.regions-table {
+.broadcast-table {
   width: 100%;
   min-width: 580px;
   border-collapse: collapse;
   text-align: left;
 }
-.regions-table th {
+.broadcast-table th {
   padding: 11px 14px;
   color: var(--ink-faint);
   background: var(--surface-muted);
@@ -747,29 +758,29 @@ async function confirmDelete() {
   font-size: 10px;
   font-weight: 700;
 }
-.regions-table td {
+.broadcast-table td {
   padding: 12px 14px;
   border-bottom: 1px solid var(--line);
   color: var(--ink-soft);
   font-size: 11px;
 }
-.regions-table tbody tr:last-child td {
+.broadcast-table tbody tr:last-child td {
   border-bottom: 0;
 }
-.regions-table tbody tr:hover {
+.broadcast-table tbody tr:hover {
   background: var(--surface-hover);
 }
-.regions-check-cell {
+.broadcast-check-cell {
   width: 50px;
 }
-.regions-check-cell input,
-.regions-delete-check input {
+.broadcast-check-cell input,
+.broadcast-delete-check input {
   width: 14px;
   height: 14px;
   accent-color: var(--accent);
   cursor: pointer;
 }
-.regions-name {
+.broadcast-name {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -781,19 +792,19 @@ async function confirmDelete() {
   font-size: 11px;
   font-weight: 650;
 }
-.regions-name::before {
+.broadcast-name::before {
   width: 6px;
   height: 6px;
   content: '';
   background: var(--violet);
   border-radius: 50%;
 }
-.regions-row-actions {
+.broadcast-row-actions {
   display: flex;
   justify-content: flex-end;
   gap: 5px;
 }
-.regions-row-actions button {
+.broadcast-row-actions button {
   display: grid;
   width: 30px;
   height: 30px;
@@ -803,23 +814,23 @@ async function confirmDelete() {
   border: 0;
   border-radius: 8px;
 }
-.regions-row-actions button svg {
+.broadcast-row-actions button svg {
   width: 15px;
   height: 15px;
 }
-.regions-row-actions button:hover {
+.broadcast-row-actions button:hover {
   color: var(--accent-strong);
   background: var(--accent-soft);
 }
-.regions-row-actions button.danger:hover {
+.broadcast-row-actions button.danger:hover {
   color: var(--danger);
   background: var(--danger-soft);
 }
-.regions-list-state {
+.broadcast-list-state {
   padding: 48px 20px;
   text-align: center;
 }
-.regions-state-icon {
+.broadcast-state-icon {
   display: grid;
   width: 52px;
   height: 52px;
@@ -829,31 +840,31 @@ async function confirmDelete() {
   background: var(--violet-soft);
   border-radius: 16px;
 }
-.regions-state-icon svg {
+.broadcast-state-icon svg {
   width: 22px;
   height: 22px;
 }
-.regions-list-state strong {
+.broadcast-list-state strong {
   display: block;
   font: 700 15px var(--font-display);
 }
-.regions-list-state p {
+.broadcast-list-state p {
   margin: 6px 0 14px;
   color: var(--ink-faint);
   font-size: 11px;
 }
-.regions-list-state.error .regions-state-icon {
+.broadcast-list-state.error .broadcast-state-icon {
   color: var(--danger);
   background: var(--danger-soft);
 }
-.regions-drawer-layer {
+.broadcast-drawer-layer {
   position: fixed;
   inset: 0;
   z-index: 1300;
   background: rgba(18, 17, 30, 0.42);
   backdrop-filter: blur(2px);
 }
-.regions-drawer {
+.broadcast-drawer {
   position: absolute;
   inset: 0 0 0 auto;
   display: flex;
@@ -863,9 +874,9 @@ async function confirmDelete() {
   overflow: hidden;
   background: var(--canvas);
   box-shadow: -24px 0 60px rgba(20, 17, 40, 0.2);
-  animation: regions-slide-in 0.22s ease both;
+  animation: broadcast-slide-in 0.22s ease both;
 }
-@keyframes regions-slide-in {
+@keyframes broadcast-slide-in {
   from {
     transform: translateX(102%);
   }
@@ -873,7 +884,7 @@ async function confirmDelete() {
     transform: translateX(0);
   }
 }
-.regions-drawer-header {
+.broadcast-drawer-header {
   display: flex;
   flex: 0 0 auto;
   align-items: flex-start;
@@ -883,16 +894,16 @@ async function confirmDelete() {
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
-.regions-drawer-header h2 {
+.broadcast-drawer-header h2 {
   margin: 0;
   font: 700 19px var(--font-display);
 }
-.regions-drawer-header p {
+.broadcast-drawer-header p {
   margin: 4px 0 0;
   color: var(--ink-faint);
   font-size: 11px;
 }
-.regions-drawer-header button {
+.broadcast-drawer-header button {
   display: grid;
   width: 32px;
   height: 32px;
@@ -903,24 +914,24 @@ async function confirmDelete() {
   border: 1px solid var(--line);
   border-radius: 9px;
 }
-.regions-drawer-header button svg {
+.broadcast-drawer-header button svg {
   width: 15px;
   height: 15px;
 }
-.regions-drawer-body {
+.broadcast-drawer-body {
   min-height: 0;
   flex: 1;
   padding: 20px 23px;
   overflow: auto;
 }
-.regions-drawer-state {
+.broadcast-drawer-state {
   color: var(--ink-faint);
   font-size: 12px;
 }
-.regions-drawer-state.error {
+.broadcast-drawer-state.error {
   color: var(--danger);
 }
-.regions-field label {
+.broadcast-field label {
   display: flex;
   gap: 5px;
   margin-bottom: 7px;
@@ -928,10 +939,10 @@ async function confirmDelete() {
   font-size: 11px;
   font-weight: 700;
 }
-.regions-field label span {
+.broadcast-field label span {
   color: var(--accent-strong);
 }
-.regions-field input {
+.broadcast-field input {
   display: block;
   width: 100%;
   height: 42px;
@@ -943,28 +954,28 @@ async function confirmDelete() {
   outline: 0;
   font: 12px var(--font-body);
 }
-.regions-field input:focus {
+.broadcast-field input:focus {
   border-color: var(--accent);
   box-shadow: var(--focus);
 }
-.regions-field.invalid input {
+.broadcast-field.invalid input {
   border-color: var(--danger);
 }
-.regions-field input::placeholder {
+.broadcast-field input::placeholder {
   color: var(--ink-faint);
 }
-.regions-hint {
+.broadcast-hint {
   margin: 7px 0 0;
   color: var(--ink-faint);
   font-size: 11px;
 }
-.regions-error,
-.regions-save-error {
+.broadcast-error,
+.broadcast-save-error {
   margin: 7px 0 0;
   color: var(--danger);
   font-size: 11px;
 }
-.regions-drawer-footer {
+.broadcast-drawer-footer {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
@@ -974,15 +985,15 @@ async function confirmDelete() {
   background: var(--surface);
   border-top: 1px solid var(--line);
 }
-.regions-drawer-footer > span {
+.broadcast-drawer-footer > span {
   color: var(--ink-faint);
   font-size: 10px;
 }
-.regions-drawer-footer > div {
+.broadcast-drawer-footer > div {
   display: flex;
   gap: 8px;
 }
-.regions-dialog-layer {
+.broadcast-dialog-layer {
   position: fixed;
   inset: 0;
   z-index: 1400;
@@ -992,7 +1003,7 @@ async function confirmDelete() {
   background: rgba(18, 17, 30, 0.48);
   backdrop-filter: blur(3px);
 }
-.regions-dialog {
+.broadcast-dialog {
   width: min(440px, 100%);
   padding: 24px;
   background: var(--surface-solid);
@@ -1002,7 +1013,7 @@ async function confirmDelete() {
   color: var(--ink);
   font-family: var(--font-body);
 }
-.regions-dialog-mark {
+.broadcast-dialog-mark {
   display: grid;
   width: 42px;
   height: 42px;
@@ -1011,21 +1022,21 @@ async function confirmDelete() {
   background: var(--danger-soft);
   border-radius: 12px;
 }
-.regions-dialog-mark svg {
+.broadcast-dialog-mark svg {
   width: 19px;
   height: 19px;
 }
-.regions-dialog h2 {
+.broadcast-dialog h2 {
   margin: 14px 0 5px;
   font: 700 17px/1.4 var(--font-display);
 }
-.regions-dialog > p:not(.regions-delete-error) {
+.broadcast-dialog > p:not(.broadcast-delete-error) {
   margin: 0 0 15px;
   color: var(--ink-soft);
   font-size: 11px;
   line-height: 1.6;
 }
-.regions-delete-preview {
+.broadcast-delete-preview {
   display: grid;
   gap: 4px;
   padding: 12px 14px;
@@ -1033,16 +1044,16 @@ async function confirmDelete() {
   border: 1px solid var(--line);
   border-radius: 10px;
 }
-.regions-delete-preview strong {
+.broadcast-delete-preview strong {
   font-size: 12px;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
-.regions-delete-preview small {
+.broadcast-delete-preview small {
   color: var(--ink-faint);
   font-size: 10px;
 }
-.regions-delete-check {
+.broadcast-delete-check {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -1052,16 +1063,16 @@ async function confirmDelete() {
   line-height: 1.5;
   cursor: pointer;
 }
-.regions-delete-check input {
+.broadcast-delete-check input {
   flex: 0 0 auto;
   margin: 0;
 }
-.regions-dialog .regions-delete-error {
+.broadcast-dialog .broadcast-delete-error {
   margin: 5px 0 0 20px;
   color: var(--danger);
   font-size: 11px;
 }
-.regions-delete-note {
+.broadcast-delete-note {
   display: flex;
   gap: 8px;
   padding: 9px 10px;
@@ -1072,13 +1083,13 @@ async function confirmDelete() {
   font-size: 10px;
   line-height: 1.5;
 }
-.regions-dialog-actions {
+.broadcast-dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 18px;
 }
-.regions-toast {
+.broadcast-toast {
   position: fixed;
   right: 25px;
   bottom: 24px;
@@ -1092,21 +1103,21 @@ async function confirmDelete() {
   font-size: 12px;
 }
 @media (max-width: 680px) {
-  .regions-hero,
-  .regions-list-header {
+  .broadcast-hero,
+  .broadcast-list-header {
     align-items: flex-start;
     flex-direction: column;
   }
-  .regions-stats {
+  .broadcast-stats {
     grid-template-columns: 1fr;
   }
-  .regions-filter {
+  .broadcast-filter {
     flex-wrap: wrap;
   }
-  .regions-search {
+  .broadcast-search {
     width: 100%;
   }
-  .regions-drawer-footer > span {
+  .broadcast-drawer-footer > span {
     display: none;
   }
 }

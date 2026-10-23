@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import router from '@/router'
-import CompaniesView from '@/views/admin/CompaniesView.vue'
+import CompaniesView from '@/views/admin/companies/CompaniesView.vue'
 
 const initialCompany = { id: 5, name: 'MADHOUSE', description: '日本动画制作公司' }
 

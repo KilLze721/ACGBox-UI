@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import router from '@/router'
-import SeriesView from '@/views/admin/SeriesView.vue'
+import SeriesView from '@/views/admin/series/SeriesView.vue'
 
 const initialSeries = { id: 7, name: '葬送的芙莉莲', description: '系列说明' }
 const linkedAnime = {

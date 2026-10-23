@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, KeepAlive, ref } from 'vue'
 import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import AccountProfileView from '@/views/admin/AccountProfileView.vue'
+import AccountProfileView from '@/views/admin/account/AccountProfileView.vue'
 import App from '@/App.vue'
 import router from '@/router'
 import type { UserAccount } from '@/types/api'

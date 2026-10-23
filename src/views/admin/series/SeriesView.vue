@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 系列管理页面：负责系列搜索、分页、新增、修改、详情及删除确认。
+ * 详情中读取关联作品，并通过工作区已有导航能力进入对应管理列表执行名称查询。
+ */
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 import {
   computed,

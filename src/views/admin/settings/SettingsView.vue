@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 系统设置页面：维护当前浏览器的主题、列表偏好及之后新建作品的录入默认值。
+ * 提供限定范围的偏好重置、真实构建信息和管理员可用的后端服务健康检测。
+ */
 import {
   computed,
   nextTick,
@@ -26,7 +30,7 @@ import {
   type ThemeMode,
 } from '@/utils/preferences'
 import type { DependencyHealth, NamedOption, SystemHealth } from '@/types/api'
-import projectReadme from '../../../README.md?url&no-inline'
+import projectReadme from '../../../../README.md?url&no-inline'
 
 const sections = [
   { id: 'appearance', name: '外观与列表', icon: 'sun' },
@@ -140,6 +144,7 @@ function scrollToSection(id: string) {
   pageRoot.value?.querySelector(`#${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+// 仅管理员查询真实服务检测结果；失败或超时保持明确的错误状态，不推断服务正常。
 async function loadHealth() {
   if (!isAdmin || healthLoading.value) return
   const controller = new AbortController()
@@ -242,6 +247,7 @@ function undoChanges() {
   status.value = '已撤销本页未保存的修改；已生效的主题不变。'
 }
 
+// 校验建议项和目录引用后仅写入本地偏好，不更新作品资料或正在编辑的业务表单。
 function save() {
   saveError.value = ''
   for (const { key } of suggestionGroups) {
@@ -299,6 +305,7 @@ function closeReset() {
   resetFocus = null
 }
 
+// 确认只把指定范围恢复为待保存默认值，不清空站点存储或登录状态。
 function confirmReset() {
   const defaults = defaultPreferences()
   if (resetScope.value === 'all') {

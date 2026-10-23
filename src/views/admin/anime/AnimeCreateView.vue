@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 新增动画独立页面：以新增模式装载共用表单，并向工作区提供未保存和提交状态。
+ * 保存成功或确认取消后关闭当前新增标签，优先返回已经打开的动画管理实例。
+ */
 import { inject, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AnimeEditorForm from './AnimeEditorForm.vue'

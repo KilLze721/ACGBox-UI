@@ -22,7 +22,7 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: () => import('@/views/LoginView.vue'),
+      component: () => import('@/views/admin/login/LoginView.vue'),
       meta: { title: '登录', showInMenu: false },
     },
     {
@@ -38,7 +38,7 @@ const router = createRouter({
         {
           path: 'dashboard',
           name: 'admin-dashboard',
-          component: () => import('@/views/admin/DashboardView.vue'),
+          component: () => import('@/views/admin/dashboard/DashboardView.vue'),
           meta: {
             title: '数据概览',
             menuName: '数据概览',
@@ -97,7 +97,7 @@ const router = createRouter({
         {
           path: 'series',
           name: 'admin-series',
-          component: () => import('@/views/admin/SeriesView.vue'),
+          component: () => import('@/views/admin/series/SeriesView.vue'),
           meta: {
             title: '系列管理',
             menuName: '系列管理',
@@ -121,7 +121,7 @@ const router = createRouter({
         {
           path: 'tags',
           name: 'admin-tags',
-          component: () => import('@/views/admin/TagsView.vue'),
+          component: () => import('@/views/admin/tags/TagsView.vue'),
           meta: {
             title: '标签管理',
             menuName: '标签管理',
@@ -134,7 +134,7 @@ const router = createRouter({
         {
           path: 'companies',
           name: 'admin-companies',
-          component: () => import('@/views/admin/CompaniesView.vue'),
+          component: () => import('@/views/admin/companies/CompaniesView.vue'),
           meta: {
             title: '制作公司管理',
             menuName: '制作公司管理',
@@ -156,7 +156,7 @@ const router = createRouter({
         {
           path: 'broadcast-types',
           name: 'admin-broadcast-types',
-          component: () => import('@/views/admin/BroadcastTypesView.vue'),
+          component: () => import('@/views/admin/broadcast-types/BroadcastTypesView.vue'),
           meta: {
             title: '放送类型管理',
             menuName: '放送类型管理',
@@ -170,7 +170,7 @@ const router = createRouter({
         {
           path: 'adaptation-types',
           name: 'admin-adaptation-types',
-          component: () => import('@/views/admin/AdaptationTypesView.vue'),
+          component: () => import('@/views/admin/adaptation-types/AdaptationTypesView.vue'),
           meta: {
             title: '改编类型管理',
             menuName: '改编类型管理',
@@ -183,7 +183,7 @@ const router = createRouter({
         {
           path: 'regions',
           name: 'admin-regions',
-          component: () => import('@/views/admin/RegionsView.vue'),
+          component: () => import('@/views/admin/regions/RegionsView.vue'),
           meta: {
             title: '地区管理',
             menuName: '地区管理',
@@ -196,7 +196,7 @@ const router = createRouter({
         {
           path: 'account',
           name: 'admin-account',
-          component: () => import('@/views/admin/AccountProfileView.vue'),
+          component: () => import('@/views/admin/account/AccountProfileView.vue'),
           meta: {
             title: '个人账号',
             icon: 'user',
@@ -208,7 +208,7 @@ const router = createRouter({
         {
           path: 'users',
           name: 'admin-users',
-          component: () => import('@/views/admin/UsersView.vue'),
+          component: () => import('@/views/admin/users/UsersView.vue'),
           meta: {
             title: '用户管理',
             menuName: '用户管理',
@@ -222,7 +222,7 @@ const router = createRouter({
         {
           path: 'settings',
           name: 'admin-settings',
-          component: () => import('@/views/admin/SettingsView.vue'),
+          component: () => import('@/views/admin/settings/SettingsView.vue'),
           meta: {
             title: '系统设置',
             menuName: '系统设置',

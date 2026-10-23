@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import router from '@/router'
-import RegionsView from '@/views/admin/RegionsView.vue'
+import RegionsView from '@/views/admin/regions/RegionsView.vue'
 
 function mockApi() {
   const requests: Array<{ path: string; body?: unknown }> = []

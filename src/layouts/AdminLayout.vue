@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 管理端公共布局：组织左侧菜单、顶部导航、用户菜单和主题切换。
+ * 管理独立工作区标签及页面缓存，并统一处理关联跳转、未保存保护和退出登录。
+ */
 import {
   cloneVNode,
   computed,
@@ -279,6 +283,7 @@ function openCurrentRouteTab() {
   void scrollActiveTabIntoView()
 }
 
+// 为每个标签生成独立缓存组件名，避免同一路由的多个标签共用页面实例。
 function getTabWrapper(component: VNode) {
   const tab = activeTab.value
   if (!tab) return null
@@ -312,6 +317,7 @@ function getTabWrapper(component: VNode) {
   return wrapper
 }
 
+// 关联内容在当前标签内替换路由，并携带目标名称供列表初始化搜索。
 async function navigateLinkedContent(
   path: '/admin/anime' | '/admin/series' | '/admin/companies',
   keyword: string
@@ -332,6 +338,7 @@ async function navigateLinkedContent(
   }
 }
 
+// 左侧菜单重复进入普通页面时创建新标签，数据概览始终复用固定首页。
 function openMenuPage(path: string) {
   mobileSidebarOpen.value = false
   if (path === '/admin/dashboard') {
@@ -407,6 +414,7 @@ async function finishClosingTabs(ids: string[], keepId: string | null) {
   void nextTick(updateTabScrollState)
 }
 
+// 新增页结束后复用现有动画列表，再移除新增页对应的缓存实例。
 async function returnToAnimeList(createFullPath: string) {
   const createTab = workspaceTabs.value.find(
     (tab) => tab.fullPath === createFullPath && tab.path === '/admin/anime/create'
@@ -426,6 +434,7 @@ async function returnToAnimeList(createFullPath: string) {
   await finishClosingTabs([createTab.id], null)
 }
 
+// 单个关闭、批量关闭与退出登录共用此入口，先阻止提交中的页面，再确认未保存内容。
 async function requestCloseTabs(ids: string[], keepId: string | null = null, action?: 'logout') {
   if (pendingTabClose.value || loggingOut.value) return
   const targets = workspaceTabs.value.filter((tab) => tab.closable && ids.includes(tab.id))

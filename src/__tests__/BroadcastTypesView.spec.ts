@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import router from '@/router'
-import BroadcastTypesView from '@/views/admin/BroadcastTypesView.vue'
+import BroadcastTypesView from '@/views/admin/broadcast-types/BroadcastTypesView.vue'
 
 function mockApi() {
   const requests: Array<{ path: string; body?: unknown }> = []

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 数据概览入口：作为工作区固定首页，目前复用占位组件展示模块说明。
+ * 此文件尚未实现统计图表或真实概览数据查询。
+ */
 import ReservedPage from '@/components/admin/ReservedPage.vue'
 </script>
 

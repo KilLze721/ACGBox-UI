@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 动画表单的开始放送日期控件：支持手动输入及年份、月份、日期逐级选择。
+ * 根据输入精度同步面板，完整有效日期自动补零；提交时是否有效由父表单继续校验。
+ */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AdminIcon from './AdminIcon.vue'
 
@@ -85,6 +89,7 @@ function createCalendarDate(year: number, monthIndex: number, day: number) {
   return date
 }
 
+// 年份、年月和完整日期分别对应年、月、日面板，保持手动输入与面板显示一致。
 function syncPickerWithValue(value: string) {
   const parts = parseAirDate(value)
   if (!parts) return

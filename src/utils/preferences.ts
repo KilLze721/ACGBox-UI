@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import type { AnimeSortField, SortDirection } from '@/types/api'
-import { companyRoles, linkTitleSuggestions } from '@/views/admin/anime/animeFormOptions'
+import { companyRoles, linkTitleSuggestions } from '@/config/animeFormOptions'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export interface PersonalPreferences {

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 个人账号页面：展示当前登录账号，提供密码修改及邮箱绑定、验证、换绑和解绑。
+ * 管理验证码冷却、换绑凭证有效期、登录令牌更新和未保存保护，不编辑其他账号。
+ */
 import {
   computed,
   nextTick,
@@ -243,6 +247,7 @@ function stopClock() {
   if (timer) window.clearInterval(timer)
   timer = undefined
 }
+// 按真实截止时间更新倒计时，换绑凭证到期后返回原邮箱验证步骤。
 function tick() {
   now.value = Date.now()
   if (
@@ -414,6 +419,7 @@ function validateCode(id: 'oldCode' | 'newCode') {
   delete errors[id]
   return true
 }
+// 账号修改成功后先替换登录令牌，再读取最新资料，避免继续携带已失效的旧令牌。
 async function finishSaved(result: LoginResult, requestToken: string | null, message: string) {
   if (disposed || requestToken !== getToken()) return
   saveLogin(result)
@@ -511,6 +517,7 @@ async function sendCode() {
     tick()
   }
 }
+// 按当前邮箱流程分发原邮箱验证、绑定或换绑、解绑请求，不将换绑凭证当作登录令牌。
 async function submitEmail() {
   if (busy.value || !flow.mode) return
   if (flow.step === 'done') {

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import router from '@/router'
 import App from '@/App.vue'
-import SettingsView from '@/views/admin/SettingsView.vue'
+import SettingsView from '@/views/admin/settings/SettingsView.vue'
 import type { SystemHealth } from '@/types/api'
 import {
   defaultPreferences,

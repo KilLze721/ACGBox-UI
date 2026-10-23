@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import UsersView from '@/views/admin/UsersView.vue'
+import UsersView from '@/views/admin/users/UsersView.vue'
 import App from '@/App.vue'
 import router from '@/router'
 import type { UserAccount, UserAccountDTO } from '@/types/api'

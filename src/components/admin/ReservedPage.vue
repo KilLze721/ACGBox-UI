@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 未完成模块的通用占位组件：根据传入的标题、说明和图标展示统一入口提示。
+ * 只负责说明性界面和返回入口，不请求或模拟业务数据。
+ */
 import { RouterLink } from 'vue-router'
 import AdminIcon from './AdminIcon.vue'
 

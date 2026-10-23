@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 标签管理页面：按名称搜索和分页展示标签，使用抽屉完成新增、修改。
+ * 管理行选择、批量删除确认及未保存状态；不提供标签详情页面。
+ */
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { createTag, deleteTags, getTagById, getTagPage, updateTag } from '@/api/tags'

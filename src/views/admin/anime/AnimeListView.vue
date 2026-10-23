@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 动画管理列表页面：组织资料统计、多条件筛选、排序、分页和删除确认。
+ * 负责打开新增页、详情或修改抽屉，并在保存或工作区重新激活时刷新对应列表。
+ */
 import { computed, inject, onActivated, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { routeLocationKey } from 'vue-router'
 import { deleteAnime, getAnimeDetail, getAnimePage } from '@/api/anime'
@@ -318,6 +322,7 @@ function optionalNumber(value: string) {
   return value === '' ? undefined : Number(value)
 }
 
+// 请求只使用已确认的筛选快照，避免翻页时把尚未点击查询的输入一并提交。
 function createQuery(pageNum: number): AnimePageQuery {
   const filters = appliedFilters.value
   return {
@@ -561,6 +566,7 @@ function submitQuery() {
   void loadPage(1)
 }
 
+// 只有主动重置才重新读取列表偏好，普通切换标签或翻页保留当前临时设置。
 function resetFilters() {
   pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
   Object.assign(form, createDefaultFilters())
@@ -690,6 +696,7 @@ function closeDeleteModal() {
   }
 }
 
+// 删除必须经过勾选确认；当前页最后一条被删除时回退一页，并同步刷新统计。
 async function confirmDelete() {
   if (!deleteTarget.value) return
   if (!deleteConfirmed.value) {

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 动画列表的查询日期控件：支持键盘输入，并提供年份、月份选择面板。
+ * 输入值决定面板定位和高亮，通过输入、失焦、确认事件通知父页面校验或查询。
+ */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import { ARCHIVE_YEAR_MAX, ARCHIVE_YEAR_MIN, validateArchiveDate } from '@/utils/archiveDate'
@@ -47,6 +51,7 @@ function getYearPageStart(year: number) {
   return Math.min(firstPageYear, ARCHIVE_YEAR_MAX - 11)
 }
 
+// 打开面板时根据输入精度定位年份或月份，而不是每次回到当前日期。
 function syncDraftWithValue() {
   const parsed = validateArchiveDate(props.modelValue).value
   selectedYear.value = parsed?.year ?? currentYear

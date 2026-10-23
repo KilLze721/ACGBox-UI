@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 可自由输入的建议项控件：用于外链标题、制作公司职责等文本字段。
+ * 按输入内容过滤调用方提供的建议，允许选择建议或保留自定义文字，不查询业务实体。
+ */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 const props = defineProps<{

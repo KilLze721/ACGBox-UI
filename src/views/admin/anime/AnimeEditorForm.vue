@@ -1,4 +1,8 @@
 <script setup lang="ts">
+/**
+ * 动画新增、修改共用表单：加载字典和关联资料，回填、校验并转换为动画提交数据。
+ * 统一管理别名、标签、公司、系列、外链、评分及日期，并上报保存、取消和未保存状态。
+ */
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { createAnime, getAnimeDetail, updateAnime } from '@/api/anime'
@@ -16,7 +20,7 @@ import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import AnimeAirDateInput from '@/components/admin/AnimeAirDateInput.vue'
 import AnimeSuggestionInput from '@/components/admin/AnimeSuggestionInput.vue'
 import AnimeEntitySelect from '@/components/admin/AnimeEntitySelect.vue'
-import { companyRoles as defaultCompanyRoles, linkTitleSuggestions as defaultLinkTitles } from './animeFormOptions'
+import { companyRoles as defaultCompanyRoles, linkTitleSuggestions as defaultLinkTitles } from '@/config/animeFormOptions'
 import { readPreferences } from '@/utils/preferences'
 import type {
   AnimeDetail,
@@ -126,6 +130,7 @@ async function getAllPages<T>(loadPage: (pageNum: number) => Promise<PageResult<
   return firstPage.rows.concat(remaining.flatMap((page) => page.rows))
 }
 
+// 将详情接口的数据转换为可编辑字段，并记录回填快照用于未保存判断。
 function applyAnime(
   anime: AnimeDetail,
   companyNames: CompanyOption[],
@@ -246,6 +251,7 @@ function setError(key: string, message: string) {
   errors[key] = message
 }
 
+// 在提交前统一校验日期、评分及关联选择，输入的公司名称不能替代真实公司标识。
 function validateForm() {
   Object.keys(errors).forEach((key) => delete errors[key])
   if (!form.name.trim()) setError('name', '请填写动画名称。')
@@ -307,6 +313,7 @@ function normalizeAirDate(value: string) {
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
+// 将输入框中的字符串、可选空值和重复行整理为后端动画数据模型。
 function buildPayload(): AnimePayload {
   return {
     ...(props.mode === 'edit' && props.animeId ? { id: props.animeId } : {}),
@@ -378,6 +385,7 @@ function requestCancel() {
   confirmationAction.value = 'cancel'
 }
 
+// 供新增页、修改抽屉及工作区关闭检查读取，不依赖是否打开过表单来判断修改。
 function getCloseState() {
   return {
     dirty: getFormSnapshot() !== initialFormState.value,

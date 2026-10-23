@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import router from '@/router'
-import LoginView from '@/views/LoginView.vue'
+import LoginView from '@/views/admin/login/LoginView.vue'
 import { clearLogin } from '@/utils/auth'
 
 const loginResult = {
