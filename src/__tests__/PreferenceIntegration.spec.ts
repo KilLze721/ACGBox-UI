@@ -60,6 +60,13 @@ beforeEach(() => {
       if (url.pathname.endsWith('/region/list')) data = [{ id: 4, name: '日本' }]
       if (url.pathname.endsWith('/broadcast-type/list')) data = [{ id: 1, name: 'TV' }]
       if (url.pathname.endsWith('/adaptation-type/list')) data = [{ id: 2, name: '原创' }]
+      if (url.pathname.endsWith('/admin/system/health'))
+        data = {
+          checkedAt: '2026-10-23T04:00:00Z',
+          database: { status: 'UP', message: '连接正常' },
+          redis: { status: 'UP', message: '连接正常' },
+          smtp: { status: 'DISABLED', message: '邮箱验证码功能未启用' },
+        }
       if (url.pathname.endsWith('/anime/15'))
         data = {
           id: 15,

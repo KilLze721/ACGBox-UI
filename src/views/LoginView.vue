@@ -328,17 +328,7 @@ async function submit() {
             <div class="field" :class="{ 'has-error': !!passwordError }">
               <div class="field-label">
                 <label for="passwordInput">{{ isEmailCode ? '邮箱验证码' : '登录密码' }}</label>
-                <button
-                  v-if="isEmail"
-                  class="credential-mode"
-                  type="button"
-                  :disabled="busy"
-                  :aria-pressed="isEmailCode"
-                  @click="toggleEmailCode"
-                >
-                  {{ isEmailCode ? '密码登录' : '验证码登录' }}
-                </button>
-                <span v-else class="required-mark">必填</span>
+                <span class="required-mark">必填</span>
               </div>
               <div class="input-shell" :class="{ invalid: !!passwordError }">
                 <span class="field-icon" aria-hidden="true"
@@ -405,21 +395,40 @@ async function submit() {
                   </svg>
                 </button>
               </div>
-              <p
-                id="passwordError"
-                class="field-error"
-                :class="{ 'code-notice': !passwordError && !!codeNotice }"
-                aria-live="polite"
-              >
-                {{ passwordError || codeNotice }}
-              </p>
-            </div>
-
-            <div v-if="feedback" class="feedback show" role="alert">
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <circle cx="10" cy="10" r="7.3" />
-                <path d="M10 6.2v4.3M10 13.5h.01" /></svg
-              ><span>{{ feedback }}</span>
+              <div class="credential-help">
+                <div id="passwordError" class="feedback-slot">
+                  <div
+                    v-if="feedback"
+                    class="feedback show"
+                    role="alert"
+                    tabindex="0"
+                    aria-label="登录错误提示"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true">
+                      <circle cx="10" cy="10" r="7.3" />
+                      <path d="M10 6.2v4.3M10 13.5h.01" /></svg
+                    ><span>{{ feedback }}</span>
+                  </div>
+                  <p
+                    v-else
+                    class="field-error"
+                    :class="{ 'code-notice': !passwordError && !!codeNotice }"
+                    aria-live="polite"
+                  >
+                    {{ passwordError || codeNotice }}
+                  </p>
+                </div>
+                <button
+                  v-if="isEmail"
+                  class="credential-mode"
+                  type="button"
+                  :disabled="busy"
+                  :aria-pressed="isEmailCode"
+                  @click="toggleEmailCode"
+                >
+                  {{ isEmailCode ? '密码登录' : '验证码登录' }}
+                </button>
+              </div>
             </div>
             <button
               class="submit-button"
@@ -844,9 +853,21 @@ async function submit() {
   font-size: 10px;
   font-weight: 650;
 }
+.login-page .credential-help {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 10px;
+}
+.login-page .credential-help .feedback-slot {
+  flex: 1;
+}
 .login-page .credential-mode {
-  padding: 2px 5px;
-  margin: -2px -5px;
+  min-height: 22px;
+  padding: 0 3px;
+  margin-right: -3px;
+  line-height: 22px;
+  white-space: nowrap;
 }
 .login-page .send-code {
   min-height: 30px;
@@ -973,24 +994,37 @@ async function submit() {
   stroke-linejoin: round;
   stroke-width: 1.7;
 }
+.login-page .feedback-slot {
+  height: 22px;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
 .login-page .feedback {
   display: none;
+  max-height: 100%;
   align-items: flex-start;
-  gap: 9px;
-  padding: 10px 11px;
-  color: #a33c4b;
-  background: var(--danger-soft);
-  border: 1px solid rgba(200, 76, 92, 0.15);
-  border-radius: 9px;
+  gap: 6px;
+  padding: 1px 2px;
+  color: var(--danger);
+  border-radius: 4px;
   font-size: 10px;
   line-height: 1.55;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+.login-page .feedback > span {
+  min-width: 0;
+}
+.login-page .feedback:focus-visible {
+  box-shadow: var(--focus);
 }
 .login-page .feedback.show {
   display: flex;
 }
 .login-page .feedback svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
   flex: 0 0 auto;
   margin-top: 1px;
   fill: none;

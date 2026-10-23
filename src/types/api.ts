@@ -12,6 +12,18 @@ export interface LoginResult {
   role: string
 }
 
+export interface DependencyHealth {
+  status: 'UP' | 'DOWN' | 'DISABLED' | 'UNCONFIGURED' | 'NOT_CHECKED'
+  message: string
+}
+
+export interface SystemHealth {
+  checkedAt: string
+  database: DependencyHealth
+  redis: DependencyHealth
+  smtp: DependencyHealth
+}
+
 export type UserRole = 'ADMIN' | 'EDITOR' | 'USER'
 
 export interface UserAccount {

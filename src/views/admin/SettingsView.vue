@@ -10,6 +10,8 @@ import {
   watch,
 } from 'vue'
 import { getBroadcastTypes, getRegions } from '@/api/catalog'
+import { getSystemHealth } from '@/api/system'
+import { getCurrentUser } from '@/utils/auth'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import {
@@ -23,7 +25,7 @@ import {
   type PersonalPreferences,
   type ThemeMode,
 } from '@/utils/preferences'
-import type { NamedOption } from '@/types/api'
+import type { DependencyHealth, NamedOption, SystemHealth } from '@/types/api'
 import projectReadme from '../../../README.md?url&no-inline'
 
 const sections = [
@@ -70,6 +72,30 @@ const resetScope = ref<'lists' | 'all' | null>(null)
 const resetDialog = ref<HTMLDialogElement>()
 const pageRoot = ref<HTMLElement>()
 let catalogController: AbortController | undefined
+let healthController: AbortController | undefined
+const isAdmin = getCurrentUser()?.role === 'ADMIN'
+const healthResult = ref<SystemHealth | null>(null)
+const healthLoading = ref(false)
+const healthError = ref('')
+const healthServices = [
+  { key: 'database', label: '数据库' },
+  { key: 'redis', label: 'Redis' },
+  { key: 'smtp', label: 'SMTP' },
+] as const
+const healthStatusText: Record<DependencyHealth['status'], string> = {
+  UP: '连接正常',
+  DOWN: '检查未通过',
+  DISABLED: '未启用',
+  UNCONFIGURED: '未配置',
+  NOT_CHECKED: '未完成检测',
+}
+const healthCheckedAt = computed(() =>
+  healthResult.value
+    ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'medium' }).format(
+        new Date(healthResult.value.checkedAt),
+      )
+    : '',
+)
 let resetFocus: HTMLElement | null = null
 let previousOverflow: { body: string; html: string } | null = null
 const buildTime = new Intl.DateTimeFormat('zh-CN', {
@@ -95,16 +121,49 @@ defineExpose({ getCloseState: () => ({ dirty: dirty.value, submitting: false }) 
 watch(themeMode, () => {
   pendingThemeReset.value = false
 })
-onMounted(() => void loadCatalogs())
-onDeactivated(closeReset)
+onMounted(() => {
+  void loadCatalogs()
+  void loadHealth()
+})
+onDeactivated(() => {
+  closeReset()
+  healthController?.abort()
+})
 onBeforeUnmount(() => {
   catalogController?.abort()
+  healthController?.abort()
   closeReset()
 })
 
 function scrollToSection(id: string) {
   activeSection.value = id
   pageRoot.value?.querySelector(`#${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+async function loadHealth() {
+  if (!isAdmin || healthLoading.value) return
+  const controller = new AbortController()
+  healthController = controller
+  healthLoading.value = true
+  healthError.value = ''
+  let timedOut = false
+  const timeout = window.setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, 10_000)
+  try {
+    const result = await getSystemHealth(controller.signal)
+    if (!controller.signal.aborted) healthResult.value = result
+  } catch (error) {
+    if (controller.signal.aborted && !timedOut) return
+    healthResult.value = null
+    healthError.value = timedOut
+      ? '检测请求超时，暂时无法获取服务状态。'
+      : `无法获取检测结果：${error instanceof Error ? error.message : '请稍后重试。'}`
+  } finally {
+    window.clearTimeout(timeout)
+    healthLoading.value = false
+  }
 }
 
 function chooseTheme(value: ThemeMode) {
@@ -419,7 +478,9 @@ function confirmReset() {
                 </tr>
               </tbody>
             </table>
-            <p class="field-hint">所有分页列表统一提供 10 / 20 / 50 条，均可使用已保存的默认分页条数。</p>
+            <p class="field-hint">
+              所有分页列表统一提供 10 / 20 / 50 条，均可使用已保存的默认分页条数。
+            </p>
           </div>
         </section>
         <section id="entry" class="settings-card" aria-labelledby="entryTitle">
@@ -586,12 +647,47 @@ function confirmReset() {
                 <p class="metadata-note">由 Vite 在本次构建时写入；开发环境为启动时间。</p>
               </div>
               <div>
-                <dt>当前服务连接情况</dt>
-                <dd>
-                  <span class="unknown"><AdminIcon name="info" />未提供检测</span>
+                <dt class="health-heading">
+                  <span>当前服务连接情况</span>
+                  <button
+                    v-if="isAdmin"
+                    class="health-refresh"
+                    type="button"
+                    aria-label="刷新服务连接检测"
+                    title="刷新服务连接检测"
+                    :disabled="healthLoading"
+                    @click="loadHealth"
+                  >
+                    <AdminIcon name="refresh" />
+                  </button>
+                </dt>
+                <dd class="health-results" :aria-busy="healthLoading">
+                  <span v-if="!isAdmin" class="unknown">仅管理员可查看</span>
+                  <span v-else-if="healthLoading" class="unknown" role="status">检测中</span>
+                  <p v-else-if="healthError" class="health-error" role="alert">{{ healthError }}</p>
+                  <ul
+                    v-else-if="healthResult"
+                    class="health-services"
+                    aria-label="依赖连接检测结果"
+                  >
+                    <li v-for="service in healthServices" :key="service.key">
+                      <span>{{ service.label }}</span>
+                      <span
+                        class="health-state"
+                        :class="`health-${healthResult[service.key].status.toLowerCase()}`"
+                      >
+                        <AdminIcon
+                          :name="healthResult[service.key].status === 'UP' ? 'check' : 'info'"
+                        />
+                        {{ healthStatusText[healthResult[service.key].status] }}
+                      </span>
+                      <small>{{ healthResult[service.key].message }}</small>
+                    </li>
+                  </ul>
+                  <span v-else class="unknown">尚未检测</span>
                 </dd>
-                <p class="metadata-note">
-                  当前项目未提供健康检测接口，不据此推断 SMTP、Redis 或数据库状态。
+                <p v-if="healthResult && !healthLoading" class="metadata-note">
+                  检测时间：{{ healthCheckedAt }}
                 </p>
               </div>
               <div>
@@ -1348,6 +1444,83 @@ h1 span {
 .unknown svg {
   width: 12px;
   height: 12px;
+}
+.system-info .health-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.health-refresh {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.health-refresh:hover:not(:disabled) {
+  color: var(--accent-strong);
+  border-color: var(--line-strong);
+}
+.health-refresh svg {
+  width: 15px;
+  height: 15px;
+}
+.health-results {
+  min-height: 28px;
+}
+.health-services {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.health-services li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 10px;
+  font-size: 12px;
+}
+.health-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 500;
+}
+.health-state svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+.health-up {
+  color: var(--success, #25815b);
+}
+.health-down {
+  color: var(--danger);
+}
+.health-services small {
+  grid-column: 1 / -1;
+  color: var(--ink-faint);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.health-error {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
 }
 .metadata-note {
   margin: 7px 0 0;

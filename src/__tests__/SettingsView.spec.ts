@@ -3,6 +3,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import router from '@/router'
 import App from '@/App.vue'
 import SettingsView from '@/views/admin/SettingsView.vue'
+import type { SystemHealth } from '@/types/api'
 import {
   defaultPreferences,
   readPreferences,
@@ -12,6 +13,8 @@ import {
 
 const wrappers: VueWrapper[] = []
 let failCatalog = false
+let failHealth = false
+let healthData: SystemHealth
 function renderSettings() {
   const wrapper = mount(SettingsView, { attachTo: document.body, global: { plugins: [router] } })
   wrappers.push(wrapper)
@@ -26,6 +29,13 @@ beforeEach(async () => {
   localStorage.removeItem('acgbox-preferences')
   setThemeMode('light')
   failCatalog = false
+  failHealth = false
+  healthData = {
+    checkedAt: '2026-10-23T04:00:00Z',
+    database: { status: 'UP', message: '连接正常' },
+    redis: { status: 'DOWN', message: '连接检测失败' },
+    smtp: { status: 'DISABLED', message: '邮箱验证码功能未启用' },
+  }
   HTMLDialogElement.prototype.showModal = function () {
     this.setAttribute('open', '')
   }
@@ -36,6 +46,10 @@ beforeEach(async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string) => {
+      if (input.endsWith('/admin/system/health')) {
+        if (failHealth) throw new Error('连接检测请求失败')
+        return { ok: true, status: 200, json: async () => ({ code: 200, data: healthData }) }
+      }
       if (failCatalog) throw new Error('目录读取失败')
       const data = input.includes('region/list')
         ? [{ id: 4, name: '日本' }]
@@ -52,6 +66,7 @@ afterEach(() => {
   localStorage.removeItem('unrelated-data')
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
+  vi.useRealTimers()
   document.body.style.overflow = ''
   document.documentElement.style.overflow = ''
   document.body.innerHTML = ''
@@ -200,7 +215,9 @@ describe('系统设置页面', () => {
     await flushPromises()
     expect(wrapper.get('#regionId').text()).toContain('日本')
     expect(wrapper.get('#system').text()).toContain(__APP_VERSION__)
-    expect(wrapper.get('#system').text()).toContain('未提供检测')
+    expect(wrapper.get('#system').text()).toContain('检查未通过')
+    expect(wrapper.get('#system').text()).toContain('未启用')
+    expect(wrapper.get('#system').text()).toContain('检测时间')
     expect(wrapper.get('#system').text()).not.toContain('运行正常')
     expect(wrapper.get('.doc-link').attributes('href')).not.toContain('data:')
   })
@@ -223,5 +240,102 @@ describe('系统设置页面', () => {
     await app.get('form.settings-form').trigger('submit')
     expect(app.get('.save-status').text()).toContain('无法保存偏好')
     expect(app.get('#saveSettings').attributes('disabled')).toBeUndefined()
+  })
+
+  it('管理员查询独立服务状态，刷新不会改动未保存偏好', async () => {
+    const wrapper = renderSettings()
+    await flushPromises()
+    expect(wrapper.get('.health-services').text()).toContain('数据库')
+    expect(wrapper.get('.health-up').text()).toContain('连接正常')
+    expect(wrapper.get('.health-down').text()).toContain('检查未通过')
+    expect(wrapper.get('.health-disabled').text()).toContain('未启用')
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/admin/system/health',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer test-admin-token' }),
+      }),
+    )
+    await wrapper.get('[aria-labelledby="sizeLabel"] button:last-child').trigger('click')
+    healthData = { ...healthData, smtp: { status: 'UNCONFIGURED', message: '邮件服务配置不完整' } }
+    await wrapper.get('[aria-label="刷新服务连接检测"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.health-unconfigured').text()).toContain('未配置')
+    expect(closeState(wrapper).dirty).toBe(true)
+    healthData = { ...healthData, smtp: { status: 'NOT_CHECKED', message: '检测繁忙，请稍后重试' } }
+    await wrapper.get('[aria-label="刷新服务连接检测"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('.health-not_checked').text()).toContain('未完成检测')
+  })
+
+  it('检测请求失败不推断服务故障，手动重试后恢复显示', async () => {
+    failHealth = true
+    const wrapper = renderSettings()
+    await flushPromises()
+    expect(wrapper.get('.health-error').text()).toContain('无法获取检测结果')
+    expect(wrapper.find('.health-services').exists()).toBe(false)
+    expect(wrapper.find('.health-down').exists()).toBe(false)
+    failHealth = false
+    await wrapper.get('[aria-label="刷新服务连接检测"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.health-error').exists()).toBe(false)
+    expect(wrapper.find('.health-services').exists()).toBe(true)
+    expect(closeState(wrapper).dirty).toBe(false)
+  })
+
+  it('EDITOR 不请求管理员健康接口，也不显示刷新操作', async () => {
+    sessionStorage.setItem(
+      'acgbox-user',
+      JSON.stringify({ id: 2, username: 'editor', role: 'EDITOR' }),
+    )
+    const wrapper = renderSettings()
+    await flushPromises()
+    expect(wrapper.get('#system').text()).toContain('仅管理员可查看')
+    expect(wrapper.find('[aria-label="刷新服务连接检测"]').exists()).toBe(false)
+    expect(
+      vi.mocked(fetch).mock.calls.some(([input]) => String(input).endsWith('/admin/system/health')),
+    ).toBe(false)
+  })
+
+  it('检测期间禁止重复刷新，卸载时取消请求', async () => {
+    const originalFetch = fetch
+    let signal: AbortSignal | undefined
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string, options?: RequestInit) => {
+        if (!input.endsWith('/admin/system/health')) return originalFetch(input, options)
+        signal = options?.signal as AbortSignal
+        return new Promise<Response>((_, reject) => {
+          signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+        })
+      }),
+    )
+    const wrapper = renderSettings()
+    await flushPromises()
+    expect(wrapper.get('.health-results').text()).toContain('检测中')
+    expect(wrapper.get('[aria-label="刷新服务连接检测"]').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+    await flushPromises()
+    expect(signal?.aborted).toBe(true)
+  })
+
+  it('检测请求十秒超时后显示无法获取状态，不把服务标为故障', async () => {
+    const originalFetch = fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string, options?: RequestInit) => {
+        if (!input.endsWith('/admin/system/health')) return originalFetch(input, options)
+        return new Promise<Response>((_, reject) => {
+          options?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          )
+        })
+      }),
+    )
+    vi.useFakeTimers()
+    const wrapper = renderSettings()
+    await vi.advanceTimersByTimeAsync(10_000)
+    await flushPromises()
+    expect(wrapper.get('.health-error').text()).toContain('检测请求超时')
+    expect(wrapper.find('.health-down').exists()).toBe(false)
   })
 })

@@ -45,11 +45,64 @@ describe('登录页面', () => {
     return wrapper
   }
 
+  it.each(['username', 'email', 'email-code'])(
+    '%s 登录错误使用固定提示区域，清除错误不增减表单行',
+    async (mode) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => response(500, '账号或密码错误')),
+      )
+      const wrapper = mode === 'email-code' ? await renderEmailCodeLogin() : renderLogin()
+      if (mode === 'email') await wrapper.get('#emailTab').trigger('click')
+      const slot = wrapper.get('.feedback-slot').element
+      const submitButton = wrapper.get('.submit-button').element
+      const rowCount = wrapper.get('form').element.children.length
+      expect(rowCount).toBe(3)
+      expect(wrapper.get('#passwordInput').element.closest('.field')?.contains(slot)).toBe(true)
+      expect(wrapper.get('#passwordInput').attributes('aria-describedby')).toBe(slot.id)
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      await wrapper
+        .get('#identityInput')
+        .setValue(mode === 'username' ? 'admin' : 'Editor@Example.com')
+      await wrapper.get('#passwordInput').setValue(mode === 'email-code' ? '003821' : 'secret')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(wrapper.get('.feedback-slot').element).toBe(slot)
+      expect(wrapper.get('form').element.children.length).toBe(rowCount)
+      expect(wrapper.get('.feedback-slot [role="alert"]').text()).toBe('账号或密码错误')
+      expect(wrapper.get('.feedback-slot [role="alert"]').attributes('tabindex')).toBe('0')
+      expect(wrapper.get('.submit-button').element).toBe(submitButton)
+      await wrapper.get('#passwordInput').setValue(mode === 'email-code' ? '003822' : 'retry')
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      expect(wrapper.get('.feedback-slot').element).toBe(slot)
+      expect(wrapper.get('form').element.children.length).toBe(rowCount)
+    },
+  )
+
+  it('较长的接口错误保留完整文字，仍显示在同一提示区域', async () => {
+    const message = '登录服务暂不可用，请检查网络连接后重试。'.repeat(20)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => response(500, message)),
+    )
+    const wrapper = renderLogin()
+    await wrapper.get('#identityInput').setValue('admin')
+    await wrapper.get('#passwordInput').setValue('secret')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.get('.feedback-slot [role="alert"]').text()).toBe(message)
+    expect(wrapper.get('.submit-button').attributes('disabled')).toBeUndefined()
+  })
+
   it('仅在邮箱登录提供验证码切换，替换原密码栏并可切回密码登录', async () => {
     const wrapper = renderLogin()
     expect(wrapper.find('.credential-mode').exists()).toBe(false)
     await wrapper.get('#emailTab').trigger('click')
     expect(wrapper.get('.credential-mode').text()).toBe('验证码登录')
+    expect(wrapper.find('.field-label .credential-mode').exists()).toBe(false)
+    expect(wrapper.get('.input-shell + .credential-help .credential-mode').text()).toBe(
+      '验证码登录',
+    )
     await wrapper.get('#passwordInput').setValue('old-password')
     await wrapper.get('.credential-mode').trigger('click')
     expect(wrapper.find('[name="password"]').exists()).toBe(false)
@@ -57,6 +110,7 @@ describe('登录页面', () => {
       'one-time-code',
     )
     expect(wrapper.find('.password-toggle').exists()).toBe(false)
+    expect(wrapper.get('.credential-help .credential-mode').text()).toBe('密码登录')
     await wrapper.get('#passwordInput').setValue('003821')
     await wrapper.get('.credential-mode').trigger('click')
     expect(wrapper.get('#passwordInput').attributes('type')).toBe('password')
