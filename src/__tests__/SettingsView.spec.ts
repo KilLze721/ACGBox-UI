@@ -318,7 +318,7 @@ describe('系统设置页面', () => {
     expect(signal?.aborted).toBe(true)
   })
 
-  it('检测请求十秒超时后显示无法获取状态，不把服务标为故障', async () => {
+  it('检测请求十五秒超时后显示无法获取状态，不把服务标为故障', async () => {
     const originalFetch = fetch
     vi.stubGlobal(
       'fetch',
@@ -334,6 +334,9 @@ describe('系统设置页面', () => {
     vi.useFakeTimers()
     const wrapper = renderSettings()
     await vi.advanceTimersByTimeAsync(10_000)
+    expect(wrapper.find('.health-error').exists()).toBe(false)
+    expect(wrapper.text()).toContain('检测中')
+    await vi.advanceTimersByTimeAsync(5_000)
     await flushPromises()
     expect(wrapper.get('.health-error').text()).toContain('检测请求超时')
     expect(wrapper.find('.health-down').exists()).toBe(false)

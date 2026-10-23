@@ -150,7 +150,7 @@ async function loadHealth() {
   const timeout = window.setTimeout(() => {
     timedOut = true
     controller.abort()
-  }, 10_000)
+  }, 15_000)
   try {
     const result = await getSystemHealth(controller.signal)
     if (!controller.signal.aborted) healthResult.value = result
