@@ -91,10 +91,23 @@ export interface CompanyOption extends NamedOption {
   description: string | null
 }
 
+export interface Person extends NamedOption {
+  description: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface AnimeCompany {
   companyId: number
   companyName: string
   role: string | null
+  sortOrder: number
+}
+
+export interface AnimePerson {
+  personId: number
+  personName: string
+  role: string
   sortOrder: number
 }
 
@@ -121,6 +134,7 @@ export interface AnimePageItem {
   status: number
   region: NamedOption
   companies: AnimeCompany[]
+  persons?: AnimePerson[]
   externalLinks: ExternalLink[]
   personalRating: number | null
   series: SeriesSummary | null
@@ -139,6 +153,7 @@ export interface AnimeDetail {
   description: string | null
   aliasNames: string[]
   companies: Array<{ companyId: number; role: string | null; sortOrder: number }>
+  persons?: AnimePerson[]
   externalLinks: ExternalLink[]
   tagIds: number[]
   seriesId: number | null
@@ -159,6 +174,7 @@ export interface AnimePayload {
   description?: string | null
   aliasNames?: string[]
   companies?: Array<{ companyId: number; role: string | null; sortOrder?: number }>
+  persons?: Array<{ personId: number; role: string; sortOrder?: number }>
   externalLinks?: ExternalLink[]
   tagIds?: number[]
   seriesId?: number | null
@@ -184,6 +200,8 @@ export interface AnimePageQuery {
   status?: number
   regionId?: number
   companyId?: number
+  personId?: number
+  seriesId?: number
   ratingMin?: number
   ratingMax?: number
   sortBy?: AnimeSortField

@@ -145,6 +145,20 @@ const router = createRouter({
           },
         },
         {
+          path: 'persons',
+          name: 'admin-persons',
+          component: () => import('@/views/admin/persons/PersonsView.vue'),
+          meta: {
+            title: '人物管理',
+            menuName: '人物管理',
+            icon: 'user',
+            order: 55,
+            section: '内容管理',
+            showInMenu: true,
+            roles: ['ADMIN', 'EDITOR'],
+          },
+        },
+        {
           path: 'types',
           name: 'admin-types',
           redirect: '/admin/broadcast-types',

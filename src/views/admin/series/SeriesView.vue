@@ -16,7 +16,6 @@ import {
   watch,
 } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getAnimePage } from '@/api/anime'
 import {
   createSeries,
   deleteSeries,
@@ -26,18 +25,12 @@ import {
 } from '@/api/series'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
-import type { NamedOption, PageResult, SeriesSummary } from '@/types/api'
+import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
+import RelatedAnimeList from '@/components/admin/RelatedAnimeList.vue'
+import { useRelatedAnime } from '@/utils/relatedAnime'
+import type { AnimePageItem, NamedOption, PageResult, SeriesSummary } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
-type WorkType = 'anime' | 'manga' | 'novel'
-type AssociatedWork = {
-  type: WorkType
-  id: number
-  title: string
-  coverImageUrl?: string | null
-}
-
-const workTypeNames: Record<WorkType, string> = { anime: '动画', manga: '漫画', novel: '小说' }
 const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
   id: value,
   name: `${value} 条`,
@@ -75,10 +68,9 @@ const tabActive = ref(true)
 const currentSeries = ref<SeriesSummary | null>(null)
 const drawerLoading = ref(false)
 const drawerError = ref('')
-const relatedError = ref('')
+const relatedAnime = useRelatedAnime()
 const form = reactive({ name: '', description: '' })
 const nameError = ref('')
-const relatedWorks = ref<AssociatedWork[]>([])
 const initialFormState = ref('')
 const saving = ref(false)
 const deleteTargets = ref<SeriesSummary[]>([])
@@ -263,61 +255,23 @@ function toggleAll(checked: boolean) {
   selectedIds.value = checked ? page.value.rows.map((row) => row.id) : []
 }
 
-async function loadRelatedAnime(
-  series: SeriesSummary,
-  signal: AbortSignal
-): Promise<AssociatedWork[]> {
-  const works: AssociatedWork[] = []
-  let currentPage = 1
-  let pages = 1
-  do {
-    const result = await getAnimePage(
-      { pageNum: currentPage, pageSize: 100, keyword: series.name },
-      signal
-    )
-    works.push(
-      ...result.rows
-        .filter((anime) => anime.series?.id === series.id)
-        .map((anime) => ({
-          type: 'anime' as const,
-          id: anime.id,
-          title: anime.name,
-          coverImageUrl: anime.coverImageUrl,
-        }))
-    )
-    pages = result.pages
-    currentPage++
-  } while (currentPage <= pages)
-  return works
-}
-async function refreshRelated(series: SeriesSummary, signal: AbortSignal) {
-  relatedError.value = ''
-  try {
-    const works = await loadRelatedAnime(series, signal)
-    if (signal.aborted) return
-    relatedWorks.value = works
-  } catch (error) {
-    if (signal.aborted) return
-    relatedError.value = messageOf(error, '关联动画读取失败，请稍后重试。')
-  }
-}
 function closeDrawer() {
   if (saving.value) return
   drawerController?.abort()
+  relatedAnime.cancel()
   drawerMode.value = null
   currentSeries.value = null
   drawerError.value = ''
 }
 async function openDrawer(mode: DrawerMode, row?: SeriesSummary | number) {
   drawerController?.abort()
+  relatedAnime.cancel()
   const controller = new AbortController()
   drawerController = controller
   drawerMode.value = mode
   currentSeries.value = typeof row === 'number' ? null : row ?? null
   drawerLoading.value = mode !== 'create'
   drawerError.value = ''
-  relatedError.value = ''
-  relatedWorks.value = []
   form.name = ''
   form.description = ''
   nameError.value = ''
@@ -333,7 +287,7 @@ async function openDrawer(mode: DrawerMode, row?: SeriesSummary | number) {
     currentSeries.value = detail
     form.name = detail.name
     form.description = detail.description ?? ''
-    if (mode === 'detail') await refreshRelated(detail, controller.signal)
+    if (mode === 'detail') void relatedAnime.open({ seriesId: detail.id })
     if (!controller.signal.aborted) saveInitialFormState()
   } catch (error) {
     if (controller.signal.aborted) return
@@ -397,14 +351,10 @@ async function confirmDelete() {
     deleting.value = false
   }
 }
-function openRelatedWork(work: AssociatedWork) {
-  if (work.type !== 'anime') {
-    showToast('对应管理页面暂未实现。')
-    return
-  }
+function openRelatedWork(work: AnimePageItem) {
   closeDrawer()
-  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', work.title)
-  else void router.push({ path: '/admin/anime', query: { keyword: work.title } })
+  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', work.name)
+  else void router.push({ path: '/admin/anime', query: { keyword: work.name } })
 }
 </script>
 
@@ -486,7 +436,8 @@ function openRelatedWork(work: AssociatedWork) {
                   @change="toggleAll(($event.target as HTMLInputElement).checked)"
                 />
               </th>
-              <th>系列名称 / 说明</th>
+              <th class="series-name-cell">系列名称</th>
+              <th>简介</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -502,10 +453,10 @@ function openRelatedWork(work: AssociatedWork) {
               </td>
               <td>
                 <button class="series-row-name" type="button" @click="openDrawer('detail', row)">
-                  {{ row.name }}</button
-                ><span class="series-row-desc" :title="row.description || '暂无说明'">{{
-                  row.description || '暂无说明'
-                }}</span>
+                  {{ row.name }}</button>
+              </td>
+              <td>
+                <ArchiveDescription class="series-row-desc" :text="row.description" empty-text="暂无说明" />
               </td>
               <td>
                 <div class="series-row-actions">
@@ -683,46 +634,7 @@ function openRelatedWork(work: AssociatedWork) {
                   {{ currentSeries?.description?.trim() || '暂无说明' }}
                 </div>
               </div>
-              <section class="series-association">
-                <header>
-                  <strong>关联内容</strong><span>{{ relatedWorks.length }} 项</span>
-                </header>
-                <p v-if="relatedError" class="series-error" role="alert">
-                  {{ relatedError }}
-                  <button
-                    v-if="currentSeries"
-                    type="button"
-                    @click="refreshRelated(currentSeries, drawerController!.signal)"
-                  >
-                    重新读取
-                  </button>
-                </p>
-                <div v-else-if="!relatedWorks.length" class="series-association-empty">
-                  当前系列暂无已关联动画；漫画和小说尚无可读取接口。
-                </div>
-                <div v-else class="series-work-list">
-                  <button
-                    v-for="work in relatedWorks"
-                    :key="`${work.type}-${work.id}`"
-                    class="series-work-item related"
-                    type="button"
-                    @click="openRelatedWork(work)"
-                  >
-                    <img
-                      v-if="work.coverImageUrl"
-                      :src="work.coverImageUrl"
-                      :alt="`${work.title}封面`"
-                    /><span v-else class="series-work-cover">{{ work.title.slice(0, 1) }}</span
-                    ><span class="series-work-kind" :class="work.type">{{
-                      workTypeNames[work.type]
-                    }}</span
-                    ><span class="series-work-copy"
-                      ><strong>{{ work.title }}</strong
-                      ><small>点击查看动画详情</small></span
-                    ><AdminIcon name="right" />
-                  </button>
-                </div>
-              </section>
+              <RelatedAnimeList :model="relatedAnime" title="关联内容" @select="openRelatedWork" />
             </template>
             <form v-else id="seriesEditorForm" @submit.prevent="saveSeries">
               <div class="series-field" :class="{ invalid: nameError }">
@@ -1073,6 +985,7 @@ function openRelatedWork(work: AssociatedWork) {
   overflow-x: auto;
 }
 .series-table {
+  table-layout: fixed;
   width: 100%;
   min-width: 760px;
   border-collapse: collapse;
@@ -1105,8 +1018,10 @@ function openRelatedWork(work: AssociatedWork) {
   padding-left: 17px;
 }
 .series-table th:last-child {
+  width: 115px;
   text-align: right;
 }
+.series-name-cell { width: 28%; }
 .series-check-cell {
   width: 38px;
 }
@@ -1126,14 +1041,8 @@ function openRelatedWork(work: AssociatedWork) {
   color: var(--accent-strong);
 }
 .series-row-desc {
-  display: block;
-  max-width: 580px;
-  margin-top: 4px;
-  overflow: hidden;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
   font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .series-row-actions {
   display: flex;

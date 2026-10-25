@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="ACGBox 创作人员档案管理：姓名、简介、搜索与批量选择。" />
+<title>人物管理 · ACGBox</title>
+<style>
+
+
+    :root {
+      color-scheme: light;
+      --font-display: "Noto Serif SC", "Source Han Serif SC", "STSong", serif;
+      --font-body: "IBM Plex Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --canvas: #f3f1f7; --surface: rgba(255,255,255,.9); --surface-solid: #fff;
+      --surface-muted: #f8f7fb; --surface-hover: #f3f0f9; --ink: #25243a;
+      --ink-soft: #6f6d84; --ink-faint: #9693a8; --line: rgba(61,56,88,.12);
+      --line-strong: rgba(61,56,88,.2); --sidebar: #171725; --sidebar-ink: #efedf8;
+      --accent: #d95f86; --accent-strong: #bd3f69; --accent-soft: #f9dce6;
+      --violet: #7567aa; --violet-soft: #e9e4f7; --cyan: #2da9a2; --cyan-soft: #dff5f2;
+      --yellow: #d49a27; --yellow-soft: #fff1c9; --danger: #c84c5c; --danger-soft: #fde4e7;
+      --success: #39836f; --success-soft: #e0f2ec; --shadow: 0 18px 50px rgba(37,31,67,.08);
+      --shadow-soft: 0 8px 26px rgba(37,31,67,.07); --focus: 0 0 0 3px rgba(217,95,134,.22);
+      --radius-xl: 24px; --radius-lg: 18px; --radius-md: 12px; --radius-sm: 9px;
+    }
+    body[data-theme="dark"] {
+      color-scheme: dark; --canvas: #12131d; --surface: rgba(31,31,47,.92); --surface-solid: #202031;
+      --surface-muted: #29283b; --surface-hover: #302e45; --ink: #f2eff9; --ink-soft: #b0acc1;
+      --ink-faint: #817d94; --line: rgba(229,224,244,.1); --line-strong: rgba(229,224,244,.18);
+      --accent: #f07da1; --accent-strong: #ff98b7; --accent-soft: rgba(217,95,134,.18);
+      --violet: #a99bdc; --violet-soft: rgba(117,103,170,.22); --cyan: #58c7bf;
+      --cyan-soft: rgba(45,169,162,.18); --yellow: #f0bd53; --yellow-soft: rgba(212,154,39,.18);
+      --danger: #f07a88; --danger-soft: rgba(200,76,92,.18); --success: #6fd0b3;
+      --success-soft: rgba(57,131,111,.2); --shadow: 0 18px 50px rgba(0,0,0,.22);
+      --shadow-soft: 0 8px 26px rgba(0,0,0,.18);
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { min-width: 320px; background: var(--canvas); }
+    body { min-width: 320px; min-height: 100vh; margin: 0; color: var(--ink); background: radial-gradient(circle at 78% -8%,rgba(217,95,134,.1),transparent 31rem),radial-gradient(circle at 20% 96%,rgba(45,169,162,.07),transparent 34rem),var(--canvas); font: 14px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
+    body::before { position: fixed; inset: 0; z-index: -1; pointer-events: none; content: ""; opacity: .24; background-image: radial-gradient(circle,rgba(69,61,98,.18) .65px,transparent .8px); background-size: 8px 8px; mask-image: linear-gradient(to bottom,#000,transparent 46%); }
+    button,input,select { color: inherit; font: inherit; }
+    button { border: 0; cursor: pointer; }
+    button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible { outline: none; box-shadow: var(--focus); }
+    .app-shell { min-height: 100vh; }
+    .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 20; display: flex; width: 244px; flex-direction: column; overflow: hidden; color: var(--sidebar-ink); background: linear-gradient(145deg,rgba(255,255,255,.04),transparent 42%),var(--sidebar); border-right: 1px solid rgba(255,255,255,.07); transition: transform .2s ease; }
+    .sidebar::after { position: absolute; right: -44px; bottom: 66px; width: 120px; height: 120px; pointer-events: none; content: ""; border: 1px solid rgba(238,151,180,.15); border-radius: 38% 62% 56% 44%; transform: rotate(24deg); }
+    .brand { display: flex; height: 70px; align-items: center; gap: 12px; padding: 0 22px; color: inherit; border-bottom: 1px solid rgba(255,255,255,.08); text-decoration: none; }
+    .brand-mark { display: grid; width: 38px; height: 38px; place-items: center; color: #fff; background: linear-gradient(135deg,#f186a6,#b85c8b 54%,#6960a4); border: 1px solid rgba(255,255,255,.2); border-radius: 13px 8px 13px 8px; box-shadow: 0 8px 22px rgba(217,95,134,.26); font: 800 17px var(--font-display); }
+    .brand-name,.brand-caption { display: block; }.brand-name { font: 700 17px var(--font-display); letter-spacing: .04em; }.brand-caption { margin-top: 1px; color: #9d99b4; font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
+    .nav-label { padding: 22px 22px 10px; margin: 0; color: #85819d; font-size: 9px; font-weight: 700; letter-spacing: .13em; }
+    .nav-list { display: grid; gap: 5px; padding: 0 12px; margin: 0; list-style: none; }
+    .nav-item { display: flex; min-height: 40px; align-items: center; gap: 12px; padding: 0 13px; color: #b8b5c9; border-radius: 10px; text-decoration: none; font-size: 11px; transition: .16s ease; }
+    .nav-item:hover { color: #fff; background: rgba(255,255,255,.055); }.nav-item.active { position: relative; color: #fff; background: linear-gradient(90deg,rgba(217,95,134,.22),rgba(117,103,170,.13)); }
+    .nav-item.active::before { position: absolute; inset: 9px auto 9px 0; width: 3px; content: ""; background: #ee83a4; border-radius: 4px; }.nav-icon { display: grid; width: 18px; place-items: center; color: #aaa5c0; font-size: 14px; }.nav-item.active .nav-icon { color: #f08cac; }
+    .nav-note { margin-top: auto; padding: 16px 18px 18px; }.signal-card { display: flex; align-items: center; gap: 10px; padding: 12px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.07); border-radius: 12px; }
+    .signal-dot { width: 7px; height: 7px; flex: 0 0 auto; background: #e77fa0; border-radius: 50%; box-shadow: 0 0 0 4px rgba(231,127,160,.12); }.signal-copy strong,.signal-copy span { display: block; }.signal-copy strong { font-size: 10px; }.signal-copy span { margin-top: 2px; color: #8f8ba6; font-size: 9px; }
+    .main-shell { min-height: 100vh; margin-left: 244px; }.topbar { position: sticky; top: 0; z-index: 8; display: flex; height: 70px; align-items: center; justify-content: space-between; padding: 0 28px; background: color-mix(in srgb,var(--canvas) 86%,transparent); border-bottom: 1px solid var(--line); backdrop-filter: blur(18px); }
+    .topbar-left,.topbar-actions,.breadcrumb,.avatar-button { display: flex; align-items: center; }.topbar-left { gap: 15px; }.breadcrumb { gap: 9px; color: var(--ink-faint); font-size: 11px; }.breadcrumb strong { color: var(--ink); font-weight: 650; }.breadcrumb-separator { color: var(--line-strong); }
+    .icon-button { display: grid; width: 36px; height: 36px; place-items: center; color: var(--ink-soft); background: transparent; border-radius: 9px; font-size: 16px; }.icon-button:hover { color: var(--accent); background: var(--surface); }.icon-button svg,.button-icon svg,.action-icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .topbar-actions { gap: 12px; }.avatar-button { gap: 9px; padding-left: 12px; border-left: 1px solid var(--line); }.avatar { display: grid; width: 30px; height: 30px; place-items: center; color: #fff; background: linear-gradient(135deg,#e88aa8,#8275b9); border-radius: 10px; font-size: 12px; font-weight: 700; }.avatar-copy strong,.avatar-copy span { display: block; }.avatar-copy strong { font-size: 10px; }.avatar-copy span { color: var(--ink-faint); font-size: 9px; }
+    .menu-toggle { display: none; }.workspace-tabbar { display: flex; height: 46px; align-items: center; gap: 9px; padding: 0 20px; background: rgba(255,255,255,.28); border-bottom: 1px solid var(--line); }body[data-theme="dark"] .workspace-tabbar { background: rgba(255,255,255,.015); }
+    .workspace-tab-count { display: grid; width: 20px; height: 20px; place-items: center; color: var(--ink-faint); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 7px; font-size: 9px; }.workspace-tab { display: flex; height: 100%; align-items: center; padding: 0 13px; color: var(--accent-strong); background: var(--surface); border: 1px solid var(--line); border-bottom-color: var(--surface); border-radius: 9px 9px 0 0; font-size: 10px; }.workspace-tab span { margin-right: 7px; color: var(--violet); }
+    .primary-button,.secondary-button,.ghost-button,.danger-button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border-radius: 10px; font-size: 11px; font-weight: 700; text-decoration: none; transition: .16s ease; }.primary-button { color: #fff; background: linear-gradient(135deg,#df7395,#bb5d88); box-shadow: 0 7px 15px rgba(197,75,117,.18); }.primary-button:hover { background: linear-gradient(135deg,#e681a0,#a94d78); transform: translateY(-1px); }.primary-button:disabled { opacity: .55; cursor: wait; transform: none; }.secondary-button,.ghost-button { color: var(--ink-soft); background: var(--surface-solid); border: 1px solid var(--line); }.secondary-button:hover,.ghost-button:hover { color: var(--accent-strong); background: var(--surface-hover); border-color: rgba(217,95,134,.25); }.danger-button { color: #fff; background: var(--danger); }.danger-button:hover { filter: brightness(.94); transform: translateY(-1px); }.danger-button:disabled { opacity: .45; cursor: not-allowed; filter: saturate(.5); transform: none; }
+
+
+  body.persons-page { --ink-faint: #78748c; }
+  body.persons-page[data-theme="dark"] { --ink-faint: #aba6bf; }
+  .icon { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  button:disabled { cursor: not-allowed; opacity: .45; transform: none !important; }
+  .primary-button,.secondary-button,.danger-button { min-height: 40px; padding: 0 15px; font-size: 12px; border-radius: 11px; }
+  .primary-button { background: linear-gradient(135deg,#df698f,#bd4d79); }
+  .nav-icon .icon { width: 17px; height: 17px; }
+  .content { width: min(1460px,100%); padding: 26px 30px 42px; margin: 0 auto; }
+  .persons-hero { position: relative; display: flex; min-height: 146px; align-items: center; justify-content: space-between; gap: 22px; padding: 26px 30px; overflow: hidden; color: var(--ink); background: linear-gradient(112deg,var(--surface-solid),var(--surface-muted)); border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--shadow-soft); }
+  .persons-hero::before { position: absolute; top: -55px; right: 15%; width: 210px; height: 210px; content: ""; border: 1px solid rgba(117,103,170,.15); border-radius: 43% 57% 63% 37%; transform: rotate(28deg); pointer-events: none; }
+  .persons-hero::after { position: absolute; bottom: 22px; right: 23%; width: 62px; height: 32px; content: ""; opacity: .28; background-image: radial-gradient(var(--violet) .75px,transparent .9px); background-size: 6px 6px; pointer-events: none; }
+  .hero-copy,.hero-action { position: relative; z-index: 1; }
+  .hero-action { flex: 0 0 auto; }
+  .eyebrow { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: var(--accent-strong); font-size: 9px; font-weight: 750; letter-spacing: .16em; }
+  .eyebrow::before { width: 20px; height: 1px; content: ""; background: currentColor; }
+  .persons-hero h1 { margin: 0; color: var(--ink); font: 700 30px/1.25 var(--font-display); letter-spacing: -.035em; }
+  .persons-hero h1 span { margin-left: 7px; color: var(--ink-faint); font: 400 12px var(--font-body); letter-spacing: 0; }
+  .hero-copy > p:last-child { max-width: 620px; margin: 9px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.8; }
+  .stats-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 11px; margin-top: 16px; }
+  .stat-card { display: flex; align-items: center; gap: 12px; padding: 14px 17px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-soft); }
+  .stat-icon { display: grid; width: 35px; height: 35px; place-items: center; color: var(--violet); background: var(--violet-soft); border-radius: 11px; }
+  .stat-card:nth-child(2) .stat-icon { color: var(--cyan); background: var(--cyan-soft); }
+  .stat-card:nth-child(3) .stat-icon { color: var(--accent-strong); background: var(--accent-soft); }
+  .stat-copy span,.stat-copy strong { display: block; }
+  .stat-copy span { color: var(--ink-faint); font-size: 10px; }
+  .stat-copy strong { margin-top: 1px; font: 700 21px/1.3 var(--font-display); }
+  .list-card { overflow: hidden; margin-top: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow-soft); }
+  .list-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 19px; border-bottom: 1px solid var(--line); }
+  .list-heading { display: flex; align-items: center; gap: 9px; }
+  .list-header h2 { margin: 0; font: 700 15px var(--font-display); }
+  .sample-label { padding: 3px 6px; color: var(--violet); background: var(--violet-soft); border-radius: 5px; font-size: 9px; }
+  .list-header p { margin: 5px 0 0; color: var(--ink-faint); font-size: 10px; }
+  .header-actions { display: flex; align-items: center; flex: 0 0 auto; gap: 12px; }
+  .result-meta { color: var(--ink-faint); font-size: 10px; }
+  .header-actions .danger-button { min-height: 34px; padding: 0 11px; font-size: 10px; border-radius: 9px; }
+  .header-actions .icon { width: 14px; height: 14px; }
+  .search-form { display: flex; align-items: center; gap: 8px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .search-field { display: flex; width: min(365px,100%); align-items: center; gap: 8px; padding: 0 11px; color: var(--ink-faint); background: var(--surface-solid); border: 1px solid var(--line); border-radius: 9px; }
+  .search-field:focus-within { border-color: var(--accent); box-shadow: var(--focus); }
+  .search-field .icon { width: 16px; height: 16px; }
+  .search-field input { min-width: 0; width: 100%; height: 38px; padding: 0; color: var(--ink); background: transparent; border: 0; outline: none; box-shadow: none; font-size: 11px; }
+  .search-field input::placeholder { color: var(--ink-faint); }
+  .search-form .secondary-button { min-height: 38px; font-size: 11px; }
+  .filter-hint { margin-left: auto; color: var(--ink-faint); font-size: 10px; }
+  .selection-bar { display: flex; min-height: 37px; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 18px; color: var(--accent-strong); background: color-mix(in srgb,var(--accent-soft) 55%,transparent); border-bottom: 1px solid rgba(217,95,134,.13); font-size: 10px; }
+  .selection-bar p { margin: 0; }
+  .text-button { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 3px 7px; color: var(--violet); background: transparent; border-radius: 6px; font-size: 10px; }
+  .text-button:hover { color: var(--accent-strong); background: var(--surface-hover); }
+  .text-button.danger { color: var(--danger); }
+  .table-scroll { overflow-x: auto; }
+  .persons-table { width: 100%; min-width: 790px; border-collapse: collapse; text-align: left; }
+  .persons-table th { padding: 11px 13px; color: var(--ink-faint); background: var(--surface-muted); border-bottom: 1px solid var(--line); font-size: 10px; font-weight: 650; white-space: nowrap; }
+  .persons-table td { padding: 13px; color: var(--ink-soft); border-bottom: 1px solid var(--line); font-size: 11px; vertical-align: middle; }
+  .persons-table tbody tr:last-child td { border-bottom: 0; }
+  .persons-table tbody tr:hover { background: var(--surface-hover); }
+  .persons-table tbody tr.selected { background: color-mix(in srgb,var(--accent-soft) 25%,var(--surface-solid)); }
+  .persons-table .check-cell { width: 40px; padding-left: 18px; padding-right: 6px; }
+  input[type="checkbox"] { width: 14px; height: 14px; margin: 0; accent-color: var(--accent); cursor: pointer; vertical-align: middle; }
+  input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; box-shadow: none; }
+  .id-cell { width: 74px; color: var(--ink-faint) !important; font: 10px ui-monospace,SFMono-Regular,Consolas,monospace !important; }
+  .name-cell { min-width: 160px; width: 20%; }
+  .person-name { padding: 2px 0; color: var(--ink); background: transparent; font-size: 12px; font-weight: 700; text-align: left; border-radius: 3px; }
+  .person-name:hover { color: var(--accent-strong); }
+  .duplicate-badge { display: inline-block; margin-left: 6px; padding: 1px 5px; color: var(--violet); background: var(--violet-soft); border-radius: 4px; font-size: 9px; white-space: nowrap; }
+  .description-cell { min-width: 220px; width: 37%; }
+  .description-summary { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: var(--ink-soft); font-size: 10px; line-height: 1.8; overflow-wrap: anywhere; }
+  .description-summary.empty { color: var(--ink-faint); font-style: italic; }
+  .date-cell { width: 132px; font-size: 10px !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .row-actions { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .row-action { display: grid; width: 29px; height: 29px; place-items: center; color: var(--ink-faint); background: transparent; border-radius: 7px; }
+  .row-action:hover { color: var(--accent-strong); background: var(--accent-soft); }
+  .row-action.danger:hover { color: var(--danger); background: var(--danger-soft); }
+  .row-action .icon { width: 15px; height: 15px; }
+  .list-state { display: grid; min-height: 270px; justify-items: center; align-content: center; padding: 35px 20px; color: var(--ink-faint); text-align: center; }
+  .state-icon { display: grid; width: 52px; height: 52px; place-items: center; margin-bottom: 14px; color: var(--violet); background: var(--violet-soft); border-radius: 18px 13px 18px 13px; }
+  .state-icon .icon { width: 24px; height: 24px; }
+  .list-state h3 { margin: 0; color: var(--ink); font: 700 16px var(--font-display); }
+  .list-state p { max-width: 420px; margin: 7px 0 15px; color: var(--ink-soft); font-size: 11px; line-height: 1.8; }
+  .list-state.error .state-icon { color: var(--danger); background: var(--danger-soft); }
+  .pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 61px; padding: 12px 18px; border-top: 1px solid var(--line); }
+  .page-summary { color: var(--ink-faint); font-size: 10px; }
+  .page-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 10px; }
+  .page-note { color: var(--ink-faint); }
+  .page-controls button { display: grid; min-width: 29px; height: 29px; place-items: center; color: var(--ink-soft); background: transparent; border: 1px solid transparent; border-radius: 7px; font-size: 10px; }
+  .page-controls button:hover:not(:disabled) { color: var(--accent-strong); background: var(--surface-hover); }
+  .page-controls button.current { color: #fff; background: var(--accent); }
+  .page-numbers { display: flex; gap: 3px; }
+  .page-size,.jump-page { height: 30px; padding: 0 7px; color: var(--ink-soft); background: var(--surface-solid); border: 1px solid var(--line); border-radius: 7px; outline: none; font-size: 10px; }
+  .jump-page { width: 44px; text-align: center; }
+  .page-size:focus,.jump-page:focus { border-color: var(--accent); box-shadow: var(--focus); }
+  .pagination-errors { padding: 0 18px 10px; color: var(--danger); font-size: 10px; }
+  .list-footnote { display: flex; align-items: flex-start; gap: 7px; padding: 13px 3px 0; color: var(--ink-faint); font-size: 10px; line-height: 1.8; }
+  .list-footnote .icon { width: 13px; height: 13px; margin-top: 3px; }
+  .notice { display: flex; align-items: flex-start; gap: 8px; padding: 11px 12px; margin: 0 0 16px; color: var(--danger); background: var(--danger-soft); border: 1px solid rgba(200,76,92,.15); border-radius: 10px; font-size: 11px; line-height: 1.8; }
+  .notice .icon { width: 15px; height: 15px; margin-top: 2px; }
+  .notice p { margin: 0; }
+  .notice.info { color: var(--violet); background: var(--violet-soft); border-color: rgba(117,103,170,.12); }
+  .notice.success { color: var(--success); background: var(--success-soft); border-color: rgba(57,131,111,.14); margin-top: 16px; margin-bottom: 0; }
+  .drawer-scrim,.modal-layer,.mobile-scrim { position: fixed; inset: 0; background: rgba(21,20,35,.4); opacity: 0; visibility: hidden; transition: opacity .2s,visibility .2s; }
+  .drawer-scrim { z-index: 30; }
+  .drawer-scrim.open,.modal-layer.open,.mobile-scrim.open { opacity: 1; visibility: visible; }
+  .person-drawer { position: fixed; inset: 0 0 0 auto; z-index: 31; display: flex; width: min(520px,100%); height: 100dvh; flex-direction: column; color: var(--ink); background: var(--surface-solid); box-shadow: -20px 0 60px rgba(24,22,46,.17); transform: translateX(103%); transition: transform .24s; }
+  .person-drawer.open { transform: translateX(0); }
+  .drawer-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 23px 24px 18px; border-bottom: 1px solid var(--line); }
+  .drawer-header h2 { margin: 0; color: var(--ink); font: 700 20px/1.4 var(--font-display); }
+  .drawer-header p { margin: 4px 0 0; color: var(--ink-faint); font-size: 10px; }
+  .drawer-body { flex: 1; min-height: 0; overflow-y: auto; padding: 22px 24px; }
+  .drawer-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 24px; background: var(--surface-solid); border-top: 1px solid var(--line); }
+  .footer-note { max-width: 210px; color: var(--ink-faint); font-size: 9px; line-height: 1.7; }
+  .footer-actions { display: flex; gap: 8px; }
+  fieldset { min-width: 0; padding: 0; margin: 0; border: 0; }
+  .person-fields { display: grid; gap: 21px; }
+  .field { display: grid; gap: 7px; min-width: 0; }
+  .field label { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--ink-soft); font-size: 11px; font-weight: 650; }
+  .required { color: var(--accent-strong); }
+  .field input,.field textarea { width: 100%; padding: 0 12px; color: var(--ink); background: var(--surface-solid); border: 1px solid var(--line); border-radius: 9px; outline: none; font: 12px/1.8 var(--font-body); transition: border-color .15s,box-shadow .15s; }
+  .field input { height: 42px; }
+  .field textarea { min-height: 180px; padding: 11px 12px; resize: vertical; }
+  .field input:hover,.field textarea:hover { border-color: var(--line-strong); }
+  .field input:focus,.field textarea:focus { border-color: var(--accent); box-shadow: var(--focus); }
+  .field input::placeholder,.field textarea::placeholder { color: var(--ink-faint); }
+  .field.invalid input { border-color: var(--danger); }
+  .field-error { margin: 0; color: var(--danger); font-size: 10px; }
+  .field-error:empty { display: none; }
+  .field-hint { margin: 0; color: var(--ink-faint); font-size: 10px; line-height: 1.8; }
+  .field-count { color: var(--ink-faint); font-size: 9px; font-weight: 400; font-variant-numeric: tabular-nums; }
+  .same-name-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 22px; padding: 12px; color: var(--violet); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 10px; font-size: 10px; line-height: 1.8; }
+  .same-name-note .icon { width: 14px; height: 14px; margin-top: 2px; }
+  .detail-heading { padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .detail-id { display: inline-flex; padding: 4px 7px; margin-bottom: 12px; color: var(--violet); background: var(--violet-soft); border: 1px solid rgba(117,103,170,.1); border-radius: 6px; font: 10px ui-monospace,SFMono-Regular,Consolas,monospace; }
+  .detail-heading h3 { margin: 0; font: 700 25px/1.4 var(--font-display); overflow-wrap: anywhere; }
+  .detail-heading p { margin: 7px 0 0; color: var(--ink-faint); font-size: 10px; }
+  .detail-label { margin: 0 0 9px; color: var(--ink-soft); font-size: 11px; font-weight: 650; }
+  .detail-description { min-height: 130px; padding: 15px; color: var(--ink-soft); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 11px; font-size: 12px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .detail-metadata { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 19px 0 0; }
+  .detail-metadata div { padding: 12px; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 10px; }
+  .detail-metadata dt { margin-bottom: 6px; color: var(--ink-faint); font-size: 10px; }
+  .detail-metadata dd { margin: 0; color: var(--ink-soft); font-size: 11px; font-weight: 600; line-height: 1.7; }
+  .detail-danger { display: flex; justify-content: flex-end; padding-top: 20px; margin-top: 22px; border-top: 1px dashed var(--line-strong); }
+  .drawer-state { display: grid; min-height: 280px; place-content: center; justify-items: center; text-align: center; }
+  .drawer-state h3 { margin: 0 0 7px; font: 700 17px var(--font-display); }
+  .drawer-state p { max-width: 330px; margin: 0 0 17px; color: var(--ink-soft); font-size: 11px; line-height: 1.8; }
+  .modal-layer { z-index: 40; display: grid; place-items: center; padding: 20px; }
+  .modal-layer.discard-layer { z-index: 50; }
+  .dialog { width: min(460px,100%); max-height: calc(100dvh - 40px); padding: 24px; overflow-y: auto; color: var(--ink); background: var(--surface-solid); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); }
+  .dialog-mark { display: grid; width: 41px; height: 41px; place-items: center; margin-bottom: 15px; color: var(--danger); background: var(--danger-soft); border-radius: 14px; }
+  .dialog-mark.violet { color: var(--violet); background: var(--violet-soft); }
+  .dialog h2 { margin: 0 0 8px; font: 700 19px/1.4 var(--font-display); }
+  .dialog > p { margin: 0; color: var(--ink-soft); font-size: 11px; line-height: 1.85; }
+  .delete-targets { display: grid; gap: 7px; max-height: 160px; padding: 11px; margin: 15px 0; overflow-y: auto; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 10px; list-style: none; }
+  .delete-targets li { display: flex; align-items: baseline; gap: 10px; }
+  .delete-targets code { min-width: 55px; color: var(--ink-faint); font: 10px ui-monospace,SFMono-Regular,Consolas,monospace; }
+  .delete-targets strong { color: var(--ink); font-size: 11px; font-weight: 650; overflow-wrap: anywhere; }
+  .delete-check { display: flex; align-items: flex-start; gap: 8px; color: var(--ink-soft); font-size: 10px; line-height: 1.9; }
+  .delete-check input { flex: 0 0 auto; margin-top: 3px; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 21px; }
+  .dialog .notice { margin-top: 15px; margin-bottom: 13px; }
+  .mobile-scrim { z-index: 19; }
+  .busy-icon { animation: rotate 1.3s linear infinite; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  @keyframes rotate { to { transform: rotate(360deg); } }
+  @media (max-width: 1200px) { .content { padding: 22px 22px 36px; } .filter-hint { display: none; } .header-actions { gap: 8px; } .result-meta { display: none; } }
+  @media (max-width: 920px) { .sidebar { transform: translateX(-102%); } .sidebar.open { transform: translateX(0); } .main-shell { margin-left: 0; } .menu-toggle { display: grid; } .topbar { padding: 0 18px; } }
+  @media (max-width: 620px) { .topbar { height: 60px; padding: 0 12px; } .topbar-left { gap: 5px; } .topbar-actions { gap: 5px; } .breadcrumb { font-size: 10px; gap: 6px; } .avatar-copy { display: none; } .workspace-tabbar { height: 41px; padding: 0 12px; } .content { padding: 14px 11px 28px; } .persons-hero { min-height: 0; padding: 20px; align-items: flex-start; flex-direction: column; border-radius: 18px; gap: 17px; } .persons-hero h1 { font-size: 26px; } .persons-hero h1 span { display: block; margin: 7px 0 0; font-size: 10px; } .persons-hero::before { right: -62px; } .hero-action { width: 100%; } .hero-action button { width: 100%; } .stats-grid { gap: 7px; } .stat-card { padding: 11px 10px; flex-direction: column; align-items: flex-start; gap: 8px; } .stat-icon { width: 29px; height: 29px; border-radius: 9px; } .stat-icon .icon { width: 16px; height: 16px; } .stat-copy span { font-size: 9px; } .stat-copy strong { font-size: 18px; } .list-header { align-items: flex-start; flex-direction: column; gap: 12px; padding: 15px; } .header-actions { width: 100%; justify-content: flex-end; } .list-header p { font-size: 9px; } .search-form { flex-wrap: wrap; padding: 12px; } .search-field { width: 100%; } .search-form > button { flex: 1; } .selection-bar { padding: 7px 12px; } .pagination { flex-direction: column; align-items: flex-start; padding: 12px; } .page-controls { gap: 5px; } .drawer-header { padding: 20px 18px 16px; } .drawer-body { padding: 19px 18px; } .drawer-footer { align-items: flex-start; flex-direction: column; padding: 13px 18px; gap: 9px; } .footer-note { max-width: none; } .footer-actions { width: 100%; } .footer-actions button { flex: 1; } .dialog { padding: 22px 19px; } }
+  @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body class="persons-page">
+<svg width="0" height="0" aria-hidden="true" style="position:absolute;overflow:hidden">
+    <defs>
+      <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m3 7 9 6 9-6"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 4-3.5 7-8 9-4.5-2-8-5-8-9V6l8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h11M4 17h16"/></symbol>
+      <symbol id="i-theme" viewBox="0 0 24 24"><path d="M20 15.2A8 8 0 1 1 8.8 4 6.7 6.7 0 0 0 20 15.2Z"/></symbol>
+      <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Zm10-13 3 3"/></symbol>
+      <symbol id="i-unlink" viewBox="0 0 24 24"><path d="m9 15 6-6M8 5l1-1a5 5 0 0 1 7 7l-1 1M9 12l-1 1a5 5 0 0 0 7 7l1-1M3 3l3 3m12 12 3 3M4 10H1m22 4h-3"/></symbol>
+      <symbol id="i-anime" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m10 9 5 3-5 3V9ZM7 4l2-2m8 2-2-2"/></symbol>
+      <symbol id="i-series" viewBox="0 0 24 24"><path d="M6 3h12v18H6zM9 7h6M9 11h6M9 15h3"/></symbol>
+      <symbol id="i-tags" viewBox="0 0 24 24"><path d="m20 13-7 7L4 11V4h7l9 9ZM8 8h.01"/></symbol>
+      <symbol id="i-company" viewBox="0 0 24 24"><path d="M4 21V8l8-4v17M12 11l8-3v13M8 11v1m0 3v1m8-3v1m0 3v1M2 21h20"/></symbol>
+      <symbol id="i-types" viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="7" rx="2"/><rect x="14" y="4" width="7" height="7" rx="2"/><rect x="3" y="15" width="7" height="6" rx="2"/><rect x="14" y="15" width="7" height="6" rx="2"/></symbol>
+      <symbol id="i-region" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+    </defs>
+  </svg>
+<svg width="0" height="0" aria-hidden="true" style="position:absolute;overflow:hidden"><defs>
+  <symbol id="i-person-plus" viewBox="0 0 24 24"><path d="M4 20v-2a6 6 0 0 1 10-4M18 13v8m-4-4h8"/><circle cx="10" cy="7" r="4"/></symbol>
+  <symbol id="i-view" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-delete" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 6v5h-5M4 18v-5h5M18.5 11A7 7 0 0 0 6 7L4 9m2 4a7 7 0 0 0 12 4l2-2"/></symbol>
+</defs></svg>
+<div class="app-shell" id="appShell">
+  <aside class="sidebar" id="sidebar" aria-label="主导航">
+    <a class="brand" href="anime-management.html"><span class="brand-mark">A</span><span><span class="brand-name">ACGBox</span><span class="brand-caption">animation archive</span></span></a>
+    <p class="nav-label">内容工作台</p>
+    <nav><ul class="nav-list">
+      <li><a class="nav-item" href="anime-management.html"><span class="nav-icon"><svg class="icon"><use href="#i-anime"/></svg></span>动画管理</a></li>
+      <li><a class="nav-item" href="series-management.html"><span class="nav-icon"><svg class="icon"><use href="#i-series"/></svg></span>系列管理</a></li>
+      <li><a class="nav-item active" href="persons-management.html" aria-current="page"><span class="nav-icon"><svg class="icon"><use href="#i-user"/></svg></span>人物管理</a></li>
+      <li><a class="nav-item" href="tag-management.html"><span class="nav-icon"><svg class="icon"><use href="#i-tags"/></svg></span>标签管理</a></li>
+      <li><a class="nav-item" href="companies-management.html"><span class="nav-icon"><svg class="icon"><use href="#i-company"/></svg></span>制作公司管理</a></li>
+    </ul></nav>
+    <p class="nav-label">资料字典</p>
+    <nav><ul class="nav-list">
+      <li><a class="nav-item" href="broadcast-type-management.html"><span class="nav-icon"><svg class="icon"><use href="#i-anime"/></svg></span>放送类型管理</a></li>
+      <li><a class="nav-item" href="adaptation-type-management.html"><span class="nav-icon"><svg class="icon"><use href="#i-types"/></svg></span>改编类型管理</a></li>
+      <li><a class="nav-item" href="region-management.html"><span class="nav-icon"><svg class="icon"><use href="#i-region"/></svg></span>地区管理</a></li>
+    </ul></nav>
+    <p class="nav-label">我的工作台</p>
+    <nav><ul class="nav-list"><li><a class="nav-item" href="system-settings.html"><span class="nav-icon"><svg class="icon"><use href="#i-types"/></svg></span>系统设置</a></li></ul></nav>
+    <div class="nav-note"><div class="signal-card"><span class="brand-mark" style="width:28px;height:28px;font-size:12px;border-radius:9px">A</span><span class="signal-copy"><strong>每一份署名，都值得归档。</strong><span>ACGBox · People directory</span></span></div></div>
+  </aside>
+  <div class="mobile-scrim" id="mobileScrim" aria-hidden="true" onclick="toggleSidebar(false)"></div>
+  <div class="main-shell">
+    <header class="topbar"><div class="topbar-left"><button class="icon-button menu-toggle" type="button" aria-label="打开导航" onclick="toggleSidebar(true)"><svg class="icon"><use href="#i-menu"/></svg></button><div class="breadcrumb"><span>内容管理</span><span class="breadcrumb-separator">/</span><strong>人物管理</strong></div></div><div class="topbar-actions"><button class="icon-button" id="themeToggle" type="button" aria-label="切换明暗主题" title="切换明暗主题" onclick="toggleTheme()"><svg class="icon"><use href="#i-theme"/></svg></button><a class="avatar-button" href="account-profile-edit.html" aria-label="个人账号设置" style="color:inherit;text-decoration:none"><span class="avatar"><svg class="icon"><use href="#i-user"/></svg></span><span class="avatar-copy"><strong>内容编辑</strong><span>编辑</span></span></a></div></header>
+    <nav class="workspace-tabbar" aria-label="已打开页面"><span class="workspace-tab-count">1</span><div class="workspace-tab"><span>✦</span>人物管理</div></nav>
+    <main class="content">
+      <section class="persons-hero" aria-labelledby="pageTitle"><div class="hero-copy"><p class="eyebrow">CONTENT ARCHIVE / PEOPLE INDEX</p><h1 id="pageTitle">人物管理 <span>/ 创作人员档案</span></h1><p>记录常用署名与人物简介。保留同名人物的独立档案，让每一份署名都能清晰辨认。</p></div><div class="hero-action"><button class="primary-button" type="button" id="addPerson" onclick="openDrawer('create')"><svg class="icon"><use href="#i-person-plus"/></svg>新增人物</button></div></section>
+      <div class="notice success" id="savedNotice" role="status" hidden><svg class="icon"><use href="#i-check"/></svg><p>人物资料已保存。</p></div>
+      <section class="stats-grid" aria-label="人物档案概况"><article class="stat-card"><span class="stat-icon"><svg class="icon"><use href="#i-user"/></svg></span><span class="stat-copy"><span>档案总数</span><strong id="totalCount">—</strong></span></article><article class="stat-card"><span class="stat-icon"><svg class="icon"><use href="#i-series"/></svg></span><span class="stat-copy"><span>当前页记录</span><strong id="pageCount">—</strong></span></article><article class="stat-card"><span class="stat-icon"><svg class="icon"><use href="#i-check"/></svg></span><span class="stat-copy"><span>已选人物</span><strong id="selectedCount">0</strong></span></article></section>
+      <section class="list-card" aria-labelledby="listTitle">
+        <header class="list-header"><div><div class="list-heading"><h2 id="listTitle">人物档案</h2><span class="sample-label">示例档案</span></div><p>按最近更新排序 · 同名人物请结合 ID 与简介区分</p></div><div class="header-actions"><span class="result-meta" id="resultMeta">—</span><button class="danger-button" id="deleteSelected" type="button" disabled onclick="openDelete(Array.from(state.selected))"><svg class="icon"><use href="#i-delete"/></svg><span id="deleteSelectedLabel">删除所选</span></button></div></header>
+        <form class="search-form" id="searchForm"><label class="search-field"><svg class="icon"><use href="#i-search"/></svg><input id="personSearch" name="name" type="search" autocomplete="off" placeholder="按姓名或常用署名搜索" aria-label="按人物姓名模糊搜索" /></label><button class="secondary-button" id="searchButton" type="submit">查询</button><button class="secondary-button" type="button" onclick="resetSearch()">重置</button><span class="filter-hint">同名可保留，档案不自动合并。</span></form>
+        <div class="selection-bar" id="selectionBar" hidden><p><span id="selectionText">已选 0 位人物</span> · 跨页保留选择</p><button class="text-button" type="button" onclick="clearSelection()">清空选择</button></div>
+        <div class="table-scroll" id="tableWrap"><table class="persons-table" id="personsTable"><thead><tr><th class="check-cell"><input id="selectAll" type="checkbox" aria-label="选择当前页全部人物" onchange="toggleAll(this.checked)" /></th><th scope="col">ID</th><th scope="col">姓名 / 常用署名</th><th scope="col">人物简介</th><th scope="col">更新时间</th><th scope="col">操作</th></tr></thead><tbody id="personRows"></tbody></table></div>
+        <section class="list-state" id="listState" role="status" hidden><span class="state-icon"><svg class="icon" id="stateIcon"><use href="#i-search"/></svg></span><h3 id="stateTitle">没有匹配的人物</h3><p id="stateDescription">请尝试其他姓名，或清空查询条件。</p><button class="secondary-button" id="stateButton" type="button" onclick="retryList()">重新加载</button></section>
+        <footer class="pagination" id="pagination"><span class="page-summary" id="pageSummary">—</span><div class="page-controls"><label class="page-note" for="pageSize">每页</label><select class="page-size" id="pageSize" aria-label="每页条数"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select><button id="prevPage" type="button" aria-label="上一页" onclick="changePage(state.pageNum-1)">‹</button><span class="page-numbers" id="pageNumbers"></span><button id="nextPage" type="button" aria-label="下一页" onclick="changePage(state.pageNum+1)">›</button><label class="page-note" for="jumpPage">跳至</label><input class="jump-page" id="jumpPage" type="number" min="1" value="1" aria-describedby="pageJumpError" /><span class="page-note">页</span></div></footer>
+        <div class="pagination-errors" id="pageJumpError" role="status" hidden></div>
+      </section>
+      <p class="list-footnote"><svg class="icon"><use href="#i-shield"/></svg><span>人物被作品引用时不能删除；批量操作中任一人物被引用，整批均不删除。删除人物不会删除作品或自动解除关联。</span></p>
+    </main>
+  </div>
+</div>
+<div class="drawer-scrim" id="drawerScrim" aria-hidden="true" onclick="requestCloseDrawer()"></div>
+<aside class="person-drawer" id="personDrawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" inert>
+  <header class="drawer-header"><div><h2 id="drawerTitle">新增人物</h2><p id="drawerSubtitle">创建独立的人物档案</p></div><button class="icon-button" id="drawerClose" type="button" aria-label="关闭人物抽屉" onclick="requestCloseDrawer()"><svg class="icon"><use href="#i-close"/></svg></button></header>
+  <div class="drawer-body">
+    <section class="drawer-state" id="drawerState" role="status" hidden><span class="state-icon"><svg class="icon"><use href="#i-info"/></svg></span><h3 id="drawerStateTitle">人物资料读取失败</h3><p id="drawerStateDescription">请重新读取后再编辑，避免覆盖未获取的资料。</p><button class="secondary-button" id="retryDrawer" type="button" onclick="retryDrawer()">重新读取</button></section>
+    <form id="personForm" novalidate>
+      <fieldset class="person-fields" id="personFields">
+        <div class="notice" id="formAlert" role="alert" hidden><svg class="icon"><use href="#i-info"/></svg><p id="formAlertText"></p></div>
+        <div class="field" id="nameField"><label for="personName"><span>姓名 / 常用署名 <span class="required" aria-hidden="true">*</span></span><span class="field-count" id="nameCount">0 / 100</span></label><input id="personName" name="name" maxlength="100" autocomplete="off" required placeholder="请输入常用署名或笔名" aria-describedby="nameHint nameError" /><p class="field-error" id="nameError" role="status"></p><p class="field-hint" id="nameHint">最多 100 个字符，保存时去除首尾空格。允许与已有档案同名。</p></div>
+        <div class="field"><label for="personDescription">人物简介 <span class="field-count">选填</span></label><textarea id="personDescription" name="description" rows="8" placeholder="可补充创作经历、参与领域或其他有助于区分同名人物的信息。" aria-describedby="descriptionHint"></textarea><p class="field-hint" id="descriptionHint">可留空；编辑时清空此项将移除原简介。</p></div>
+      </fieldset>
+      <div class="same-name-note"><svg class="icon"><use href="#i-info"/></svg><span>同名人物是独立档案。建议填写易于辨认的简介，选择人员时同时核对姓名、ID 与简介。</span></div>
+    </form>
+    <section id="detailPanel" aria-label="人物完整资料" hidden>
+      <header class="detail-heading"><span class="detail-id" id="detailId">ID · —</span><h3 id="detailName">—</h3><p id="detailDuplicateNote" hidden>另有同名档案，请通过 ID 与简介区分。</p></header>
+      <h4 class="detail-label">人物简介</h4><div class="detail-description" id="detailDescription"></div>
+      <dl class="detail-metadata"><div><dt>创建时间</dt><dd id="detailCreatedAt">—</dd></div><div><dt>更新时间</dt><dd id="detailUpdatedAt">—</dd></div></dl>
+      <div class="detail-danger"><button class="text-button danger" type="button" onclick="openDelete([state.currentId])"><svg class="icon"><use href="#i-delete"/></svg>删除人物</button></div>
+    </section>
+  </div>
+  <footer class="drawer-footer"><span class="footer-note" id="drawerFootnote">姓名必填，简介可选。</span><div class="footer-actions"><button class="secondary-button" id="drawerCancel" type="button" onclick="requestCloseDrawer()">取消</button><button class="primary-button" id="savePerson" type="submit" form="personForm">保存人物</button><button class="primary-button" id="editPerson" type="button" onclick="openDrawer('edit',state.currentId)" hidden><svg class="icon"><use href="#i-edit"/></svg>编辑人物</button></div></footer>
+</aside>
+<div class="modal-layer" id="deleteModal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" aria-describedby="deleteDescription" hidden>
+  <section class="dialog"><span class="dialog-mark"><svg class="icon"><use href="#i-delete"/></svg></span><h2 id="deleteTitle">确认删除人物？</h2><p id="deleteDescription">请核对姓名与 ID。删除只涉及人物档案，不会自动解除作品引用，也不会删除作品。</p><ul class="delete-targets" id="deleteTargets"></ul><div class="notice info"><svg class="icon"><use href="#i-shield"/></svg><p>如任一所选人物仍被作品引用，本次整批删除将被拒绝。</p></div><div class="notice" id="deleteAlert" role="alert" hidden><svg class="icon"><use href="#i-info"/></svg><p id="deleteAlertText"></p></div><label class="delete-check"><input id="deleteConfirmed" type="checkbox" /><span>我已核对所选人物的姓名与 ID。</span></label><div class="dialog-actions"><button class="secondary-button" id="cancelDelete" type="button" onclick="closeDelete()">取消</button><button class="danger-button" id="confirmDelete" type="button" onclick="confirmDelete()">确认删除</button></div></section>
+</div>
+<div class="modal-layer discard-layer" id="discardModal" role="dialog" aria-modal="true" aria-labelledby="discardTitle" hidden>
+  <section class="dialog"><span class="dialog-mark violet"><svg class="icon"><use href="#i-edit"/></svg></span><h2 id="discardTitle">放弃未保存的修改？</h2><p>当前人物资料尚未保存。放弃后会清空本次填写的内容，已有档案保持不变。</p><div class="dialog-actions"><button class="secondary-button" id="keepEditing" type="button" onclick="keepEditing()">继续编辑</button><button class="primary-button" type="button" onclick="discardChanges()">放弃修改</button></div></section>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g,char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[char]);
+  const icon = name => '<svg class="icon" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
+  const initialPersons = [
+    { id:1068, name:'林遥', description:'动画创作者，关注人物动作与日常叙事。主要参与分镜、原画及影像创作。\n署名核对备注：与同名音乐创作者为不同人员，请按人物 ID 区分。', createdAt:'2026-08-12T09:30:00', updatedAt:'2026-10-25T11:40:00' },
+    { id:1065, name:'南川灯', description:'从事动画影像与视觉企划，关注场景叙事、镜头节奏和色彩表达。', createdAt:'2026-08-15T14:20:00', updatedAt:'2026-10-25T10:15:00' },
+    { id:1061, name:'白石奏', description:'参与动画配乐与声音制作，常以室内乐编制结合电子音色展开创作。', createdAt:'2026-09-02T10:00:00', updatedAt:'2026-10-24T18:30:00' },
+    { id:1057, name:'林遥', description:'音乐创作者，参与配乐编曲与录音统筹。\n与同名动画创作者为不同人员，引用作品时请核对本档案 ID。', createdAt:'2026-09-04T11:12:00', updatedAt:'2026-10-24T18:30:00' },
+    { id:1052, name:'浅野纱月', description:'以细腻的角色表情和人物关系描写为创作方向，参与短篇动画项目。', createdAt:'2026-09-06T16:20:00', updatedAt:'2026-10-23T15:18:00' },
+    { id:1048, name:'星见澈', description:'参与背景美术、视觉概念与场景设计，关注光线和空间的叙事作用。', createdAt:'2026-09-09T09:40:00', updatedAt:'2026-10-22T17:06:00' },
+    { id:1044, name:'藤间夏树', description:'从事动画文本创作与叙事整理，常参与系列企划的前期讨论。', createdAt:'2026-09-12T15:10:00', updatedAt:'2026-10-21T12:42:00' },
+    { id:1039, name:'青木凛', description:null, createdAt:'2026-09-16T11:30:00', updatedAt:'2026-10-20T10:05:00' },
+    { id:1033, name:'森野栞', description:'影像与平面创作者，参与动画片头、视觉包装及相关图形设计。', createdAt:'2026-09-18T14:40:00', updatedAt:'2026-10-18T16:22:00' },
+    { id:1027, name:'朝雾律', description:'关注群像叙事与角色对白，参与原创短篇和长篇动画的文本整理。', createdAt:'2026-09-21T10:20:00', updatedAt:'2026-10-17T14:38:00' },
+    { id:1021, name:'水原悠', description:'参与声音表演与音频录制，署名信息以具体作品中的记录为准。', createdAt:'2026-09-24T13:15:00', updatedAt:'2026-10-15T09:50:00' },
+    { id:1014, name:'柳泽千寻', description:'动画创作者，参与人物设定、绘制和制作协作。', createdAt:'2026-09-28T09:12:00', updatedAt:'2026-10-12T13:20:00' }
+  ].sort((a,b) => b.updatedAt.localeCompare(a.updatedAt) || b.id-a.id);
+  const state = { rows:[...initialPersons], selected:new Set(), pageNum:1, pageSize:20, appliedName:'', loading:false, listError:false, searchTimer:null, drawerMode:null, currentId:null, formSnapshot:'', drawerFocus:null, busy:false, deleteIds:[], deleteFocus:null, drawerFailed:false };
+  const personById = id => state.rows.find(row => row.id === Number(id));
+  const sameNameCount = name => state.rows.filter(row => row.name === name).length;
+  const filteredRows = () => state.rows.filter(row => !state.appliedName || row.name.toLocaleLowerCase().includes(state.appliedName.toLocaleLowerCase()));
+  const fullDate = value => new Intl.DateTimeFormat('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value));
+  const formSnapshot = () => JSON.stringify({name:$('personName').value,description:$('personDescription').value});
+  const formDirty = () => ['create','edit'].includes(state.drawerMode) && formSnapshot() !== state.formSnapshot;
+  const getCloseState = () => ({dirty:formDirty(),submitting:state.busy});
+  function toggleSidebar(open) { $('sidebar').classList.toggle('open',open); $('mobileScrim').classList.toggle('open',open); }
+  function toggleTheme() { document.body.dataset.theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark'; }
+  try { document.body.dataset.theme = localStorage.getItem('acgbox-theme') === 'dark' ? 'dark' : 'light'; } catch { document.body.dataset.theme = 'light'; }
+
+  function renderList() {
+    const filtered = filteredRows(), pages = Math.max(1,Math.ceil(filtered.length/state.pageSize));
+    state.pageNum = Math.max(1,Math.min(state.pageNum,pages));
+    const first = (state.pageNum-1)*state.pageSize, visibleRows = filtered.slice(first,first+state.pageSize);
+    const showTable = !state.loading && !state.listError && visibleRows.length > 0;
+    $('tableWrap').hidden = !showTable; $('listState').hidden = showTable;
+    $('pagination').hidden = !showTable; $('pageJumpError').hidden = true;
+    $('totalCount').textContent = state.loading || state.listError ? '—' : state.rows.length;
+    $('pageCount').textContent = state.loading || state.listError ? '—' : visibleRows.length;
+    $('resultMeta').textContent = state.loading ? '正在读取…' : (state.listError ? '暂不可用' : '当前 ' + visibleRows.length + ' 条 · 匹配 ' + filtered.length + ' 条');
+    $('searchButton').disabled = state.loading;
+    $('personsTable').setAttribute('aria-busy',String(state.loading));
+    $('personRows').innerHTML = visibleRows.map(row => {
+      const duplicate = sameNameCount(row.name)>1;
+      return '<tr data-row-id="' + row.id + '">' +
+        '<td class="check-cell"><input type="checkbox" data-select-id="' + row.id + '" aria-label="选择' + escapeHTML(row.name) + '，ID ' + row.id + '"' + (state.selected.has(row.id) ? ' checked' : '') + ' /></td>' +
+        '<td class="id-cell">#' + row.id + '</td>' +
+        '<td class="name-cell"><button class="person-name" type="button" data-action="detail" data-id="' + row.id + '" aria-label="查看' + escapeHTML(row.name) + '，ID ' + row.id + '">' + escapeHTML(row.name) + '</button>' + (duplicate ? '<span class="duplicate-badge" title="存在同名档案，请核对 ID 和简介">同名</span>' : '') + '</td>' +
+        '<td class="description-cell"><span class="description-summary ' + (row.description ? '' : 'empty') + '" title="' + escapeHTML(row.description || '暂无简介') + '">' + escapeHTML(row.description || '暂无简介') + '</span></td>' +
+        '<td class="date-cell">' + fullDate(row.updatedAt) + '</td>' +
+        '<td><div class="row-actions">' + [['detail','view','查看详情'],['edit','edit','编辑'],['delete','delete','删除']].map(([action,glyph,label]) => '<button class="row-action ' + (action==='delete'?'danger':'') + '" type="button" data-action="' + action + '" data-id="' + row.id + '" title="' + label + '" aria-label="' + label + ' ' + escapeHTML(row.name) + '，ID ' + row.id + '">' + icon(glyph) + '</button>').join('') + '</div></td></tr>';
+    }).join('');
+    if (!showTable) {
+      const error = state.listError, loading = state.loading;
+      $('listState').classList.toggle('error',error);
+      $('stateIcon').classList.toggle('busy-icon',loading);
+      $('stateIcon').querySelector('use').setAttribute('href','#i-' + (loading || error ? 'refresh' : (state.appliedName ? 'search' : 'user')));
+      $('stateTitle').textContent = loading ? '正在读取人物档案…' : (error ? '人物资料读取失败' : (state.appliedName ? '没有匹配的人物' : '暂无人物档案'));
+      $('stateDescription').textContent = loading ? '请稍候，正在整理当前列表。' : (error ? '暂时无法读取人物资料，请稍后重新加载。' : (state.appliedName ? '请尝试其他姓名，或清空查询条件。' : '创建第一条人物档案后，将显示在这里。'));
+      $('stateButton').hidden = loading;
+      $('stateButton').textContent = error ? '重新加载' : (state.appliedName ? '清除筛选' : '新增人物');
+    }
+    $('pageSummary').textContent = '第 ' + (filtered.length ? first+1 : 0) + '–' + Math.min(first+visibleRows.length,filtered.length) + ' 条，共 ' + filtered.length + ' 条 · 第 ' + state.pageNum + ' / ' + pages + ' 页';
+    $('prevPage').disabled = state.pageNum<=1; $('nextPage').disabled = state.pageNum>=pages;
+    $('jumpPage').value = state.pageNum; $('jumpPage').max = pages; $('jumpPage').removeAttribute('aria-invalid');
+    const start = Math.max(1,Math.min(state.pageNum-2,pages-4));
+    $('pageNumbers').innerHTML = Array.from({length:Math.min(5,pages-start+1)},(_,index) => start+index).map(page => '<button type="button" data-page="' + page + '" class="' + (page===state.pageNum?'current':'') + '" aria-label="第 ' + page + ' 页"' + (page===state.pageNum?' aria-current="page"':'') + '>' + page + '</button>').join('');
+    renderSelection();
+  }
+  function renderSelection() {
+    const visible = filteredRows().slice((state.pageNum-1)*state.pageSize,state.pageNum*state.pageSize);
+    const count = visible.filter(row => state.selected.has(row.id)).length;
+    $('selectAll').checked = visible.length>0 && count===visible.length;
+    $('selectAll').indeterminate = count>0 && count<visible.length;
+    $('selectedCount').textContent = state.selected.size; $('deleteSelected').disabled = state.selected.size===0 || state.loading || state.listError;
+    $('deleteSelectedLabel').textContent = '删除所选' + (state.selected.size ? ' ' + state.selected.size : '');
+    $('selectionBar').hidden = state.selected.size===0;
+    $('selectionText').textContent = '已选 ' + state.selected.size + ' 位人物';
+    document.querySelectorAll('[data-row-id]').forEach(row => row.classList.toggle('selected',state.selected.has(Number(row.dataset.rowId))));
+    document.querySelectorAll('[data-select-id]').forEach(input => { input.checked=state.selected.has(Number(input.dataset.selectId)); });
+  }
+  function toggleAll(checked) {
+    filteredRows().slice((state.pageNum-1)*state.pageSize,state.pageNum*state.pageSize).forEach(row => checked ? state.selected.add(row.id) : state.selected.delete(row.id));
+    renderSelection();
+  }
+  function clearSelection() { state.selected.clear(); renderSelection(); }
+  function runSearch(event) {
+    if (event) event.preventDefault();
+    window.clearTimeout(state.searchTimer);
+    state.appliedName = $('personSearch').value.trim(); state.pageNum = 1; state.selected.clear(); state.listError = false; state.loading = true; renderList();
+    state.searchTimer = window.setTimeout(() => { state.loading=false; renderList(); },250);
+  }
+  function resetSearch() { $('personSearch').value = ''; runSearch(); }
+  function retryList() { if (state.listError) runSearch(); else if (state.appliedName) resetSearch(); else openDrawer('create'); }
+  function changePage(page) {
+    const pages = Math.max(1,Math.ceil(filteredRows().length/state.pageSize));
+    if (!Number.isInteger(Number(page)) || Number(page)<1 || Number(page)>pages) {
+      $('jumpPage').setAttribute('aria-invalid','true'); $('pageJumpError').textContent='请输入 1 至 ' + pages + ' 之间的整数页码。'; $('pageJumpError').hidden=false; return;
+    }
+    state.pageNum=Number(page); renderList();
+  }
+
+  function updateFormState() {
+    $('nameCount').textContent = $('personName').value.length + ' / 100';
+    $('savePerson').disabled = state.busy || (state.drawerMode==='edit' && !formDirty());
+  }
+  function openDrawer(mode,id) {
+    const person = mode==='create' ? null : personById(id);
+    if (state.busy || (mode!=='create' && !person)) return;
+    if (!state.drawerMode) state.drawerFocus=document.activeElement;
+    state.drawerMode=mode; state.currentId=person ? person.id : null; state.drawerFailed=false;
+    $('drawerTitle').textContent={create:'新增人物',edit:'编辑人物',detail:'人物详情'}[mode];
+    $('drawerSubtitle').textContent=person ? '人物档案 · ID ' + person.id : '创建独立的人物档案';
+    $('personForm').hidden=mode==='detail'; $('detailPanel').hidden=mode!=='detail'; $('drawerState').hidden=true;
+    $('savePerson').hidden=mode==='detail'; $('editPerson').hidden=mode!=='detail'; $('editPerson').disabled=false;
+    $('drawerCancel').textContent=mode==='detail'?'关闭':'取消'; $('drawerFootnote').textContent=mode==='detail'?'时间由系统维护，仅供查看。':'姓名必填，简介可选；允许同名。';
+    $('formAlert').hidden=true; $('nameError').textContent=''; $('nameField').classList.remove('invalid'); $('personName').removeAttribute('aria-invalid');
+    $('personName').value=person ? person.name : ''; $('personDescription').value=person && person.description ? person.description : '';
+    state.formSnapshot=formSnapshot(); updateFormState();
+    if (person) {
+      $('detailId').textContent='ID · ' + person.id; $('detailName').textContent=person.name; $('detailDescription').textContent=person.description || '暂无简介';
+      $('detailCreatedAt').textContent=fullDate(person.createdAt); $('detailUpdatedAt').textContent=fullDate(person.updatedAt); $('detailDuplicateNote').hidden=sameNameCount(person.name)<2;
+    }
+    $('appShell').inert=true; $('personDrawer').inert=false; $('personDrawer').classList.add('open'); $('personDrawer').setAttribute('aria-hidden','false'); $('drawerScrim').classList.add('open'); document.body.style.overflow='hidden';
+    (mode==='detail' ? $('drawerClose') : $('personName')).focus();
+  }
+  function closeDrawer() {
+    state.drawerMode=null; state.currentId=null; state.formSnapshot='';
+    $('personForm').reset(); $('personDrawer').classList.remove('open'); $('personDrawer').setAttribute('aria-hidden','true'); $('personDrawer').inert=true; $('drawerScrim').classList.remove('open'); $('appShell').inert=false; document.body.style.overflow='';
+    if (state.drawerFocus && state.drawerFocus.isConnected) state.drawerFocus.focus();
+  }
+  function requestCloseDrawer() {
+    if (state.busy || !state.drawerMode) return;
+    if (formDirty()) {
+      $('discardModal').hidden=false; $('discardModal').classList.add('open'); $('personDrawer').inert=true; $('keepEditing').focus();
+    } else closeDrawer();
+  }
+  function keepEditing() { $('discardModal').hidden=true; $('discardModal').classList.remove('open'); $('personDrawer').inert=false; $('personName').focus(); }
+  function discardChanges() { keepEditing(); closeDrawer(); }
+  function showDrawerError(loading=false) {
+    state.drawerFailed=true; $('personForm').hidden=true; $('detailPanel').hidden=true; $('drawerState').hidden=false;
+    $('drawerStateTitle').textContent=loading?'正在读取人物资料…':'人物资料读取失败';
+    $('drawerStateDescription').textContent=loading?'请稍候。':'请重新读取后再编辑，避免覆盖未获取的资料。';
+    $('retryDrawer').hidden=loading; $('savePerson').disabled=true; $('editPerson').disabled=true;
+  }
+  function retryDrawer() {
+    showDrawerError(true);
+    window.setTimeout(() => openDrawer(state.drawerMode,state.currentId),250);
+  }
+  function normalizedForm() { return {name:$('personName').value.trim(),description:$('personDescription').value.trim() || null}; }
+  function validatePerson() {
+    const value=normalizedForm();
+    const error=!value.name?'请填写人物姓名或常用署名。':(value.name.length>100?'姓名不能超过 100 个字符。':'');
+    $('nameError').textContent=error; $('nameField').classList.toggle('invalid',Boolean(error)); $('personName').setAttribute('aria-invalid',String(Boolean(error)));
+    if (error) $('personName').focus();
+    return !error;
+  }
+  function setBusy(busy) {
+    state.busy=busy; $('personFields').disabled=busy;
+    ['drawerClose','drawerCancel','cancelDelete','confirmDelete','deleteConfirmed'].forEach(id => { $(id).disabled=busy; });
+    $('personForm').setAttribute('aria-busy',String(busy)); $('deleteModal').setAttribute('aria-busy',String(busy));
+    updateFormState();
+  }
+
+  // 独立设计稿只呈现状态，不请求或修改人物接口；成功及引用保护画面可单独预览。
+  async function savePerson(event) {
+    event.preventDefault(); if (state.busy || state.drawerFailed || !validatePerson()) return;
+    $('formAlert').hidden=true; setBusy(true); $('savePerson').textContent='正在保存…';
+    await new Promise(resolve => window.setTimeout(resolve,650));
+    setBusy(false); $('savePerson').textContent='保存人物'; $('formAlertText').textContent='暂时无法保存人物资料，请稍后重试。填写的内容已保留。'; $('formAlert').hidden=false;
+  }
+
+  function openDelete(ids) {
+    if (state.busy || !ids.length) return;
+    const targets=ids.map(personById).filter(Boolean); if (!targets.length) return;
+    state.deleteIds=targets.map(person => person.id); state.deleteFocus=document.activeElement;
+    $('deleteTitle').textContent=targets.length>1?'确认删除这 ' + targets.length + ' 位人物？':'确认删除人物？';
+    $('deleteTargets').replaceChildren(...targets.map(person => {
+      const li=document.createElement('li'), code=document.createElement('code'), name=document.createElement('strong');
+      code.textContent='#' + person.id; name.textContent=person.name; li.append(code,name); return li;
+    }));
+    $('deleteConfirmed').checked=false; $('deleteAlert').hidden=true; $('confirmDelete').textContent='确认删除 ' + targets.length + ' 位';
+    $('appShell').inert=true; if (state.drawerMode) $('personDrawer').inert=true;
+    $('deleteModal').hidden=false; $('deleteModal').classList.add('open'); document.body.style.overflow='hidden'; $('cancelDelete').focus();
+  }
+  function closeDelete() {
+    if (state.busy) return;
+    state.deleteIds=[]; $('deleteModal').hidden=true; $('deleteModal').classList.remove('open');
+    if (state.drawerMode) $('personDrawer').inert=false;
+    else { $('appShell').inert=false; document.body.style.overflow=''; }
+    if (state.deleteFocus && state.deleteFocus.isConnected) state.deleteFocus.focus();
+  }
+  async function confirmDelete() {
+    if (state.busy || !state.deleteIds.length) return;
+    if (!$('deleteConfirmed').checked) {
+      $('deleteAlertText').textContent='请先核对并勾选确认框。'; $('deleteAlert').hidden=false; $('deleteConfirmed').focus(); return;
+    }
+    $('deleteAlert').hidden=true; setBusy(true); $('confirmDelete').textContent='正在删除…';
+    await new Promise(resolve => window.setTimeout(resolve,650));
+    setBusy(false); $('confirmDelete').textContent='确认删除 ' + state.deleteIds.length + ' 位';
+    $('deleteAlertText').textContent='删除未完成，请稍后重试。列表与已选人物均已保留。'; $('deleteAlert').hidden=false;
+  }
+
+  $('searchForm').addEventListener('submit',runSearch);
+  $('personForm').addEventListener('submit',savePerson);
+  $('personName').addEventListener('input',() => { $('nameError').textContent=''; $('nameField').classList.remove('invalid'); $('personName').removeAttribute('aria-invalid'); $('formAlert').hidden=true; updateFormState(); });
+  $('personDescription').addEventListener('input',() => { $('formAlert').hidden=true; updateFormState(); });
+  $('pageSize').addEventListener('change',event => { state.pageSize=Number(event.target.value); state.pageNum=1; renderList(); });
+  $('pageNumbers').addEventListener('click',event => { const button=event.target.closest('[data-page]'); if (button) changePage(Number(button.dataset.page)); });
+  $('jumpPage').addEventListener('keydown',event => { if (event.key==='Enter') { event.preventDefault(); changePage(Number(event.target.value)); } });
+  $('personRows').addEventListener('change',event => {
+    const input=event.target.closest('[data-select-id]'); if (!input) return;
+    const id=Number(input.dataset.selectId); input.checked?state.selected.add(id):state.selected.delete(id); renderSelection();
+  });
+  $('personRows').addEventListener('click',event => {
+    const button=event.target.closest('[data-action]'); if (!button) return;
+    if (button.dataset.action==='delete') openDelete([Number(button.dataset.id)]);
+    else openDrawer(button.dataset.action,Number(button.dataset.id));
+  });
+  document.addEventListener('keydown',event => {
+    if (event.key==='Escape') {
+      event.preventDefault();
+      if (!$('discardModal').hidden) keepEditing();
+      else if (!$('deleteModal').hidden) closeDelete();
+      else if (state.drawerMode) requestCloseDrawer();
+      else toggleSidebar(false);
+    }
+    if (event.key==='Tab') {
+      const layer=!$('discardModal').hidden?$('discardModal'):(!$('deleteModal').hidden?$('deleteModal'):(state.drawerMode?$('personDrawer'):null));
+      if (!layer) return;
+      const nodes=Array.from(layer.querySelectorAll('button:not(:disabled),input:not(:disabled),textarea:not(:disabled)')).filter(node => node.getClientRects().length);
+      if (!nodes.length) return;
+      const first=nodes[0],last=nodes[nodes.length-1];
+      if (event.shiftKey && document.activeElement===first) { event.preventDefault(); last.focus(); }
+      if (!event.shiftKey && document.activeElement===last) { event.preventDefault(); first.focus(); }
+    }
+  });
+  window.addEventListener('beforeunload',event => { const close=getCloseState(); if (close.dirty || close.submitting) { event.preventDefault(); event.returnValue=''; } });
+
+  function applyPreview() {
+    const view=location.hash.slice(1);
+    if (view==='empty') state.rows=[];
+    if (view==='error') state.listError=true;
+    if (view==='loading') state.loading=true;
+    renderList();
+    if (view==='create') openDrawer('create');
+    if (view==='edit') openDrawer('edit',1068);
+    if (view==='detail' || view==='detail-error' || view==='detail-loading') openDrawer('detail',1068);
+    if (view==='detail-error' || view==='detail-loading') showDrawerError(view==='detail-loading');
+    if (view==='save-success') $('savedNotice').hidden=false;
+    if (view==='delete-blocked') {
+      state.selected=new Set([1068,1057]); renderSelection(); openDelete([1068,1057]);
+      $('deleteConfirmed').checked=true; $('deleteAlertText').textContent='所选人物已被作品引用，不能删除，请先解除关联。'; $('deleteAlert').hidden=false;
+    }
+  }
+  applyPreview();
+</script>
+</body>
+</html>
+

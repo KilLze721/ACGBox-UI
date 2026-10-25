@@ -319,7 +319,7 @@ function getTabWrapper(component: VNode) {
 
 // 关联内容在当前标签内替换路由，并携带目标名称供列表初始化搜索。
 async function navigateLinkedContent(
-  path: '/admin/anime' | '/admin/series' | '/admin/companies',
+  path: '/admin/anime' | '/admin/series' | '/admin/companies' | '/admin/persons',
   keyword: string
 ) {
   const tab = activeTab.value

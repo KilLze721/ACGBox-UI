@@ -26,6 +26,8 @@ import {
 } from '@/api/catalog'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
+import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
+import RelatedAnimeNameLink from '@/components/admin/RelatedAnimeNameLink.vue'
 import type { AnimePageItem, AnimeSortField, CompanyOption, NamedOption, PageResult, SortDirection } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
@@ -482,7 +484,8 @@ async function confirmDelete() {
                   @change="toggleAll(($event.target as HTMLInputElement).checked)"
                 />
               </th>
-              <th>公司名称 / 简介</th>
+              <th class="companies-name-cell">公司名称</th>
+              <th>简介</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -498,10 +501,10 @@ async function confirmDelete() {
               </td>
               <td>
                 <button class="companies-row-name" type="button" @click="openDrawer('detail', row)">
-                  {{ row.name }}</button
-                ><span class="companies-row-desc" :title="row.description || '暂无简介'">{{
-                  row.description || '暂无简介'
-                }}</span>
+                  {{ row.name }}</button>
+              </td>
+              <td>
+                <ArchiveDescription class="companies-row-desc" :text="row.description" empty-text="暂无简介" />
               </td>
               <td>
                 <div class="companies-row-actions">
@@ -723,13 +726,10 @@ async function confirmDelete() {
                   暂无关联动画
                 </p>
                 <div v-else class="companies-association-list">
-                  <button
+                  <div
                     v-for="anime in relatedAnime.rows"
                     :key="anime.id"
-                    type="button"
                     class="companies-association-anime"
-                    :aria-label="`搜索关联动画：${anime.name}`"
-                    @click="openRelatedAnime(anime)"
                   >
                     <img
                       v-if="anime.coverImageUrl"
@@ -738,14 +738,14 @@ async function confirmDelete() {
                     />
                     <span v-else class="companies-association-cover">{{ anime.name.slice(0, 1) }}</span>
                     <span class="companies-association-info">
-                      <strong>{{ anime.name }}</strong>
+                      <RelatedAnimeNameLink :name="anime.name" @select="openRelatedAnime(anime)" />
                       <small>{{ anime.companies.find((item) => item.companyId === currentCompany?.id)?.role || '未注明职责' }}</small>
                     </span>
                     <span class="companies-association-meta">
                       <small>{{ anime.airDate || '日期未定' }}</small>
                       <small>评分 {{ anime.personalRating ?? '未评分' }}</small>
                     </span>
-                  </button>
+                  </div>
                 </div>
                 <footer
                   v-if="!relatedLoading && !relatedError && relatedAnime.total"
@@ -1127,6 +1127,7 @@ async function confirmDelete() {
   overflow-x: auto;
 }
 .companies-table {
+  table-layout: fixed;
   width: 100%;
   min-width: 760px;
   border-collapse: collapse;
@@ -1159,8 +1160,10 @@ async function confirmDelete() {
   padding-left: 17px;
 }
 .companies-table th:last-child {
+  width: 115px;
   text-align: right;
 }
+.companies-name-cell { width: 28%; }
 .companies-check-cell {
   width: 38px;
 }
@@ -1179,14 +1182,8 @@ async function confirmDelete() {
   color: var(--accent-strong);
 }
 .companies-row-desc {
-  display: block;
-  max-width: 620px;
-  margin-top: 4px;
-  overflow: hidden;
-  color: var(--ink-faint);
+  color: var(--ink-soft);
   font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .companies-row-actions {
   display: flex;
@@ -1623,13 +1620,7 @@ async function confirmDelete() {
   background: var(--surface-muted);
   border: 1px solid var(--line);
   border-radius: 9px;
-  cursor: pointer;
   text-align: left;
-}
-.companies-association-anime:hover,
-.companies-association-anime:focus-visible {
-  background: var(--accent-soft);
-  border-color: var(--accent);
 }
 .companies-association-anime img,
 .companies-association-cover {
@@ -1657,12 +1648,6 @@ async function confirmDelete() {
 .companies-association-meta {
   flex: 0 0 auto;
   text-align: right;
-}
-.companies-association-list strong {
-  min-width: 0;
-  color: var(--ink);
-  font-size: 11px;
-  overflow-wrap: anywhere;
 }
 .companies-association-list small {
   color: var(--ink-faint);

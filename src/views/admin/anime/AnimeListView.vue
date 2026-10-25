@@ -763,6 +763,7 @@ async function openLinkedDetail() {
           sortOrder: company.sortOrder,
         })),
         externalLinks: detail.externalLinks,
+        persons: detail.persons,
         personalRating: detail.personalRatingScore,
         series:
           detail.seriesId === null

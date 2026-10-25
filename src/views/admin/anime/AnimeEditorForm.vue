@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
  * 动画新增、修改共用表单：加载字典和关联资料，回填、校验并转换为动画提交数据。
- * 统一管理别名、标签、公司、系列、外链、评分及日期，并上报保存、取消和未保存状态。
+ * 统一管理别名、标签、人物、公司、系列、外链、评分及日期，并上报保存、取消和未保存状态。
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onActivated, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { createAnime, getAnimeDetail, updateAnime } from '@/api/anime'
 import {
   getCompanies,
@@ -15,12 +15,17 @@ import {
   getAdaptationTypes,
 } from '@/api/catalog'
 import { getSeriesById, getSeriesPage } from '@/api/series'
+import { getPersonsPage } from '@/api/persons'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import AnimeAirDateInput from '@/components/admin/AnimeAirDateInput.vue'
 import AnimeSuggestionInput from '@/components/admin/AnimeSuggestionInput.vue'
 import AnimeEntitySelect from '@/components/admin/AnimeEntitySelect.vue'
-import { companyRoles as defaultCompanyRoles, linkTitleSuggestions as defaultLinkTitles } from '@/config/animeFormOptions'
+import {
+  companyRoles as defaultCompanyRoles,
+  linkTitleSuggestions as defaultLinkTitles,
+  personRoles as defaultPersonRoles,
+} from '@/config/animeFormOptions'
 import { readPreferences } from '@/utils/preferences'
 import { useCatalogRefresh } from '@/utils/catalogChanges'
 import type {
@@ -41,8 +46,10 @@ const props = defineProps<{
 const entryPreferences = props.mode === 'create' ? readPreferences() : null
 const companyRoles = entryPreferences?.companyRoles ?? [...defaultCompanyRoles]
 const linkTitleSuggestions = entryPreferences?.linkTitles ?? [...defaultLinkTitles]
+const personRoles = entryPreferences?.personRoles ?? [...defaultPersonRoles]
 
 const route = useRoute()
+const router = useRouter()
 const ownerFullPath = route.fullPath
 const visible = computed(() => route.fullPath === ownerFullPath)
 
@@ -64,6 +71,13 @@ interface AnimeForm {
   description: string
   aliasNames: string[]
   tagIds: number[]
+  persons: Array<{
+    rowKey: number
+    personId: string
+    personName: string
+    role: string
+    sortOrder: number
+  }>
   companies: Array<{
     rowKey: number
     companyId: string
@@ -84,7 +98,10 @@ const broadcastTypes = ref<NamedOption[]>([])
 const adaptationTypes = ref<NamedOption[]>([])
 const regions = ref<NamedOption[]>([])
 const tags = ref<NamedOption[]>([])
+const tagLoadError = ref('')
+const tagsRefreshing = ref(false)
 const loading = ref(true)
+const personsLoaded = ref(props.mode === 'create')
 const submitting = ref(false)
 const confirmationAction = ref<'save' | 'reset' | 'cancel' | null>(null)
 const loadError = ref('')
@@ -93,7 +110,10 @@ const errorMessage = ref('')
 const errors = reactive<Record<string, string>>({})
 let loadController: AbortController | undefined
 let typeController: AbortController | undefined
+let tagController: AbortController | undefined
+let refreshTagsOnReturn = false
 let nextCompanyRowKey = 0
+let nextPersonRowKey = 0
 let nextExternalLinkRowKey = 0
 const refreshTypeOptions = useCatalogRefresh(['broadcast', 'adaptation'], loadTypeOptions)
 
@@ -117,6 +137,7 @@ function createDefaultForm(): AnimeForm {
     description: '',
     aliasNames: [],
     tagIds: [],
+    persons: [],
     companies: [],
     externalLinks: [],
     seriesId: '',
@@ -148,6 +169,10 @@ function applyAnime(
   companyNames: CompanyOption[],
   selectedSeries: SeriesSummary | null,
 ) {
+  // 未返回关联数据时不能按空数组保存，避免覆盖原有创作人员。
+  if (!Array.isArray(anime.persons)) {
+    throw new Error('创作人员关联未能加载，请重新读取动画资料后再保存。')
+  }
   Object.assign(form, {
     name: anime.name,
     broadcastTypeId: String(anime.broadcastTypeId),
@@ -162,6 +187,13 @@ function applyAnime(
     description: anime.description ?? '',
     aliasNames: [...(anime.aliasNames ?? [])],
     tagIds: [...(anime.tagIds ?? [])],
+    persons: anime.persons.map((person) => ({
+      rowKey: nextPersonRowKey++,
+      personId: String(person.personId),
+      personName: person.personName,
+      role: person.role,
+      sortOrder: person.sortOrder,
+    })),
     companies: (anime.companies ?? []).map((company, index) => ({
       rowKey: nextCompanyRowKey++,
       companyId: String(company.companyId),
@@ -179,6 +211,7 @@ function applyAnime(
     seriesName: selectedSeries?.name ?? '',
     seriesSortOrder: anime.seriesSortOrder === null ? '' : String(anime.seriesSortOrder),
   })
+  personsLoaded.value = true
   initialFormState.value = getFormSnapshot()
 }
 
@@ -200,10 +233,15 @@ async function loadTypeOptions() {
   }
 }
 
-onMounted(async () => {
+async function loadForm() {
+  loadController?.abort()
   const controller = new AbortController()
   loadController = controller
+  loading.value = true
+  loadError.value = ''
+  personsLoaded.value = props.mode === 'create'
   try {
+    if (props.mode === 'edit' && !props.animeId) throw new Error('未取得动画标识，无法读取修改资料。')
     const [, region, allTags, anime] = await Promise.all([
       refreshTypeOptions(),
       getRegions(controller.signal),
@@ -212,6 +250,7 @@ onMounted(async () => {
         ? getAnimeDetail(props.animeId, controller.signal)
         : Promise.resolve(null),
     ])
+    if (controller.signal.aborted) return
     if (catalogWarning.value) throw new Error(catalogWarning.value)
     regions.value = region
     tags.value = allTags
@@ -229,18 +268,28 @@ onMounted(async () => {
           ? Promise.resolve(null)
           : getSeriesById(anime.seriesId, controller.signal),
       ])
+      if (controller.signal.aborted) return
       applyAnime(anime, companyNames, selectedSeries)
     }
   } catch (error) {
-    loadError.value = error instanceof Error ? error.message : '动画资料加载失败，请稍后重试。'
+    if (!controller.signal.aborted)
+      loadError.value = error instanceof Error ? error.message : '动画资料加载失败，请稍后重试。'
   } finally {
-    loading.value = false
+    if (loadController === controller) loading.value = false
+  }
+}
+onMounted(() => void loadForm())
+onActivated(() => {
+  if (refreshTagsOnReturn) {
+    refreshTagsOnReturn = false
+    void refreshTags()
   }
 })
 
 onBeforeUnmount(() => {
   loadController?.abort()
   typeController?.abort()
+  tagController?.abort()
 })
 
 function searchCompanies(name: string, pageNum: number, signal: AbortSignal) {
@@ -249,6 +298,79 @@ function searchCompanies(name: string, pageNum: number, signal: AbortSignal) {
 
 function searchSeries(name: string, pageNum: number, signal: AbortSignal) {
   return getSeriesPage(pageNum, 10, signal, name)
+}
+
+function searchPersons(name: string, pageNum: number, signal: AbortSignal) {
+  return getPersonsPage(pageNum, 10, name, signal)
+}
+
+function addPerson() {
+  if (submitting.value) return
+  const sortOrder = Math.min(
+    2147483647,
+    Math.max(-1, ...form.persons.map((person) => person.sortOrder)) + 1,
+  )
+  form.persons.push({
+    rowKey: nextPersonRowKey++, personId: '', personName: '', role: '', sortOrder,
+  })
+}
+
+function clearPersonErrors() {
+  Object.keys(errors)
+    .filter((key) => key.startsWith('person-'))
+    .forEach((key) => delete errors[key])
+}
+
+function removePerson(index: number) {
+  if (submitting.value) return
+  form.persons.splice(index, 1)
+  clearPersonErrors()
+}
+
+function movePerson(index: number, offset: number) {
+  const target = index + offset
+  if (submitting.value || target < 0 || target >= form.persons.length) return
+  const [person] = form.persons.splice(index, 1)
+  form.persons.splice(target, 0, person!)
+  // 保留普通编辑的原始排序值，仅在明确移动后按有效行顺序重排。
+  let sortOrder = 0
+  form.persons.forEach((row) => {
+    row.sortOrder = sortOrder
+    if (row.personId) sortOrder += 1
+  })
+  clearPersonErrors()
+}
+
+function openPersonManagement() {
+  if (!submitting.value) void router.push('/admin/persons')
+}
+
+function openCompanyManagement() {
+  if (!submitting.value) void router.push('/admin/companies')
+}
+
+function openTagManagement() {
+  if (submitting.value) return
+  refreshTagsOnReturn = true
+  void router.push('/admin/tags')
+}
+
+// 从标签管理返回时只更新可选项，保留当前动画草稿及已选标签。
+async function refreshTags() {
+  tagController?.abort()
+  const controller = new AbortController()
+  tagController = controller
+  tagsRefreshing.value = true
+  tagLoadError.value = ''
+  try {
+    const result = await getAllPages((pageNum) => getTags(pageNum, 100, controller.signal))
+    if (!controller.signal.aborted) tags.value = result
+  } catch (error) {
+    if (!controller.signal.aborted)
+      tagLoadError.value = error instanceof Error ? error.message : '标签读取失败，请重试。'
+  } finally {
+    if (tagController === controller) tagsRefreshing.value = false
+  }
 }
 
 function addAlias() {
@@ -356,6 +478,7 @@ function setError(key: string, message: string) {
 // 在提交前统一校验日期、评分及关联选择，输入的公司名称不能替代真实公司标识。
 function validateForm() {
   Object.keys(errors).forEach((key) => delete errors[key])
+  if (!personsLoaded.value) setError('persons', '创作人员关联未能加载，请重新读取资料后再保存。')
   if (!form.name.trim()) setError('name', '请填写动画名称。')
   if (!form.broadcastTypeId) setError('broadcastTypeId', '请选择放送类型。')
   if (!form.adaptationTypeId) setError('adaptationTypeId', '请选择改编类型。')
@@ -384,6 +507,31 @@ function validateForm() {
   form.companies.forEach((company, index) => {
     if (company.companyName.trim() && !company.companyId) {
       setError(`company-${index}`, '制作公司不存在或未选中，请从搜索结果中选择已有公司。')
+    }
+  })
+  const personRolesSeen = new Map<string, number>()
+  form.persons.forEach((person, index) => {
+    const role = person.role.trim()
+    if (!person.personId && !person.personName.trim() && !role) return
+    const id = Number(person.personId)
+    const key = `person-${index}`
+    if (!Number.isSafeInteger(id) || id <= 0) {
+      setError(key, '请从搜索结果中选择已有人员，姓名不能替代人物标识。')
+    } else if (!role) {
+      setError(key, '请填写该人物的职责。')
+    } else if (Array.from(role).length > 50) {
+      setError(key, '职责不能超过 50 个字符。')
+    } else if (
+      !Number.isInteger(person.sortOrder) || person.sortOrder < 0 || person.sortOrder > 2147483647
+    ) {
+      setError(key, '人员排序必须是 0 至 2147483647 的整数，请通过上移、下移调整。')
+    } else {
+      const identity = `${id}:${role}`
+      const previous = personRolesSeen.get(identity)
+      if (previous !== undefined) {
+        setError(key, '同一人物的相同职责不能重复。')
+        setError(`person-${previous}`, '同一人物的相同职责不能重复。')
+      } else personRolesSeen.set(identity, index)
     }
   })
   form.externalLinks.forEach((link, index) => {
@@ -429,6 +577,13 @@ function buildPayload(): AnimePayload {
     status: Number(form.status),
     description: form.description.trim() || null,
     aliasNames: form.aliasNames.map((alias) => alias.trim()).filter(Boolean),
+    persons: form.persons
+      .filter((person) => person.personId)
+      .map((person) => ({
+        personId: Number(person.personId),
+        role: person.role.trim(),
+        sortOrder: person.sortOrder,
+      })),
     companies: form.companies
       .filter((company) => company.companyId)
       .map((company) => ({
@@ -452,11 +607,12 @@ function buildPayload(): AnimePayload {
 }
 
 function requestSave() {
-  if (submitting.value || !validateForm()) return
+  if (loading.value || loadError.value || submitting.value || !validateForm()) return
   confirmationAction.value = 'save'
 }
 
 async function saveForm() {
+  if (submitting.value || !validateForm()) return
   submitting.value = true
   errorMessage.value = ''
   const submittedFormState = getFormSnapshot()
@@ -516,6 +672,7 @@ async function confirmAction() {
     <div v-if="loading" class="anime-form-state">正在加载动画表单…</div>
     <div v-else-if="loadError" class="anime-form-state error">
       {{ loadError }}
+      <button class="secondary-button" type="button" @click="loadForm">重新读取</button>
     </div>
     <form v-else class="anime-editor-content" @submit.prevent="requestSave">
       <p v-if="catalogWarning" class="anime-catalog-warning" role="alert">
@@ -768,6 +925,14 @@ async function confirmAction() {
               </button>
               <span v-if="!tags.length" class="anime-muted-note">暂无可选标签</span>
             </div>
+            <button class="anime-inline-button" type="button" :disabled="submitting" @click="openTagManagement">
+              <AdminIcon name="right" />到标签管理中新增
+            </button>
+            <small v-if="tagsRefreshing" class="anime-muted-note" role="status">正在更新标签…</small>
+            <small v-if="tagLoadError" class="field-error" role="alert">
+              {{ tagLoadError }}
+              <button class="anime-inline-button" type="button" @click="refreshTags">重新读取标签</button>
+            </small>
           </div>
         </div>
       </section>
@@ -781,6 +946,71 @@ async function confirmAction() {
           <span>03</span>
         </div>
         <div class="anime-editor-grid">
+          <div class="field full">
+            <span class="anime-field-label">创作人员</span>
+            <div class="anime-repeat-list">
+              <div
+                v-for="(person, index) in form.persons"
+                :key="person.rowKey"
+                class="anime-repeat-row anime-person-row"
+                :class="{ invalid: errors[`person-${index}`] }"
+              >
+                <AnimeEntitySelect
+                  :id="`animePerson-${person.rowKey}`"
+                  v-model="person.personId"
+                  v-model:selected-name="person.personName"
+                  label="创作人员"
+                  placeholder="输入姓名搜索已有人员"
+                  no-results-message="未找到人物，请先到人物管理创建，再返回搜索。"
+                  :search="searchPersons"
+                  :require-explicit-selection="true"
+                  :show-option-description="true"
+                  :disabled="submitting"
+                  :error-message="errors[`person-${index}`]"
+                  @update:model-value="errors[`person-${index}`] = ''"
+                />
+                <AnimeSuggestionInput
+                  :id="`animePersonRole-${person.rowKey}`"
+                  v-model="person.role"
+                  label="人物职责"
+                  placeholder="请输入职责"
+                  :suggestions="personRoles"
+                  :disabled="submitting"
+                  @update:model-value="errors[`person-${index}`] = ''"
+                />
+                <div class="anime-repeat-actions">
+                  <button
+                    class="anime-order-button move-up"
+                    type="button"
+                    :aria-label="`上移人员 ${index + 1}`"
+                    title="上移"
+                    :disabled="submitting || index === 0"
+                    @click="movePerson(index, -1)"
+                  ><AdminIcon name="right" /></button>
+                  <button
+                    class="anime-order-button move-down"
+                    type="button"
+                    :aria-label="`下移人员 ${index + 1}`"
+                    title="下移"
+                    :disabled="submitting || index === form.persons.length - 1"
+                    @click="movePerson(index, 1)"
+                  ><AdminIcon name="right" /></button>
+                  <button
+                    class="anime-remove-button"
+                    type="button"
+                    :aria-label="`移除人员 ${index + 1}`"
+                    :disabled="submitting"
+                    @click="removePerson(index)"
+                  ><AdminIcon name="close" /></button>
+                </div>
+              </div>
+            </div>
+            <small v-if="errors.persons" class="field-error" role="alert">{{ errors.persons }}</small>
+            <div class="anime-person-actions">
+              <button class="anime-inline-button" type="button" :disabled="submitting" @click="addPerson"><AdminIcon name="plus" />添加人员</button>
+              <button class="anime-inline-button" type="button" :disabled="submitting" @click="openPersonManagement"><AdminIcon name="right" />到人物管理新增</button>
+            </div>
+          </div>
           <div class="field full">
             <span class="anime-field-label">制作公司</span>
             <div class="anime-repeat-list">
@@ -836,9 +1066,14 @@ async function confirmAction() {
                 </div>
               </div>
             </div>
-            <button class="anime-inline-button" type="button" :disabled="submitting" @click="addCompany">
-              <AdminIcon name="plus" />添加公司
-            </button>
+            <div class="anime-person-actions">
+              <button class="anime-inline-button" type="button" :disabled="submitting" @click="addCompany">
+                <AdminIcon name="plus" />添加公司
+              </button>
+              <button class="anime-inline-button" type="button" :disabled="submitting" @click="openCompanyManagement">
+                <AdminIcon name="right" />到公司管理新增
+              </button>
+            </div>
           </div>
           <div class="field full">
             <span class="anime-field-label">所属系列</span>
@@ -986,6 +1221,7 @@ async function confirmAction() {
   display: grid;
   gap: 14px;
 }
+.anime-person-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .anime-form-state {
   padding: 32px;
   color: var(--ink-soft);

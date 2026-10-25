@@ -3,8 +3,12 @@
  * 远程业务实体搜索选择框：用于公司、系列等实际资料，搜索方法由父组件传入。
  * 区分显示名称与选中标识，输入变化时清除旧标识，并管理防抖、分页及搜索错误。
  */
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onDeactivated, ref, watch } from 'vue'
 import type { NamedOption, PageResult } from '@/types/api'
+
+interface EntityOption extends NamedOption {
+  description?: string | null
+}
 
 const props = defineProps<{
   id: string
@@ -12,11 +16,15 @@ const props = defineProps<{
   modelValue: string
   selectedName: string
   placeholder: string
-  search: (name: string, pageNum: number, signal: AbortSignal) => Promise<PageResult<NamedOption>>
+  search: (name: string, pageNum: number, signal: AbortSignal) => Promise<PageResult<EntityOption>>
   emptyOption?: string
   noResultsMessage?: string
   noResultsError?: string
   errorMessage?: string
+  showOptionId?: boolean
+  requireExplicitSelection?: boolean
+  showOptionDescription?: boolean
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -29,7 +37,8 @@ const input = ref<HTMLInputElement>()
 const open = ref(false)
 const loading = ref(false)
 const error = ref(false)
-const options = ref<NamedOption[]>([])
+const options = ref<EntityOption[]>([])
+const activeOptionId = ref<number | null>(null)
 const hasMore = ref(false)
 const searchedName = ref('')
 const inlineError = computed(() =>
@@ -52,6 +61,8 @@ onBeforeUnmount(() => {
   cancelSearch()
   document.removeEventListener('pointerdown', handleOutsidePointerDown)
 })
+onDeactivated(() => closeMenu(false))
+watch(() => props.disabled, (disabled) => { if (disabled) closeMenu(false) })
 
 function cancelSearch() {
   if (timer) window.clearTimeout(timer)
@@ -76,7 +87,7 @@ function handleOutsidePointerDown(event: PointerEvent) {
 }
 
 function openMenu() {
-  if (open.value) return
+  if (open.value || props.disabled) return
   open.value = true
   document.addEventListener('pointerdown', handleOutsidePointerDown)
   startSearch(props.selectedName, 0)
@@ -91,6 +102,7 @@ function startSearch(value: string, delay = 250) {
   cancelSearch()
   keyword = value.trim()
   options.value = []
+  activeOptionId.value = null
   searchedName.value = ''
   hasMore.value = false
   error.value = false
@@ -99,6 +111,7 @@ function startSearch(value: string, delay = 250) {
 }
 
 async function loadPage(nextPage: number) {
+  if (nextPage > 1 && loading.value) return
   const request = new AbortController()
   controller = request
   loading.value = true
@@ -128,6 +141,7 @@ function handleInput(event: Event) {
 }
 
 function selectOption(option: NamedOption) {
+  if (props.disabled) return
   emit('update:modelValue', String(option.id))
   emit('update:selectedName', option.name)
   closeMenu(false)
@@ -140,10 +154,21 @@ function clearSelection() {
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  if (props.disabled) return
   if (event.key === 'Escape') closeMenu()
+  if (event.target !== input.value) return
+  if (open.value && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+    event.preventDefault()
+    const index = options.value.findIndex((option) => option.id === activeOptionId.value)
+    const next = index < 0 ? (event.key === 'ArrowDown' ? 0 : options.value.length - 1)
+      : Math.max(0, Math.min(options.value.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)))
+    activeOptionId.value = options.value[next]?.id ?? null
+  }
   if (event.key === 'Enter' && open.value && options.value.length) {
     event.preventDefault()
-    selectOption(options.value[0]!)
+    const option = options.value.find((item) => item.id === activeOptionId.value)
+    if (option) selectOption(option)
+    else if (!props.showOptionId && !props.requireExplicitSelection) selectOption(options.value[0]!)
   }
 }
 </script>
@@ -154,6 +179,7 @@ function handleKeydown(event: KeyboardEvent) {
       :id="id"
       ref="input"
       :value="selectedName"
+      :disabled="disabled"
       type="text"
       autocomplete="off"
       :placeholder="placeholder"
@@ -162,6 +188,7 @@ function handleKeydown(event: KeyboardEvent) {
       :aria-label="label"
       :aria-expanded="open"
       :aria-controls="`${id}-options`"
+      :aria-activedescendant="open && activeOptionId !== null ? `${id}-option-${activeOptionId}` : undefined"
       :aria-invalid="!!inlineError || undefined"
       :aria-describedby="inlineError ? `${id}-error` : undefined"
       @focus="openMenu"
@@ -171,6 +198,7 @@ function handleKeydown(event: KeyboardEvent) {
       class="anime-entity-toggle"
       type="button"
       :aria-label="`展开${label}选项`"
+      :disabled="disabled"
       @click="focusAndOpen"
     >
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
@@ -197,14 +225,17 @@ function handleKeydown(event: KeyboardEvent) {
       <button
         v-for="option in options"
         :key="option.id"
+        :id="`${id}-option-${option.id}`"
         type="button"
         role="option"
         :aria-selected="modelValue === String(option.id)"
         class="anime-entity-option"
+        :class="{ 'active-option': activeOptionId === option.id }"
         @mousedown.prevent="selectOption(option)"
         @click="selectOption(option)"
       >
-        {{ option.name }}
+        <span>{{ option.name }}<small v-if="showOptionId" class="anime-option-id">ID · {{ option.id }}</small></span>
+        <span v-if="showOptionDescription && option.description" class="anime-option-description">{{ option.description }}</span>
       </button>
       <span v-if="loading" class="anime-entity-state" role="status">正在搜索…</span>
       <div v-else-if="error" class="anime-entity-state error" role="alert">
@@ -217,7 +248,7 @@ function handleKeydown(event: KeyboardEvent) {
           重试
         </button>
       </div>
-      <span v-else-if="!options.length" class="anime-entity-state">{{ selectedName.trim() ? noResultsMessage || '没有匹配结果' : '没有匹配结果' }}</span>
+      <span v-else-if="!options.length" class="anime-entity-state">{{ selectedName.trim() || showOptionId || requireExplicitSelection ? noResultsMessage || '没有匹配结果' : '没有匹配结果' }}</span>
       <button
         v-if="hasMore && !loading"
         class="anime-entity-more"
@@ -327,6 +358,7 @@ function handleKeydown(event: KeyboardEvent) {
   text-align: left;
 }
 .anime-entity-option:hover,
+.anime-entity-option.active-option,
 .anime-entity-option[aria-selected='true'],
 .anime-entity-more:hover {
   color: var(--accent-strong);
@@ -336,6 +368,29 @@ function handleKeydown(event: KeyboardEvent) {
 .anime-entity-more {
   color: var(--accent-strong);
   text-align: center;
+}
+.anime-option-id {
+  margin-left: 8px;
+  color: var(--ink-faint);
+  font-size: 9px;
+  font-weight: 400;
+}
+.anime-option-description {
+  display: -webkit-box;
+  margin: 3px 0 5px;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: var(--ink-faint);
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.anime-entity-select > input:disabled,
+.anime-entity-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 .anime-entity-state {
   padding: 8px 9px;

@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import type { AnimeSortField, SortDirection } from '@/types/api'
-import { companyRoles, linkTitleSuggestions } from '@/config/animeFormOptions'
+import { companyRoles, linkTitleSuggestions, personRoles } from '@/config/animeFormOptions'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export interface PersonalPreferences {
@@ -11,6 +11,7 @@ export interface PersonalPreferences {
   broadcastTypeId: string
   linkTitles: string[]
   companyRoles: string[]
+  personRoles: string[]
 }
 
 const preferencesKey = 'acgbox-preferences'
@@ -30,6 +31,7 @@ export function defaultPreferences(): PersonalPreferences {
     broadcastTypeId: '',
     linkTitles: [...linkTitleSuggestions],
     companyRoles: [...companyRoles],
+    personRoles: [...personRoles],
   }
 }
 
@@ -54,6 +56,7 @@ export function readPreferences(): PersonalPreferences {
           : '',
       linkTitles: readSuggestions(saved.linkTitles, defaults.linkTitles),
       companyRoles: readSuggestions(saved.companyRoles, defaults.companyRoles),
+      personRoles: readSuggestions(saved.personRoles, defaults.personRoles),
     }
   } catch {
     return defaults

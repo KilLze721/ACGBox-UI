@@ -30,7 +30,7 @@ const props = defineProps<{
 const route = useRoute()
 const router = useRouter()
 const navigateLinkedContent = inject<
-  (path: '/admin/anime' | '/admin/series' | '/admin/companies', keyword: string) => Promise<void>
+  (path: '/admin/anime' | '/admin/series' | '/admin/companies' | '/admin/persons', keyword: string) => Promise<void>
 >('navigateLinkedContent')
 const ownerFullPath = route.fullPath
 const visible = computed(() => route.fullPath === ownerFullPath)
@@ -192,6 +192,12 @@ async function openCompanyDetail(companyId: number) {
   emit('close')
   if (navigateLinkedContent) await navigateLinkedContent('/admin/companies', companyName)
   else await router.push({ path: '/admin/companies', query: { name: companyName } })
+}
+
+async function openPersonDetail(personName: string) {
+  emit('close')
+  if (navigateLinkedContent) await navigateLinkedContent('/admin/persons', personName)
+  else await router.push({ path: '/admin/persons', query: { name: personName } })
 }
 
 function requestClose() {
@@ -356,7 +362,7 @@ function getSafeExternalUrl(value: string) {
               <div class="anime-detail-section-head">
                 <div>
                   <h2>分类与关联</h2>
-                  <p>别名、标签、制作公司和所属系列</p>
+                  <p>别名、标签、创作人员、制作公司和所属系列</p>
                 </div>
                 <span>03</span>
               </div>
@@ -374,6 +380,21 @@ function getSafeExternalUrl(value: string) {
                     <span v-for="tag in anime.tags" :key="tag.id" class="tag">{{ tag.name }}</span
                     ><i v-if="!anime.tags.length">—</i>
                   </div>
+                </div>
+                <div>
+                  <span>创作人员</span>
+                  <div class="anime-detail-chips anime-detail-person-list">
+                    <button
+                      v-for="(person, index) in detail.persons"
+                      :key="`${person.personId}-${person.role}-${index}`"
+                      class="anime-detail-series-link"
+                      type="button"
+                      :aria-label="`搜索创作人员：${person.personName}`"
+                      @click="openPersonDetail(person.personName)"
+                    >{{ person.personName }}<i>{{ person.role }}</i></button>
+                    <i v-if="detail.persons && !detail.persons.length">暂无创作人员</i>
+                  </div>
+                  <small v-if="!detail.persons" class="anime-detail-series-error" role="alert">接口未返回创作人员关联，暂无法确认人员信息，请重新读取资料。</small>
                 </div>
                 <div>
                   <span>制作公司</span>
@@ -712,12 +733,14 @@ function getSafeExternalUrl(value: string) {
   font-size: 9px;
   font-style: normal;
 }
-.anime-detail-company-list > .anime-detail-company-link {
+.anime-detail-company-list > .anime-detail-company-link,
+.anime-detail-person-list > .anime-detail-series-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-.anime-detail-company-link i {
+.anime-detail-company-link i,
+.anime-detail-person-list > .anime-detail-series-link i {
   padding-left: 6px;
   border-left: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
 }

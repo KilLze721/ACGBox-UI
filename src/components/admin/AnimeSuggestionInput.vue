@@ -11,6 +11,7 @@ const props = defineProps<{
   modelValue: string
   suggestions: string[]
   placeholder?: string
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -28,6 +29,7 @@ onMounted(() => document.addEventListener('pointerdown', handleOutsidePointerDow
 onBeforeUnmount(() => document.removeEventListener('pointerdown', handleOutsidePointerDown))
 
 function selectSuggestion(value: string) {
+  if (props.disabled) return
   emit('update:modelValue', value)
   open.value = false
 }
@@ -50,6 +52,7 @@ function handleOutsidePointerDown(event: PointerEvent) {
     <input
       :id="id"
       :value="modelValue"
+      :disabled="disabled"
       type="text"
       autocomplete="off"
       :placeholder="placeholder || `输入${label}`"
@@ -60,7 +63,7 @@ function handleOutsidePointerDown(event: PointerEvent) {
       @focus="open = true"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value); open = true"
     />
-    <div v-if="open" :id="`${id}-suggestions`" class="anime-suggestion-menu" role="listbox" :aria-label="`${label}常用选项`">
+    <div v-if="open && !disabled" :id="`${id}-suggestions`" class="anime-suggestion-menu" role="listbox" :aria-label="`${label}常用选项`">
       <button
         v-for="suggestion in filteredSuggestions"
         :key="suggestion"

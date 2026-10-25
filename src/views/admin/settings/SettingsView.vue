@@ -51,6 +51,7 @@ const sortOptions = [
 const suggestionGroups = [
   { key: 'linkTitles', label: '常用外链标题', placeholder: '输入标题，按回车添加' },
   { key: 'companyRoles', label: '常用制作公司职责', placeholder: '输入职责，按回车添加' },
+  { key: 'personRoles', label: '常用人物职责', placeholder: '输入职责，按回车添加' },
 ] as const
 type SuggestionKey = (typeof suggestionGroups)[number]['key']
 const draft = reactive(readPreferences())
@@ -61,10 +62,11 @@ const dirty = computed(
     JSON.stringify(draft) !== saved.value ||
     pendingThemeReset.value ||
     !!suggestionInputs.linkTitles ||
-    !!suggestionInputs.companyRoles,
+    !!suggestionInputs.companyRoles ||
+    !!suggestionInputs.personRoles,
 )
-const suggestionInputs = reactive({ linkTitles: '', companyRoles: '' })
-const suggestionErrors = reactive({ linkTitles: '', companyRoles: '' })
+const suggestionInputs = reactive({ linkTitles: '', companyRoles: '', personRoles: '' })
+const suggestionErrors = reactive({ linkTitles: '', companyRoles: '', personRoles: '' })
 const activeSection = ref('appearance')
 const regions = ref<NamedOption[]>([])
 const broadcastTypes = ref<NamedOption[]>([])
@@ -118,6 +120,7 @@ const resetItems = computed(() => [
         '默认地区与放送类型：不预设',
         `外链标题建议：${defaultPreferences().linkTitles.join('、')}`,
         `制作公司职责建议：${defaultPreferences().companyRoles.join('、')}`,
+        `人物职责建议：${defaultPreferences().personRoles.join('、')}`,
       ]
     : []),
 ])
@@ -224,9 +227,11 @@ function addSuggestion(key: SuggestionKey) {
   const value = suggestionInputs[key].trim()
   suggestionErrors[key] = !value
     ? '请输入建议项。'
-    : draft[key].includes(value)
-      ? '该建议项已经存在。'
-      : ''
+    : key === 'personRoles' && Array.from(value).length > 50
+      ? '人物职责不能超过 50 个字符。'
+      : draft[key].includes(value)
+        ? '该建议项已经存在。'
+        : ''
   if (suggestionErrors[key]) {
     pageRoot.value?.querySelector<HTMLInputElement>(`#${key}Input`)?.focus()
     return
@@ -237,8 +242,10 @@ function addSuggestion(key: SuggestionKey) {
 }
 
 function clearSuggestionInputs() {
-  suggestionInputs.linkTitles = suggestionInputs.companyRoles = ''
-  suggestionErrors.linkTitles = suggestionErrors.companyRoles = ''
+  suggestionGroups.forEach(({ key }) => {
+    suggestionInputs[key] = ''
+    suggestionErrors[key] = ''
+  })
 }
 
 function undoChanges() {
