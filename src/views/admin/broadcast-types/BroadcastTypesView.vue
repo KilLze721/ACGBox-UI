@@ -3,6 +3,7 @@
  * 放送类型字典管理页面：维护动画使用的放送类型，支持名称筛选和多项选择。
  * 新增、修改在抽屉内完成，删除需确认；当前列表由已有字典接口一次读取。
  */
+import '@/assets/adminManagementCards.css'
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
@@ -58,15 +59,15 @@ const filteredTypes = computed(() => {
 const allVisibleSelected = computed(
   () =>
     filteredTypes.value.length > 0 &&
-    filteredTypes.value.every((type) => selectedIds.value.includes(type.id)),
+    filteredTypes.value.every((type) => selectedIds.value.includes(type.id))
 )
 const selectedTargets = computed(() =>
-  types.value.filter((type) => selectedIds.value.includes(type.id)),
+  types.value.filter((type) => selectedIds.value.includes(type.id))
 )
 const isDirty = computed(
   () =>
     drawerMode.value !== null &&
-    (formName.value !== initialFormName.value || formSortOrder.value !== initialFormSortOrder.value),
+    (formName.value !== initialFormName.value || formSortOrder.value !== initialFormSortOrder.value)
 )
 
 defineExpose({
@@ -257,10 +258,10 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <section class="broadcast-management">
-    <section class="broadcast-hero">
-      <div>
-        <p class="broadcast-eyebrow">CONTENT ARCHIVE / BROADCAST INDEX</p>
+  <section class="broadcast-management management-cards">
+    <section class="broadcast-hero management-hero">
+      <div class="management-hero-copy">
+        <p class="broadcast-eyebrow management-eyebrow">CONTENT ARCHIVE / BROADCAST INDEX</p>
         <h1>放送类型管理 <span>BROADCAST TYPES</span></h1>
         <p>统一维护动画的播出形式，例如 TV、WEB、OVA 与剧场版。</p>
       </div>
@@ -269,35 +270,42 @@ async function confirmDelete() {
       </button>
     </section>
 
-    <section class="broadcast-stats" aria-label="放送类型统计">
-      <article>
-        <span class="broadcast-stat-icon"><AdminIcon name="broadcast-types" /></span>
-        <span
-          ><small>类型总数</small><strong>{{ types.length }}</strong></span
+    <section class="broadcast-stats management-stats" aria-label="放送类型统计">
+      <article class="management-stat">
+        <span class="broadcast-stat-icon management-stat-icon"
+          ><AdminIcon name="broadcast-types"
+        /></span>
+        <span class="management-stat-copy"
+          ><small class="management-stat-label">类型总数</small
+          ><strong class="management-stat-value">{{ types.length }}</strong></span
         >
       </article>
-      <article>
-        <span class="broadcast-stat-icon"><AdminIcon name="search-full" /></span>
-        <span
-          ><small>当前匹配</small><strong>{{ filteredTypes.length }}</strong></span
+      <article class="management-stat">
+        <span class="broadcast-stat-icon management-stat-icon"
+          ><AdminIcon name="search-full"
+        /></span>
+        <span class="management-stat-copy"
+          ><small class="management-stat-label">当前页记录</small
+          ><strong class="management-stat-value">{{ filteredTypes.length }}</strong></span
         >
       </article>
-      <article>
-        <span class="broadcast-stat-icon"><AdminIcon name="check" /></span>
-        <span
-          ><small>已选类型</small><strong>{{ selectedIds.length }}</strong></span
+      <article class="management-stat">
+        <span class="broadcast-stat-icon management-stat-icon"><AdminIcon name="check" /></span>
+        <span class="management-stat-copy"
+          ><small class="management-stat-label">已选类型</small
+          ><strong class="management-stat-value">{{ selectedIds.length }}</strong></span
         >
       </article>
     </section>
 
-    <section class="broadcast-list-card" aria-labelledby="broadcastListTitle">
-      <header class="broadcast-list-header">
+    <section class="broadcast-list-card management-list-card" aria-labelledby="broadcastListTitle">
+      <header class="broadcast-list-header management-list-header">
         <div>
           <h2 id="broadcastListTitle">放送类型词条</h2>
           <p>全量读取 · 按排序值升序 · 名称在页面内筛选</p>
         </div>
-        <div class="broadcast-header-actions">
-          <span>显示 {{ filteredTypes.length }} 条</span>
+        <div class="broadcast-header-actions management-list-actions">
+          <span class="management-list-meta">显示 {{ filteredTypes.length }} 条</span>
           <button
             class="danger-button"
             type="button"
@@ -308,8 +316,8 @@ async function confirmDelete() {
           </button>
         </div>
       </header>
-      <form class="broadcast-filter" @submit.prevent="runSearch">
-        <label class="broadcast-search">
+      <form class="broadcast-filter management-filter" @submit.prevent="runSearch">
+        <label class="broadcast-search management-search">
           <AdminIcon name="search-full" />
           <input
             v-model="searchName"
@@ -322,11 +330,14 @@ async function confirmDelete() {
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
       </form>
-      <div class="broadcast-table-scroll">
-        <table v-if="!loading && !listError && filteredTypes.length" class="broadcast-table">
+      <div class="broadcast-table-scroll management-table-scroll">
+        <table
+          v-if="!loading && !listError && filteredTypes.length"
+          class="broadcast-table management-table"
+        >
           <thead>
             <tr>
-              <th class="broadcast-check-cell">
+              <th class="broadcast-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="allVisibleSelected"
@@ -336,12 +347,12 @@ async function confirmDelete() {
               </th>
               <th>放送类型名称</th>
               <th class="broadcast-sort-cell">排序</th>
-              <th>操作</th>
+              <th class="management-actions-cell">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="type in filteredTypes" :key="type.id">
-              <td class="broadcast-check-cell">
+              <td class="broadcast-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="selectedIds.includes(type.id)"
@@ -353,9 +364,10 @@ async function confirmDelete() {
                 <span class="broadcast-name">{{ type.name }}</span>
               </td>
               <td class="broadcast-sort-cell">{{ type.sortOrder }}</td>
-              <td>
-                <div class="broadcast-row-actions">
+              <td class="management-actions-cell">
+                <div class="broadcast-row-actions management-row-actions">
                   <button
+                    class="management-row-action management-icon-action"
                     type="button"
                     title="编辑"
                     :aria-label="`编辑放送类型 ${type.name}`"
@@ -364,7 +376,7 @@ async function confirmDelete() {
                     <AdminIcon name="edit" />
                   </button>
                   <button
-                    class="danger"
+                    class="danger management-row-action management-icon-action"
                     type="button"
                     title="删除"
                     :aria-label="`删除放送类型 ${type.name}`"
@@ -377,18 +389,22 @@ async function confirmDelete() {
             </tr>
           </tbody>
         </table>
-        <div v-else class="broadcast-list-state" :class="{ error: !!listError }">
-          <span class="broadcast-state-icon"
+        <div
+          v-else
+          class="broadcast-list-state management-list-state"
+          :class="{ error: !!listError }"
+        >
+          <span class="broadcast-state-icon management-state-icon"
             ><AdminIcon :name="listError ? 'refresh' : 'broadcast-types'"
           /></span>
           <strong>{{
             loading
               ? '正在读取放送类型…'
               : listError
-                ? '放送类型读取失败'
-                : appliedName
-                  ? '没有匹配的放送类型'
-                  : '暂无放送类型'
+              ? '放送类型读取失败'
+              : appliedName
+              ? '没有匹配的放送类型'
+              : '暂无放送类型'
           }}</strong>
           <p>
             {{
@@ -476,7 +492,9 @@ async function confirmDelete() {
                   id="broadcastSortOrderError"
                   class="broadcast-error"
                   role="alert"
-                >{{ sortOrderError }}</p>
+                >
+                  {{ sortOrderError }}
+                </p>
                 <p class="broadcast-hint">数值越小越靠前，支持负整数；相同数值保持稳定顺序。</p>
               </div>
               <p v-if="drawerError" class="broadcast-save-error" role="alert">{{ drawerError }}</p>
@@ -549,65 +567,8 @@ async function confirmDelete() {
 </template>
 
 <style scoped>
-.broadcast-management {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding-bottom: 14px;
-}
 .broadcast-management button {
   cursor: pointer;
-}
-.broadcast-hero {
-  position: relative;
-  display: flex;
-  min-height: 150px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 26px 30px;
-  overflow: hidden;
-  background: linear-gradient(112deg, var(--surface-solid), var(--surface-muted));
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-soft);
-}
-.broadcast-hero::before {
-  position: absolute;
-  top: -54px;
-  right: 13%;
-  width: 208px;
-  height: 208px;
-  content: '';
-  border: 1px solid color-mix(in srgb, var(--violet) 20%, transparent);
-  border-radius: 43% 57% 63% 37%;
-  transform: rotate(28deg);
-}
-.broadcast-hero > * {
-  position: relative;
-  z-index: 1;
-}
-.broadcast-eyebrow {
-  margin: 0 0 9px;
-  color: var(--accent-strong);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-}
-.broadcast-hero h1 {
-  margin: 0;
-  font: 700 clamp(23px, 3vw, 30px)/1.25 var(--font-display);
-  letter-spacing: -0.035em;
-}
-.broadcast-hero h1 span {
-  color: var(--ink-faint);
-  font: 500 12px var(--font-body);
-  letter-spacing: 0;
-}
-.broadcast-hero p:last-child {
-  max-width: 610px;
-  margin: 8px 0 0;
-  color: var(--ink-soft);
-  font-size: 12px;
 }
 .primary-button,
 .secondary-button,
@@ -660,167 +621,22 @@ async function confirmDelete() {
   box-shadow: none;
   cursor: not-allowed;
 }
-.broadcast-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px;
-  margin-top: 16px;
-}
-.broadcast-stats article {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: var(--shadow-soft);
-}
-.broadcast-stat-icon {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 10px;
-}
-.broadcast-stat-icon svg {
-  width: 17px;
-  height: 17px;
-}
-.broadcast-stats article:nth-child(2) .broadcast-stat-icon {
-  color: var(--cyan);
-  background: var(--cyan-soft);
-}
-.broadcast-stats article:nth-child(3) .broadcast-stat-icon {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.broadcast-stats small,
-.broadcast-stats strong {
-  display: block;
-}
-.broadcast-stats small {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.broadcast-stats strong {
-  margin-top: 2px;
-  font: 700 18px var(--font-display);
-}
-.broadcast-list-card {
-  margin-top: 16px;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
-}
-.broadcast-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--line);
-}
-.broadcast-list-header h2 {
-  margin: 0;
-  font: 700 16px var(--font-display);
-}
-.broadcast-list-header p {
-  margin: 4px 0 0;
-  color: var(--ink-faint);
-  font-size: 11px;
-}
-.broadcast-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--ink-faint);
-  font-size: 11px;
-  white-space: nowrap;
-}
-.broadcast-filter {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 15px 20px;
-}
-.broadcast-search {
-  display: flex;
-  width: min(390px, 100%);
-  height: 40px;
-  align-items: center;
-  gap: 9px;
-  padding: 0 12px;
-  background: var(--surface-solid);
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-}
-.broadcast-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: var(--focus);
-}
-.broadcast-search svg {
-  width: 16px;
-  height: 16px;
-  color: var(--ink-faint);
-}
-.broadcast-search input {
-  width: 100%;
-  min-width: 0;
-  color: var(--ink);
-  background: transparent;
-  border: 0;
-  outline: 0;
-  font: 11px var(--font-body);
-}
-.broadcast-search input::placeholder {
-  color: var(--ink-faint);
-}
-.broadcast-table-scroll {
-  overflow-x: auto;
-}
 .broadcast-table {
   width: 100%;
   min-width: 580px;
-  border-collapse: collapse;
-  text-align: left;
 }
 .broadcast-sort-cell {
   width: 110px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+.broadcast-table th:last-child,
+.broadcast-table td:last-child {
+  width: 110px;
+}
 .broadcast-field + .broadcast-field {
   margin-top: 20px;
 }
-.broadcast-table th {
-  padding: 11px 14px;
-  color: var(--ink-faint);
-  background: var(--surface-muted);
-  border-bottom: 1px solid var(--line);
-  font-size: 10px;
-  font-weight: 700;
-}
-.broadcast-table td {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--line);
-  color: var(--ink-soft);
-  font-size: 11px;
-}
-.broadcast-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-.broadcast-table tbody tr:hover {
-  background: var(--surface-hover);
-}
-.broadcast-check-cell {
-  width: 50px;
-}
-.broadcast-check-cell input,
 .broadcast-delete-check input {
   width: 14px;
   height: 14px;
@@ -845,64 +661,6 @@ async function confirmDelete() {
   content: '';
   background: var(--violet);
   border-radius: 50%;
-}
-.broadcast-row-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 5px;
-}
-.broadcast-row-actions button {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  color: var(--ink-faint);
-  background: transparent;
-  border: 0;
-  border-radius: 8px;
-}
-.broadcast-row-actions button svg {
-  width: 15px;
-  height: 15px;
-}
-.broadcast-row-actions button:hover {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.broadcast-row-actions button.danger:hover {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.broadcast-list-state {
-  padding: 48px 20px;
-  text-align: center;
-}
-.broadcast-state-icon {
-  display: grid;
-  width: 52px;
-  height: 52px;
-  place-items: center;
-  margin: 0 auto 12px;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 16px;
-}
-.broadcast-state-icon svg {
-  width: 22px;
-  height: 22px;
-}
-.broadcast-list-state strong {
-  display: block;
-  font: 700 15px var(--font-display);
-}
-.broadcast-list-state p {
-  margin: 6px 0 14px;
-  color: var(--ink-faint);
-  font-size: 11px;
-}
-.broadcast-list-state.error .broadcast-state-icon {
-  color: var(--danger);
-  background: var(--danger-soft);
 }
 .broadcast-drawer-layer {
   position: fixed;
@@ -1150,20 +908,6 @@ async function confirmDelete() {
   font-size: 12px;
 }
 @media (max-width: 680px) {
-  .broadcast-hero,
-  .broadcast-list-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .broadcast-stats {
-    grid-template-columns: 1fr;
-  }
-  .broadcast-filter {
-    flex-wrap: wrap;
-  }
-  .broadcast-search {
-    width: 100%;
-  }
   .broadcast-drawer-footer > span {
     display: none;
   }

@@ -3,6 +3,7 @@
  * 制作公司管理页面：维护公司名称、简介，提供分页搜索和抽屉式新增、修改、详情。
  * 公司详情中按公司查询关联动画，支持分页、排序及跳转；删除操作需单独确认。
  */
+import '@/assets/adminManagementCards.css'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 import {
   computed,
@@ -28,7 +29,14 @@ import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
 import RelatedAnimeNameLink from '@/components/admin/RelatedAnimeNameLink.vue'
-import type { AnimePageItem, AnimeSortField, CompanyOption, NamedOption, PageResult, SortDirection } from '@/types/api'
+import type {
+  AnimePageItem,
+  AnimeSortField,
+  CompanyOption,
+  NamedOption,
+  PageResult,
+  SortDirection,
+} from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
 const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
@@ -37,13 +45,17 @@ const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
 }))
 const route = useRoute()
 const router = useRouter()
-const navigateLinkedContent = inject<
-  (path: '/admin/anime' | '/admin/series' | '/admin/companies', keyword: string) => Promise<void>
->('navigateLinkedContent')
+const navigateLinkedContent =
+  inject<
+    (path: '/admin/anime' | '/admin/series' | '/admin/companies', keyword: string) => Promise<void>
+  >('navigateLinkedContent')
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<CompanyOption>>({
   pageNum: 1,
-  pageSize: resolvePageSize(pageSizeOptions.map((option) => option.id), 10),
+  pageSize: resolvePageSize(
+    pageSizeOptions.map((option) => option.id),
+    10
+  ),
   total: 0,
   pages: 0,
   rows: [],
@@ -71,7 +83,10 @@ const nameError = ref('')
 const saving = ref(false)
 const relatedAnime = ref<PageResult<AnimePageItem>>({
   pageNum: 1,
-  pageSize: resolvePageSize(pageSizeOptions.map((option) => option.id), 10),
+  pageSize: resolvePageSize(
+    pageSizeOptions.map((option) => option.id),
+    10
+  ),
   total: 0,
   pages: 0,
   rows: [],
@@ -96,17 +111,16 @@ let previousHtmlOverflow: string | undefined
 
 const allVisibleSelected = computed(
   () =>
-    page.value.rows.length > 0 &&
-    page.value.rows.every((row) => selectedIds.value.includes(row.id)),
+    page.value.rows.length > 0 && page.value.rows.every((row) => selectedIds.value.includes(row.id))
 )
 const selectedTargets = computed(() =>
-  page.value.rows.filter((row) => selectedIds.value.includes(row.id)),
+  page.value.rows.filter((row) => selectedIds.value.includes(row.id))
 )
 const firstResult = computed(() =>
-  page.value.total ? (page.value.pageNum - 1) * page.value.pageSize + 1 : 0,
+  page.value.total ? (page.value.pageNum - 1) * page.value.pageSize + 1 : 0
 )
 const lastResult = computed(() =>
-  Math.min(page.value.pageNum * page.value.pageSize, page.value.total),
+  Math.min(page.value.pageNum * page.value.pageSize, page.value.total)
 )
 const pageNumbers = computed(() => {
   const values: Array<number | string> = []
@@ -126,7 +140,7 @@ const pageNumbers = computed(() => {
 const isDirty = computed(
   () =>
     (drawerMode.value === 'create' || drawerMode.value === 'edit') &&
-    JSON.stringify(form) !== initialFormState.value,
+    JSON.stringify(form) !== initialFormState.value
 )
 
 defineExpose({
@@ -217,7 +231,10 @@ function runSearch() {
   void loadPage(1)
 }
 function resetSearch() {
-  pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
+  pageSize.value = resolvePageSize(
+    pageSizeOptions.map((option) => option.id),
+    10
+  )
   searchName.value = ''
   appliedName.value = ''
   void loadPage(1)
@@ -269,7 +286,10 @@ async function openDrawer(mode: DrawerMode, row?: CompanyOption) {
   currentCompany.value = row ?? null
   drawerLoading.value = mode !== 'create'
   drawerError.value = ''
-  relatedPageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
+  relatedPageSize.value = resolvePageSize(
+    pageSizeOptions.map((option) => option.id),
+    10
+  )
   relatedAnime.value = { pageNum: 1, pageSize: relatedPageSize.value, total: 0, pages: 0, rows: [] }
   relatedSortBy.value = 'BROADCAST_DATE'
   relatedSortDirection.value = 'DESC'
@@ -315,11 +335,12 @@ async function loadRelatedAnime(company: CompanyOption, pageNum: number) {
         sortBy: relatedSortBy.value,
         sortDirection: relatedSortDirection.value,
       },
-      controller.signal,
+      controller.signal
     )
     if (!controller.signal.aborted) relatedAnime.value = result
   } catch (error) {
-    if (!controller.signal.aborted) relatedError.value = messageOf(error, '关联动画读取失败，请稍后重试。')
+    if (!controller.signal.aborted)
+      relatedError.value = messageOf(error, '关联动画读取失败，请稍后重试。')
   } finally {
     if (relatedController === controller) relatedLoading.value = false
   }
@@ -409,10 +430,10 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <section class="companies-management">
-    <section class="companies-hero">
-      <div class="companies-hero-copy">
-        <p class="companies-eyebrow">CONTENT ARCHIVE / STUDIO INDEX</p>
+  <section class="companies-management management-cards">
+    <section class="companies-hero management-hero">
+      <div class="companies-hero-copy management-hero-copy">
+        <p class="companies-eyebrow management-eyebrow">CONTENT ARCHIVE / STUDIO INDEX</p>
         <h1>制作公司管理 <span>STUDIO ARCHIVE</span></h1>
         <p>维护动画制作公司档案与简介。新增、修改和查看都在侧边抽屉中完成，列表上下文保持不变。</p>
       </div>
@@ -421,35 +442,39 @@ async function confirmDelete() {
       </button>
     </section>
 
-    <section class="companies-stats" aria-label="制作公司统计">
-      <article>
-        <span class="companies-stat-icon"><AdminIcon name="companies" /></span
-        ><span
-          ><small>公司档案总数</small><strong>{{ totalCompanies ?? '—' }}</strong></span
+    <section class="companies-stats management-stats" aria-label="制作公司统计">
+      <article class="management-stat">
+        <span class="companies-stat-icon management-stat-icon"><AdminIcon name="companies" /></span
+        ><span class="management-stat-copy"
+          ><small class="management-stat-label">公司总数</small
+          ><strong class="management-stat-value">{{ totalCompanies ?? '—' }}</strong></span
         >
       </article>
-      <article>
-        <span class="companies-stat-icon"><AdminIcon name="archive" /></span
-        ><span
-          ><small>当前页记录</small><strong>{{ page.rows.length }}</strong></span
+      <article class="management-stat">
+        <span class="companies-stat-icon management-stat-icon"><AdminIcon name="archive" /></span
+        ><span class="management-stat-copy"
+          ><small class="management-stat-label">当前页记录</small
+          ><strong class="management-stat-value">{{ page.rows.length }}</strong></span
         >
       </article>
-      <article>
-        <span class="companies-stat-icon"><AdminIcon name="check" /></span
-        ><span
-          ><small>已选公司</small><strong>{{ selectedIds.length }}</strong></span
+      <article class="management-stat">
+        <span class="companies-stat-icon management-stat-icon"><AdminIcon name="check" /></span
+        ><span class="management-stat-copy"
+          ><small class="management-stat-label">已选公司</small
+          ><strong class="management-stat-value">{{ selectedIds.length }}</strong></span
         >
       </article>
     </section>
 
-    <section class="companies-list-card" aria-labelledby="companiesListTitle">
-      <header class="companies-list-header">
+    <section class="companies-list-card management-list-card" aria-labelledby="companiesListTitle">
+      <header class="companies-list-header management-list-header">
         <div>
           <h2 id="companiesListTitle">制作公司档案</h2>
           <p>按最近更新排序 · 公司简介为可选信息</p>
         </div>
-        <div class="companies-header-actions">
-          <span>当前显示 {{ page.rows.length }} 条 · 共 {{ page.total }} 条</span
+        <div class="companies-header-actions management-list-actions">
+          <span class="management-list-meta"
+            >当前显示 {{ page.rows.length }} 条 · 共 {{ page.total }} 条</span
           ><button
             class="danger-button"
             type="button"
@@ -460,8 +485,8 @@ async function confirmDelete() {
           </button>
         </div>
       </header>
-      <form class="companies-filter" @submit.prevent="runSearch">
-        <label class="companies-search"
+      <form class="companies-filter management-filter" @submit.prevent="runSearch">
+        <label class="companies-search management-search"
           ><AdminIcon name="search-full" /><input
             v-model="searchName"
             type="text"
@@ -472,11 +497,14 @@ async function confirmDelete() {
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
       </form>
-      <div class="companies-table-scroll">
-        <table v-if="!listLoading && !listError && page.rows.length" class="companies-table">
+      <div class="companies-table-scroll management-table-scroll">
+        <table
+          v-if="!listLoading && !listError && page.rows.length"
+          class="companies-table management-table"
+        >
           <thead>
             <tr>
-              <th class="companies-check-cell">
+              <th class="companies-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="allVisibleSelected"
@@ -486,12 +514,12 @@ async function confirmDelete() {
               </th>
               <th class="companies-name-cell">公司名称</th>
               <th>简介</th>
-              <th>操作</th>
+              <th class="management-actions-cell">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in page.rows" :key="row.id">
-              <td class="companies-check-cell">
+              <td class="companies-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="selectedIds.includes(row.id)"
@@ -500,15 +528,25 @@ async function confirmDelete() {
                 />
               </td>
               <td>
-                <button class="companies-row-name" type="button" @click="openDrawer('detail', row)">
-                  {{ row.name }}</button>
+                <button
+                  class="companies-row-name management-row-name"
+                  type="button"
+                  @click="openDrawer('detail', row)"
+                >
+                  {{ row.name }}
+                </button>
               </td>
               <td>
-                <ArchiveDescription class="companies-row-desc" :text="row.description" empty-text="暂无简介" />
+                <ArchiveDescription
+                  class="companies-row-desc management-description"
+                  :text="row.description"
+                  empty-text="暂无简介"
+                />
               </td>
-              <td>
-                <div class="companies-row-actions">
+              <td class="management-actions-cell">
+                <div class="companies-row-actions management-row-actions">
                   <button
+                    class="management-row-action management-icon-action"
                     type="button"
                     title="查看详情"
                     :aria-label="`查看公司 ${row.name} 详情`"
@@ -516,6 +554,7 @@ async function confirmDelete() {
                   >
                     <AdminIcon name="view" /></button
                   ><button
+                    class="management-row-action management-icon-action"
                     type="button"
                     title="编辑"
                     :aria-label="`编辑公司 ${row.name}`"
@@ -523,7 +562,7 @@ async function confirmDelete() {
                   >
                     <AdminIcon name="edit" /></button
                   ><button
-                    class="danger"
+                    class="danger management-row-action management-icon-action"
                     type="button"
                     title="删除"
                     :aria-label="`删除公司 ${row.name}`"
@@ -536,18 +575,22 @@ async function confirmDelete() {
             </tr>
           </tbody>
         </table>
-        <div v-else class="companies-list-state" :class="{ error: !!listError }">
-          <span class="companies-state-icon"
+        <div
+          v-else
+          class="companies-list-state management-list-state"
+          :class="{ error: !!listError }"
+        >
+          <span class="companies-state-icon management-state-icon"
             ><AdminIcon :name="listError ? 'refresh' : 'companies'"
           /></span>
           <strong>{{
             listLoading
               ? '正在读取公司档案…'
               : listError
-                ? '公司资料读取失败'
-                : appliedName
-                  ? '没有匹配的公司'
-                  : '暂无公司档案'
+              ? '公司资料读取失败'
+              : appliedName
+              ? '没有匹配的公司'
+              : '暂无公司档案'
           }}</strong>
           <p>
             {{
@@ -575,15 +618,15 @@ async function confirmDelete() {
           </button>
         </div>
       </div>
-      <footer class="companies-pagination">
+      <footer class="companies-pagination management-pagination">
         <span>第 {{ firstResult }}–{{ lastResult }} 条，共 {{ page.total }} 条</span>
-        <div class="companies-page-controls">
-          <label class="page-size-wrap"
+        <div class="companies-page-controls management-page-controls">
+          <label class="page-size-wrap management-page-size-wrap"
             ><span>每页</span
             ><ArchiveSelect
               id="companiesPageSize"
               v-model="pageSizeModel"
-              class="page-size-select"
+              class="page-size-select management-page-size"
               label="每页条数"
               placeholder="选择数量"
               placement="top"
@@ -647,8 +690,8 @@ async function confirmDelete() {
                   drawerMode === 'create'
                     ? '新增公司'
                     : drawerMode === 'edit'
-                      ? '编辑公司'
-                      : '公司详情'
+                    ? '编辑公司'
+                    : '公司详情'
                 }}
               </h2>
               <p>
@@ -698,18 +741,24 @@ async function confirmDelete() {
                       type="button"
                       :class="{ active: relatedSortBy === 'BROADCAST_DATE' }"
                       @click="changeRelatedSort('BROADCAST_DATE')"
-                    >放送时间</button>
+                    >
+                      放送时间
+                    </button>
                     <button
                       type="button"
                       :class="{ active: relatedSortBy === 'PERSONAL_RATING' }"
                       @click="changeRelatedSort('PERSONAL_RATING')"
-                    >个人评分</button>
+                    >
+                      个人评分
+                    </button>
                   </div>
                   <button
                     type="button"
                     class="companies-association-direction"
                     @click="toggleRelatedDirection"
-                  >{{ relatedSortDirection === 'DESC' ? '倒序 ↓' : '升序 ↑' }}</button>
+                  >
+                    {{ relatedSortDirection === 'DESC' ? '倒序 ↓' : '升序 ↑' }}
+                  </button>
                 </div>
                 <p v-if="relatedLoading" class="companies-association-state">正在读取关联动画…</p>
                 <p v-else-if="relatedError" class="companies-association-state error" role="alert">
@@ -736,10 +785,15 @@ async function confirmDelete() {
                       :src="anime.coverImageUrl"
                       :alt="`${anime.name}封面`"
                     />
-                    <span v-else class="companies-association-cover">{{ anime.name.slice(0, 1) }}</span>
+                    <span v-else class="companies-association-cover">{{
+                      anime.name.slice(0, 1)
+                    }}</span>
                     <span class="companies-association-info">
                       <RelatedAnimeNameLink :name="anime.name" @select="openRelatedAnime(anime)" />
-                      <small>{{ anime.companies.find((item) => item.companyId === currentCompany?.id)?.role || '未注明职责' }}</small>
+                      <small>{{
+                        anime.companies.find((item) => item.companyId === currentCompany?.id)
+                          ?.role || '未注明职责'
+                      }}</small>
                     </span>
                     <span class="companies-association-meta">
                       <small>{{ anime.airDate || '日期未定' }}</small>
@@ -754,7 +808,8 @@ async function confirmDelete() {
                   <span>
                     第 {{ (relatedAnime.pageNum - 1) * relatedAnime.pageSize + 1 }}–{{
                       Math.min(relatedAnime.pageNum * relatedAnime.pageSize, relatedAnime.total)
-                    }} 条，共 {{ relatedAnime.total }} 条
+                    }}
+                    条，共 {{ relatedAnime.total }} 条
                   </span>
                   <div>
                     <ArchiveSelect
@@ -770,15 +825,23 @@ async function confirmDelete() {
                       type="button"
                       aria-label="上一页关联动画"
                       :disabled="relatedAnime.pageNum <= 1"
-                      @click="currentCompany && loadRelatedAnime(currentCompany, relatedAnime.pageNum - 1)"
-                    ><AdminIcon name="left" /></button>
+                      @click="
+                        currentCompany && loadRelatedAnime(currentCompany, relatedAnime.pageNum - 1)
+                      "
+                    >
+                      <AdminIcon name="left" />
+                    </button>
                     <span>{{ relatedAnime.pageNum }} / {{ relatedAnime.pages }}</span>
                     <button
                       type="button"
                       aria-label="下一页关联动画"
                       :disabled="relatedAnime.pageNum >= relatedAnime.pages"
-                      @click="currentCompany && loadRelatedAnime(currentCompany, relatedAnime.pageNum + 1)"
-                    ><AdminIcon name="right" /></button>
+                      @click="
+                        currentCompany && loadRelatedAnime(currentCompany, relatedAnime.pageNum + 1)
+                      "
+                    >
+                      <AdminIcon name="right" />
+                    </button>
                   </div>
                 </footer>
               </section>
@@ -900,416 +963,16 @@ async function confirmDelete() {
 </template>
 
 <style scoped>
-.companies-management {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding-bottom: 14px;
-}
-.companies-hero {
-  position: relative;
-  display: flex;
-  min-height: 150px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 26px 30px;
-  overflow: hidden;
-  background: linear-gradient(
-    112deg,
-    color-mix(in srgb, var(--surface-solid) 90%, transparent),
-    color-mix(in srgb, var(--surface-muted) 82%, transparent)
-  );
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-soft);
-}
-.companies-hero::before {
-  position: absolute;
-  top: -54px;
-  right: 13%;
-  width: 208px;
-  height: 208px;
-  content: '';
-  border: 1px solid rgba(117, 103, 170, 0.15);
-  border-radius: 43% 57% 63% 37%;
-  transform: rotate(28deg);
-}
-.companies-hero-copy,
-.companies-hero > button {
-  position: relative;
-  z-index: 1;
-}
-.companies-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 9px;
-  color: var(--accent-strong);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-}
-.companies-eyebrow::before {
-  width: 17px;
-  height: 1px;
-  content: '';
-  background: currentColor;
-}
-.companies-hero h1 {
-  margin: 0;
-  font: 700 clamp(23px, 3vw, 30px) / 1.25 var(--font-display);
-  letter-spacing: -0.035em;
-}
-.companies-hero h1 span {
-  color: var(--ink-faint);
-  font: 500 12px var(--font-body);
-  letter-spacing: 0;
-}
-.companies-hero-copy > p:last-child {
-  max-width: 610px;
-  margin: 8px 0 0;
-  color: var(--ink-soft);
-  font-size: 12px;
-}
-.companies-hero .primary-button {
-  flex: 0 0 auto;
-  min-height: 38px;
-  font-size: 12px;
-}
-.companies-hero .primary-button svg {
-  width: 14px;
-  height: 14px;
-}
-.companies-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px;
-  margin-top: 16px;
-}
-.companies-stats article {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: var(--shadow-soft);
-}
-.companies-stat-icon {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 10px;
-}
-.companies-stat-icon svg {
-  width: 18px;
-  height: 18px;
-}
-.companies-stats article:nth-child(2) .companies-stat-icon {
-  color: var(--cyan);
-  background: var(--cyan-soft);
-}
-.companies-stats article:nth-child(3) .companies-stat-icon {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.companies-stats small,
-.companies-stats strong {
-  display: block;
-}
-.companies-stats small {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.companies-stats strong {
-  margin-top: 2px;
-  color: var(--ink);
-  font: 700 22px var(--font-display);
-}
-.companies-list-card {
-  margin-top: 16px;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
-}
-.companies-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
-}
-.companies-list-header h2 {
-  margin: 0;
-  font: 700 16px var(--font-display);
-}
-.companies-list-header p {
-  margin: 3px 0 0;
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.companies-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.companies-header-actions > span {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.companies-header-actions .danger-button {
-  min-height: 34px;
-  font-size: 11px;
-}
-.companies-header-actions .danger-button svg {
-  width: 13px;
-  height: 13px;
-}
-.companies-header-actions .danger-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-}
-.companies-filter {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 14px 17px;
-  border-bottom: 1px solid var(--line);
-}
-.companies-search {
-  display: flex;
-  width: min(440px, 100%);
-  align-items: center;
-  gap: 8px;
-  padding: 0 11px;
-  background: var(--surface-solid);
-  border: 1px solid var(--line-strong);
-  border-radius: 9px;
-}
-.companies-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: var(--focus);
-}
-.companies-search > svg {
-  width: 15px;
-  height: 15px;
-  flex: 0 0 auto;
-  color: var(--ink-faint);
-}
-.companies-search input {
-  width: 100%;
-  height: 36px;
-  padding: 0;
-  color: var(--ink);
-  background: transparent;
-  border: 0;
-  outline: none;
-  box-shadow: none;
-  font-size: 11px;
-}
-.companies-search input:focus {
-  box-shadow: none;
-}
-.companies-filter > button {
-  min-height: 36px;
-  font-size: 11px;
-}
-.companies-table-scroll {
-  overflow-x: auto;
-}
 .companies-table {
   table-layout: fixed;
   width: 100%;
   min-width: 760px;
-  border-collapse: collapse;
-  text-align: left;
-}
-.companies-table th {
-  padding: 10px 13px;
-  color: var(--ink-faint);
-  background: var(--surface-muted);
-  border-bottom: 1px solid var(--line);
-  font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.companies-table td {
-  padding: 12px 13px;
-  color: var(--ink-soft);
-  border-bottom: 1px solid var(--line);
-  font-size: 11px;
-  vertical-align: middle;
-}
-.companies-table tbody tr:hover {
-  background: var(--surface-hover);
-}
-.companies-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-.companies-table th:first-child,
-.companies-table td:first-child {
-  padding-left: 17px;
 }
 .companies-table th:last-child {
   width: 115px;
-  text-align: right;
 }
-.companies-name-cell { width: 28%; }
-.companies-check-cell {
-  width: 38px;
-}
-.companies-check-cell input {
-  accent-color: var(--accent);
-}
-.companies-row-name {
-  display: block;
-  padding: 0;
-  color: var(--ink);
-  background: transparent;
-  font: 700 13px var(--font-display);
-  text-align: left;
-}
-.companies-row-name:hover {
-  color: var(--accent-strong);
-}
-.companies-row-desc {
-  color: var(--ink-soft);
-  font-size: 10px;
-}
-.companies-row-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 4px;
-}
-.companies-row-actions button {
-  display: grid;
-  width: 29px;
-  height: 29px;
-  place-items: center;
-  color: var(--ink-faint);
-  background: transparent;
-  border-radius: 7px;
-}
-.companies-row-actions button svg {
-  width: 14px;
-  height: 14px;
-}
-.companies-row-actions button:hover {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.companies-row-actions button.danger:hover {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.companies-list-state {
-  display: grid;
-  min-height: 220px;
-  justify-items: center;
-  align-content: center;
-  padding: 36px 20px;
-  color: var(--ink-faint);
-  text-align: center;
-}
-.companies-state-icon {
-  display: grid;
-  width: 52px;
-  height: 52px;
-  place-items: center;
-  margin-bottom: 12px;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 16px;
-}
-.companies-state-icon svg {
-  width: 24px;
-  height: 24px;
-}
-.companies-list-state strong {
-  color: var(--ink);
-  font: 700 15px var(--font-display);
-}
-.companies-list-state p {
-  max-width: 480px;
-  margin: 5px 0 13px;
-  font-size: 11px;
-}
-.companies-list-state.error .companies-state-icon {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.companies-list-state button {
-  min-height: 34px;
-  font-size: 11px;
-}
-.companies-pagination {
-  display: flex;
-  min-height: 64px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 20px;
-  border-top: 1px solid var(--line);
-}
-.companies-pagination > span,
-.companies-page-controls {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.companies-page-controls {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.companies-page-controls button {
-  display: grid;
-  min-width: 32px;
-  height: 32px;
-  place-items: center;
-  color: var(--ink-soft);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 10px;
-}
-.companies-page-controls button svg {
-  width: 12px;
-  height: 12px;
-}
-.companies-page-controls button:hover:not(:disabled),
-.companies-page-controls button.active {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border-color: rgba(217, 95, 134, 0.3);
-}
-.companies-page-controls button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.companies-page-controls input {
-  width: 43px;
-  height: 32px;
-  padding: 0 7px;
-  color: var(--ink-soft);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 10px;
-  text-align: center;
-}
-.companies-page-controls input::-webkit-outer-spin-button,
-.companies-page-controls input::-webkit-inner-spin-button {
-  margin: 0;
-  appearance: none;
+.companies-name-cell {
+  width: 28%;
 }
 .companies-drawer-layer {
   position: fixed;
@@ -1799,36 +1462,6 @@ async function confirmDelete() {
   border-color: var(--danger);
 }
 @media (max-width: 700px) {
-  .companies-hero {
-    display: block;
-    min-height: 0;
-    padding: 21px 19px;
-  }
-  .companies-hero > button {
-    margin-top: 15px;
-  }
-  .companies-stats {
-    grid-template-columns: 1fr;
-  }
-  .companies-list-header,
-  .companies-pagination {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .companies-header-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .companies-filter {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .companies-search {
-    width: 100%;
-  }
-  .companies-page-controls {
-    flex-wrap: wrap;
-  }
   .companies-drawer {
     width: 100vw;
   }

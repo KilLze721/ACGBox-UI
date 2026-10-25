@@ -3,6 +3,7 @@
  * 改编类型字典管理页面：展示并筛选作品来源类型，维护新增和修改表单。
  * 支持勾选后删除和危险操作确认，不包含详情页面或详情抽屉。
  */
+import '@/assets/adminManagementCards.css'
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
@@ -60,15 +61,15 @@ const filteredTypes = computed(() => {
 const allVisibleSelected = computed(
   () =>
     filteredTypes.value.length > 0 &&
-    filteredTypes.value.every((item) => selectedIds.value.includes(item.id)),
+    filteredTypes.value.every((item) => selectedIds.value.includes(item.id))
 )
 const selectedTargets = computed(() =>
-  types.value.filter((item) => selectedIds.value.includes(item.id)),
+  types.value.filter((item) => selectedIds.value.includes(item.id))
 )
 const isDirty = computed(
   () =>
     drawerMode.value !== null &&
-    (formName.value !== initialFormName.value || formSortOrder.value !== initialFormSortOrder.value),
+    (formName.value !== initialFormName.value || formSortOrder.value !== initialFormSortOrder.value)
 )
 
 defineExpose({
@@ -259,10 +260,10 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <section class="adaptation-management">
-    <section class="adaptation-hero">
-      <div class="adaptation-hero-copy">
-        <p class="adaptation-eyebrow">CONTENT ARCHIVE / ADAPTATION INDEX</p>
+  <section class="adaptation-management management-cards">
+    <section class="adaptation-hero management-hero">
+      <div class="adaptation-hero-copy management-hero-copy">
+        <p class="adaptation-eyebrow management-eyebrow">CONTENT ARCHIVE / ADAPTATION INDEX</p>
         <h1>改编类型管理 <span>ADAPTATION TYPES</span></h1>
         <p>统一维护动画的来源类型，例如原创、漫画改编与小说改编。新增和修改均通过侧边抽屉完成。</p>
       </div>
@@ -271,35 +272,45 @@ async function confirmDelete() {
       </button>
     </section>
 
-    <section class="adaptation-stats" aria-label="改编类型统计">
-      <article>
-        <span class="adaptation-stat-icon"><AdminIcon name="adaptation-types" /></span>
-        <span
-          ><small>类型总数</small><strong>{{ types.length }}</strong></span
+    <section class="adaptation-stats management-stats" aria-label="改编类型统计">
+      <article class="management-stat">
+        <span class="adaptation-stat-icon management-stat-icon"
+          ><AdminIcon name="adaptation-types"
+        /></span>
+        <span class="management-stat-copy"
+          ><small class="management-stat-label">类型总数</small
+          ><strong class="management-stat-value">{{ types.length }}</strong></span
         >
       </article>
-      <article>
-        <span class="adaptation-stat-icon"><AdminIcon name="search-full" /></span>
-        <span
-          ><small>当前匹配</small><strong>{{ filteredTypes.length }}</strong></span
+      <article class="management-stat">
+        <span class="adaptation-stat-icon management-stat-icon"
+          ><AdminIcon name="search-full"
+        /></span>
+        <span class="management-stat-copy"
+          ><small class="management-stat-label">当前页记录</small
+          ><strong class="management-stat-value">{{ filteredTypes.length }}</strong></span
         >
       </article>
-      <article>
-        <span class="adaptation-stat-icon"><AdminIcon name="check" /></span>
-        <span
-          ><small>已选类型</small><strong>{{ selectedIds.length }}</strong></span
+      <article class="management-stat">
+        <span class="adaptation-stat-icon management-stat-icon"><AdminIcon name="check" /></span>
+        <span class="management-stat-copy"
+          ><small class="management-stat-label">已选类型</small
+          ><strong class="management-stat-value">{{ selectedIds.length }}</strong></span
         >
       </article>
     </section>
 
-    <section class="adaptation-list-card" aria-labelledby="adaptationListTitle">
-      <header class="adaptation-list-header">
+    <section
+      class="adaptation-list-card management-list-card"
+      aria-labelledby="adaptationListTitle"
+    >
+      <header class="adaptation-list-header management-list-header">
         <div>
           <h2 id="adaptationListTitle">改编类型词条</h2>
           <p>全量读取 · 按排序值升序 · 支持名称关键词筛选</p>
         </div>
-        <div class="adaptation-header-actions">
-          <span>显示 {{ filteredTypes.length }} 条</span>
+        <div class="adaptation-header-actions management-list-actions">
+          <span class="management-list-meta">显示 {{ filteredTypes.length }} 条</span>
           <button
             class="danger-button"
             type="button"
@@ -310,8 +321,8 @@ async function confirmDelete() {
           </button>
         </div>
       </header>
-      <form class="adaptation-filter" @submit.prevent="runSearch">
-        <label class="adaptation-search">
+      <form class="adaptation-filter management-filter" @submit.prevent="runSearch">
+        <label class="adaptation-search management-search">
           <AdminIcon name="search-full" />
           <input
             v-model="searchName"
@@ -327,11 +338,14 @@ async function confirmDelete() {
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
       </form>
-      <div class="adaptation-table-scroll">
-        <table v-if="!loading && !listError && filteredTypes.length" class="adaptation-table">
+      <div class="adaptation-table-scroll management-table-scroll">
+        <table
+          v-if="!loading && !listError && filteredTypes.length"
+          class="adaptation-table management-table"
+        >
           <thead>
             <tr>
-              <th class="adaptation-check-cell">
+              <th class="adaptation-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="allVisibleSelected"
@@ -341,12 +355,12 @@ async function confirmDelete() {
               </th>
               <th>改编类型名称</th>
               <th class="adaptation-sort-cell">排序</th>
-              <th>操作</th>
+              <th class="management-actions-cell">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in filteredTypes" :key="item.id">
-              <td class="adaptation-check-cell">
+              <td class="adaptation-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="selectedIds.includes(item.id)"
@@ -358,9 +372,10 @@ async function confirmDelete() {
                 <span class="adaptation-name">{{ item.name }}</span>
               </td>
               <td class="adaptation-sort-cell">{{ item.sortOrder }}</td>
-              <td>
-                <div class="adaptation-row-actions">
+              <td class="management-actions-cell">
+                <div class="adaptation-row-actions management-row-actions">
                   <button
+                    class="management-row-action management-icon-action"
                     type="button"
                     title="编辑"
                     :aria-label="`编辑改编类型 ${item.name}`"
@@ -369,7 +384,7 @@ async function confirmDelete() {
                     <AdminIcon name="edit" />
                   </button>
                   <button
-                    class="danger"
+                    class="danger management-row-action management-icon-action"
                     type="button"
                     title="删除"
                     :aria-label="`删除改编类型 ${item.name}`"
@@ -382,18 +397,22 @@ async function confirmDelete() {
             </tr>
           </tbody>
         </table>
-        <div v-else class="adaptation-list-state" :class="{ error: !!listError }">
-          <span class="adaptation-state-icon"
+        <div
+          v-else
+          class="adaptation-list-state management-list-state"
+          :class="{ error: !!listError }"
+        >
+          <span class="adaptation-state-icon management-state-icon"
             ><AdminIcon :name="listError ? 'refresh' : 'adaptation-types'"
           /></span>
           <strong>{{
             loading
               ? '正在读取改编类型…'
               : listError
-                ? '改编类型读取失败'
-                : appliedName
-                  ? '没有匹配的改编类型'
-                  : '暂无改编类型'
+              ? '改编类型读取失败'
+              : appliedName
+              ? '没有匹配的改编类型'
+              : '暂无改编类型'
           }}</strong>
           <p>
             {{
@@ -481,7 +500,9 @@ async function confirmDelete() {
                   id="adaptationSortOrderError"
                   class="adaptation-error"
                   role="alert"
-                >{{ sortOrderError }}</p>
+                >
+                  {{ sortOrderError }}
+                </p>
                 <p class="adaptation-hint">数值越小越靠前，支持负整数；相同数值保持稳定顺序。</p>
               </div>
               <p v-if="drawerError" class="adaptation-save-error" role="alert">{{ drawerError }}</p>
@@ -558,73 +579,6 @@ async function confirmDelete() {
 </template>
 
 <style scoped>
-.adaptation-management {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding-bottom: 14px;
-}
-.adaptation-hero {
-  position: relative;
-  display: flex;
-  min-height: 150px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 26px 30px;
-  overflow: hidden;
-  background: linear-gradient(112deg, var(--surface-solid), var(--surface-muted));
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-soft);
-}
-.adaptation-hero::before {
-  position: absolute;
-  top: -54px;
-  right: 13%;
-  width: 208px;
-  height: 208px;
-  content: '';
-  border: 1px solid color-mix(in srgb, var(--violet) 20%, transparent);
-  border-radius: 43% 57% 63% 37%;
-  transform: rotate(28deg);
-}
-.adaptation-hero-copy,
-.adaptation-hero > button {
-  position: relative;
-  z-index: 1;
-}
-.adaptation-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 9px;
-  color: var(--accent-strong);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-}
-.adaptation-eyebrow::before {
-  width: 17px;
-  height: 1px;
-  content: '';
-  background: currentColor;
-}
-.adaptation-hero h1 {
-  margin: 0;
-  font: 700 clamp(23px, 3vw, 30px) / 1.25 var(--font-display);
-  letter-spacing: -0.035em;
-}
-.adaptation-hero h1 span {
-  color: var(--ink-faint);
-  font: 500 12px var(--font-body);
-  letter-spacing: 0;
-}
-.adaptation-hero-copy > p:last-child {
-  max-width: 610px;
-  margin: 8px 0 0;
-  color: var(--ink-soft);
-  font-size: 12px;
-}
 .adaptation-management .primary-button,
 .adaptation-management .secondary-button,
 .adaptation-management .ghost-button,
@@ -666,141 +620,8 @@ async function confirmDelete() {
   box-shadow: none;
   cursor: not-allowed;
 }
-.adaptation-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px;
-  margin-top: 16px;
-}
-.adaptation-stats article {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: var(--shadow-soft);
-}
-.adaptation-stat-icon {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 10px;
-}
-.adaptation-stat-icon svg {
-  width: 17px;
-  height: 17px;
-}
-.adaptation-stats article:nth-child(2) .adaptation-stat-icon {
-  color: var(--cyan);
-  background: var(--cyan-soft);
-}
-.adaptation-stats article:nth-child(3) .adaptation-stat-icon {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.adaptation-stats small,
-.adaptation-stats strong {
-  display: block;
-}
-.adaptation-stats small {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.adaptation-stats strong {
-  margin-top: 2px;
-  font: 700 18px var(--font-display);
-}
-.adaptation-list-card {
-  margin-top: 16px;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
-}
-.adaptation-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
-}
-.adaptation-list-header h2 {
-  margin: 0;
-  font: 700 14px var(--font-display);
-}
-.adaptation-list-header p,
-.adaptation-header-actions > span {
-  margin: 3px 0 0;
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.adaptation-header-actions,
-.adaptation-filter {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.adaptation-filter {
-  padding: 14px 17px;
-  border-bottom: 1px solid var(--line);
-}
-.adaptation-search {
-  display: flex;
-  width: min(440px, 100%);
-  align-items: center;
-  gap: 8px;
-  padding: 0 11px;
-  background: var(--surface-solid);
-  border: 1px solid var(--line-strong);
-  border-radius: 9px;
-}
-.adaptation-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: var(--focus);
-}
-.adaptation-search > svg {
-  width: 15px;
-  height: 15px;
-  flex: 0 0 auto;
-  color: var(--ink-faint);
-}
-.adaptation-search input {
-  width: 100%;
-  min-width: 0;
-  height: 36px;
-  color: var(--ink);
-  background: transparent;
-  border: 0;
-  outline: 0;
-  font-size: 11px;
-}
-.adaptation-search button {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: var(--ink-faint);
-  background: transparent;
-}
-.adaptation-search button svg {
-  width: 12px;
-  height: 12px;
-}
-.adaptation-table-scroll {
-  overflow-x: auto;
-}
 .adaptation-table {
   width: 100%;
-  border-collapse: collapse;
-  text-align: left;
 }
 .adaptation-sort-cell {
   width: 110px;
@@ -810,38 +631,9 @@ async function confirmDelete() {
 .adaptation-field + .adaptation-field {
   margin-top: 20px;
 }
-.adaptation-table th,
-.adaptation-table td {
-  padding: 11px 14px;
-  border-bottom: 1px solid var(--line);
-}
-.adaptation-table th {
-  color: var(--ink-faint);
-  background: var(--surface-muted);
-  font-size: 10px;
-  font-weight: 700;
-}
-.adaptation-table td {
-  color: var(--ink-soft);
-  font-size: 11px;
-}
-.adaptation-table tr:last-child td {
-  border-bottom: 0;
-}
-.adaptation-table tbody tr:hover {
-  background: var(--surface-hover);
-}
-.adaptation-check-cell {
-  width: 42px;
-  padding-left: 18px !important;
-}
-.adaptation-check-cell input {
-  accent-color: var(--accent);
-}
 .adaptation-table th:last-child,
 .adaptation-table td:last-child {
   width: 110px;
-  text-align: right;
 }
 .adaptation-name {
   display: inline-flex;
@@ -861,68 +653,6 @@ async function confirmDelete() {
   content: '';
   background: var(--violet);
   border-radius: 50%;
-}
-.adaptation-row-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 4px;
-}
-.adaptation-row-actions button {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  color: var(--ink-faint);
-  background: transparent;
-  border-radius: 7px;
-}
-.adaptation-row-actions button svg {
-  width: 14px;
-  height: 14px;
-}
-.adaptation-row-actions button:hover {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.adaptation-row-actions button.danger:hover {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.adaptation-list-state {
-  display: grid;
-  min-height: 220px;
-  justify-items: center;
-  align-content: center;
-  padding: 36px 20px;
-  color: var(--ink-faint);
-  text-align: center;
-}
-.adaptation-state-icon {
-  display: grid;
-  width: 52px;
-  height: 52px;
-  place-items: center;
-  margin-bottom: 12px;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 16px;
-}
-.adaptation-state-icon svg {
-  width: 24px;
-  height: 24px;
-}
-.adaptation-list-state.error .adaptation-state-icon {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.adaptation-list-state strong {
-  color: var(--ink);
-  font: 700 15px var(--font-display);
-}
-.adaptation-list-state p {
-  max-width: 480px;
-  margin: 5px 0 13px;
-  font-size: 11px;
 }
 .adaptation-drawer-layer,
 .adaptation-dialog-layer {
@@ -1230,34 +960,7 @@ async function confirmDelete() {
 .adaptation-toast.error {
   color: var(--danger);
 }
-@media (max-width: 760px) {
-  .adaptation-hero {
-    padding: 21px 19px;
-  }
-  .adaptation-list-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .adaptation-header-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-}
 @media (max-width: 620px) {
-  .adaptation-hero {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .adaptation-stats {
-    grid-template-columns: 1fr;
-  }
-  .adaptation-filter {
-    align-items: stretch;
-    flex-wrap: wrap;
-  }
-  .adaptation-search {
-    width: 100%;
-  }
   .adaptation-drawer {
     width: 100vw;
   }

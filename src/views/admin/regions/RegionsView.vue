@@ -3,6 +3,7 @@
  * 地区字典管理页面：读取地区列表，在前端按名称筛选并展示选择状态。
  * 使用抽屉新增、修改地区，使用确认弹窗删除单项或多项；不提供详情展示。
  */
+import '@/assets/adminManagementCards.css'
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { createRegion, deleteRegions, getRegionById, getRegions, updateRegion } from '@/api/catalog'
@@ -49,13 +50,13 @@ const filteredRegions = computed(() => {
 const allVisibleSelected = computed(
   () =>
     filteredRegions.value.length > 0 &&
-    filteredRegions.value.every((region) => selectedIds.value.includes(region.id)),
+    filteredRegions.value.every((region) => selectedIds.value.includes(region.id))
 )
 const selectedTargets = computed(() =>
-  regions.value.filter((region) => selectedIds.value.includes(region.id)),
+  regions.value.filter((region) => selectedIds.value.includes(region.id))
 )
 const isDirty = computed(
-  () => drawerMode.value !== null && formName.value !== initialFormName.value,
+  () => drawerMode.value !== null && formName.value !== initialFormName.value
 )
 
 defineExpose({
@@ -234,10 +235,10 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <section class="regions-management">
-    <section class="regions-hero">
-      <div>
-        <p class="regions-eyebrow">CONTENT ARCHIVE / REGION INDEX</p>
+  <section class="regions-management management-cards">
+    <section class="regions-hero management-hero">
+      <div class="management-hero-copy">
+        <p class="regions-eyebrow management-eyebrow">CONTENT ARCHIVE / REGION INDEX</p>
         <h1>地区管理 <span>REGION ARCHIVE</span></h1>
         <p>维护动画资料的地区词条，统一地区名称供筛选和档案标注使用。</p>
       </div>
@@ -246,35 +247,38 @@ async function confirmDelete() {
       </button>
     </section>
 
-    <section class="regions-stats" aria-label="地区统计">
-      <article>
-        <span class="regions-stat-icon"><AdminIcon name="regions" /></span>
-        <span
-          ><small>地区总数</small><strong>{{ regions.length }}</strong></span
+    <section class="regions-stats management-stats" aria-label="地区统计">
+      <article class="management-stat">
+        <span class="regions-stat-icon management-stat-icon"><AdminIcon name="regions" /></span>
+        <span class="management-stat-copy"
+          ><small class="management-stat-label">地区总数</small
+          ><strong class="management-stat-value">{{ regions.length }}</strong></span
         >
       </article>
-      <article>
-        <span class="regions-stat-icon"><AdminIcon name="search-full" /></span>
-        <span
-          ><small>当前匹配</small><strong>{{ filteredRegions.length }}</strong></span
+      <article class="management-stat">
+        <span class="regions-stat-icon management-stat-icon"><AdminIcon name="search-full" /></span>
+        <span class="management-stat-copy"
+          ><small class="management-stat-label">当前页记录</small
+          ><strong class="management-stat-value">{{ filteredRegions.length }}</strong></span
         >
       </article>
-      <article>
-        <span class="regions-stat-icon"><AdminIcon name="check" /></span>
-        <span
-          ><small>已选地区</small><strong>{{ selectedIds.length }}</strong></span
+      <article class="management-stat">
+        <span class="regions-stat-icon management-stat-icon"><AdminIcon name="check" /></span>
+        <span class="management-stat-copy"
+          ><small class="management-stat-label">已选地区</small
+          ><strong class="management-stat-value">{{ selectedIds.length }}</strong></span
         >
       </article>
     </section>
 
-    <section class="regions-list-card" aria-labelledby="regionsListTitle">
-      <header class="regions-list-header">
+    <section class="regions-list-card management-list-card" aria-labelledby="regionsListTitle">
+      <header class="regions-list-header management-list-header">
         <div>
           <h2 id="regionsListTitle">地区词条列表</h2>
           <p>全量读取 · 按名称升序 · 名称在页面内筛选</p>
         </div>
-        <div class="regions-header-actions">
-          <span>显示 {{ filteredRegions.length }} 条</span>
+        <div class="regions-header-actions management-list-actions">
+          <span class="management-list-meta">显示 {{ filteredRegions.length }} 条</span>
           <button
             class="danger-button"
             type="button"
@@ -285,8 +289,8 @@ async function confirmDelete() {
           </button>
         </div>
       </header>
-      <form class="regions-filter" @submit.prevent="runSearch">
-        <label class="regions-search">
+      <form class="regions-filter management-filter" @submit.prevent="runSearch">
+        <label class="regions-search management-search">
           <AdminIcon name="search-full" />
           <input
             v-model="searchName"
@@ -299,11 +303,14 @@ async function confirmDelete() {
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
       </form>
-      <div class="regions-table-scroll">
-        <table v-if="!loading && !listError && filteredRegions.length" class="regions-table">
+      <div class="regions-table-scroll management-table-scroll">
+        <table
+          v-if="!loading && !listError && filteredRegions.length"
+          class="regions-table management-table"
+        >
           <thead>
             <tr>
-              <th class="regions-check-cell">
+              <th class="regions-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="allVisibleSelected"
@@ -312,12 +319,12 @@ async function confirmDelete() {
                 />
               </th>
               <th>地区名称</th>
-              <th>操作</th>
+              <th class="management-actions-cell">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="region in filteredRegions" :key="region.id">
-              <td class="regions-check-cell">
+              <td class="regions-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="selectedIds.includes(region.id)"
@@ -328,9 +335,10 @@ async function confirmDelete() {
               <td>
                 <span class="regions-name">{{ region.name }}</span>
               </td>
-              <td>
-                <div class="regions-row-actions">
+              <td class="management-actions-cell">
+                <div class="regions-row-actions management-row-actions">
                   <button
+                    class="management-row-action management-icon-action"
                     type="button"
                     title="编辑"
                     :aria-label="`编辑地区 ${region.name}`"
@@ -339,7 +347,7 @@ async function confirmDelete() {
                     <AdminIcon name="edit" />
                   </button>
                   <button
-                    class="danger"
+                    class="danger management-row-action management-icon-action"
                     type="button"
                     title="删除"
                     :aria-label="`删除地区 ${region.name}`"
@@ -352,18 +360,22 @@ async function confirmDelete() {
             </tr>
           </tbody>
         </table>
-        <div v-else class="regions-list-state" :class="{ error: !!listError }">
-          <span class="regions-state-icon"
+        <div
+          v-else
+          class="regions-list-state management-list-state"
+          :class="{ error: !!listError }"
+        >
+          <span class="regions-state-icon management-state-icon"
             ><AdminIcon :name="listError ? 'refresh' : 'regions'"
           /></span>
           <strong>{{
             loading
               ? '正在读取地区…'
               : listError
-                ? '地区读取失败'
-                : appliedName
-                  ? '没有匹配的地区'
-                  : '暂无地区'
+              ? '地区读取失败'
+              : appliedName
+              ? '没有匹配的地区'
+              : '暂无地区'
           }}</strong>
           <p>
             {{
@@ -503,65 +515,8 @@ async function confirmDelete() {
 </template>
 
 <style scoped>
-.regions-management {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding-bottom: 14px;
-}
 .regions-management button {
   cursor: pointer;
-}
-.regions-hero {
-  position: relative;
-  display: flex;
-  min-height: 150px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 26px 30px;
-  overflow: hidden;
-  background: linear-gradient(112deg, var(--surface-solid), var(--surface-muted));
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-soft);
-}
-.regions-hero::before {
-  position: absolute;
-  top: -54px;
-  right: 13%;
-  width: 208px;
-  height: 208px;
-  content: '';
-  border: 1px solid color-mix(in srgb, var(--violet) 20%, transparent);
-  border-radius: 43% 57% 63% 37%;
-  transform: rotate(28deg);
-}
-.regions-hero > * {
-  position: relative;
-  z-index: 1;
-}
-.regions-eyebrow {
-  margin: 0 0 9px;
-  color: var(--accent-strong);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-}
-.regions-hero h1 {
-  margin: 0;
-  font: 700 clamp(23px, 3vw, 30px)/1.25 var(--font-display);
-  letter-spacing: -0.035em;
-}
-.regions-hero h1 span {
-  color: var(--ink-faint);
-  font: 500 12px var(--font-body);
-  letter-spacing: 0;
-}
-.regions-hero p:last-child {
-  max-width: 610px;
-  margin: 8px 0 0;
-  color: var(--ink-soft);
-  font-size: 12px;
 }
 .primary-button,
 .secondary-button,
@@ -614,159 +569,10 @@ async function confirmDelete() {
   box-shadow: none;
   cursor: not-allowed;
 }
-.regions-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px;
-  margin-top: 16px;
-}
-.regions-stats article {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: var(--shadow-soft);
-}
-.regions-stat-icon {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 10px;
-}
-.regions-stat-icon svg {
-  width: 17px;
-  height: 17px;
-}
-.regions-stats article:nth-child(2) .regions-stat-icon {
-  color: var(--cyan);
-  background: var(--cyan-soft);
-}
-.regions-stats article:nth-child(3) .regions-stat-icon {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.regions-stats small,
-.regions-stats strong {
-  display: block;
-}
-.regions-stats small {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.regions-stats strong {
-  margin-top: 2px;
-  font: 700 18px var(--font-display);
-}
-.regions-list-card {
-  margin-top: 16px;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
-}
-.regions-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--line);
-}
-.regions-list-header h2 {
-  margin: 0;
-  font: 700 16px var(--font-display);
-}
-.regions-list-header p {
-  margin: 4px 0 0;
-  color: var(--ink-faint);
-  font-size: 11px;
-}
-.regions-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--ink-faint);
-  font-size: 11px;
-  white-space: nowrap;
-}
-.regions-filter {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 15px 20px;
-}
-.regions-search {
-  display: flex;
-  width: min(390px, 100%);
-  height: 40px;
-  align-items: center;
-  gap: 9px;
-  padding: 0 12px;
-  background: var(--surface-solid);
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-}
-.regions-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: var(--focus);
-}
-.regions-search svg {
-  width: 16px;
-  height: 16px;
-  color: var(--ink-faint);
-}
-.regions-search input {
-  width: 100%;
-  min-width: 0;
-  color: var(--ink);
-  background: transparent;
-  border: 0;
-  outline: 0;
-  font: 11px var(--font-body);
-}
-.regions-search input::placeholder {
-  color: var(--ink-faint);
-}
-.regions-table-scroll {
-  overflow-x: auto;
-}
 .regions-table {
   width: 100%;
   min-width: 580px;
-  border-collapse: collapse;
-  text-align: left;
 }
-.regions-table th {
-  padding: 11px 14px;
-  color: var(--ink-faint);
-  background: var(--surface-muted);
-  border-bottom: 1px solid var(--line);
-  font-size: 10px;
-  font-weight: 700;
-}
-.regions-table td {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--line);
-  color: var(--ink-soft);
-  font-size: 11px;
-}
-.regions-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-.regions-table tbody tr:hover {
-  background: var(--surface-hover);
-}
-.regions-check-cell {
-  width: 50px;
-}
-.regions-check-cell input,
 .regions-delete-check input {
   width: 14px;
   height: 14px;
@@ -791,64 +597,6 @@ async function confirmDelete() {
   content: '';
   background: var(--violet);
   border-radius: 50%;
-}
-.regions-row-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 5px;
-}
-.regions-row-actions button {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  color: var(--ink-faint);
-  background: transparent;
-  border: 0;
-  border-radius: 8px;
-}
-.regions-row-actions button svg {
-  width: 15px;
-  height: 15px;
-}
-.regions-row-actions button:hover {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.regions-row-actions button.danger:hover {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.regions-list-state {
-  padding: 48px 20px;
-  text-align: center;
-}
-.regions-state-icon {
-  display: grid;
-  width: 52px;
-  height: 52px;
-  place-items: center;
-  margin: 0 auto 12px;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 16px;
-}
-.regions-state-icon svg {
-  width: 22px;
-  height: 22px;
-}
-.regions-list-state strong {
-  display: block;
-  font: 700 15px var(--font-display);
-}
-.regions-list-state p {
-  margin: 6px 0 14px;
-  color: var(--ink-faint);
-  font-size: 11px;
-}
-.regions-list-state.error .regions-state-icon {
-  color: var(--danger);
-  background: var(--danger-soft);
 }
 .regions-drawer-layer {
   position: fixed;
@@ -1096,20 +844,6 @@ async function confirmDelete() {
   font-size: 12px;
 }
 @media (max-width: 680px) {
-  .regions-hero,
-  .regions-list-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .regions-stats {
-    grid-template-columns: 1fr;
-  }
-  .regions-filter {
-    flex-wrap: wrap;
-  }
-  .regions-search {
-    width: 100%;
-  }
   .regions-drawer-footer > span {
     display: none;
   }

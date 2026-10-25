@@ -1,0 +1,717 @@
+/* 管理列表页主动接入的卡片规范，以系列管理为基准，不影响动画、设置及其他专用页面。 */
+.management-cards {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding-bottom: 14px;
+  color: var(--ink);
+}
+
+.management-cards .management-hero {
+  position: relative;
+  display: flex;
+  min-height: 150px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 26px 30px;
+  overflow: hidden;
+  color: var(--ink);
+  background: linear-gradient(
+    112deg,
+    color-mix(in srgb, var(--surface-solid) 90%, transparent),
+    color-mix(in srgb, var(--surface-muted) 82%, transparent)
+  );
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-soft);
+}
+.management-cards .management-hero::before {
+  position: absolute;
+  top: -54px;
+  right: 13%;
+  width: 208px;
+  height: 208px;
+  content: '';
+  pointer-events: none;
+  background: none;
+  border: 1px solid rgba(117, 103, 170, 0.15);
+  border-radius: 43% 57% 63% 37%;
+  transform: rotate(28deg);
+}
+.management-cards .management-hero::after {
+  display: none;
+}
+.management-cards .management-hero > * {
+  position: relative;
+  z-index: 1;
+}
+.management-cards .management-hero-copy {
+  min-width: 0;
+}
+.management-cards .management-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 9px;
+  color: var(--accent-strong);
+  font: 750 10px/1.5 var(--font-body);
+  letter-spacing: 0.16em;
+}
+.management-cards .management-eyebrow::before {
+  width: 17px;
+  height: 1px;
+  flex-shrink: 0;
+  content: '';
+  background: currentColor;
+}
+.management-cards .management-hero h1 {
+  margin: 0;
+  color: var(--ink);
+  font: 700 clamp(23px, 3vw, 30px) / 1.25 var(--font-display);
+  letter-spacing: -0.035em;
+}
+.management-cards .management-hero h1 span {
+  display: inline-block;
+  margin: 0;
+  color: var(--ink-faint);
+  font: 500 12px var(--font-body);
+  letter-spacing: 0;
+  vertical-align: baseline;
+}
+.management-cards .management-hero-copy > p:last-child {
+  max-width: 610px;
+  margin: 8px 0 0;
+  color: var(--ink-soft);
+  font: 12px/1.5 var(--font-body);
+}
+.management-cards .management-hero-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 9px;
+}
+
+.management-cards .management-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px;
+  margin-top: 16px;
+}
+.management-cards .management-stat {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: none;
+}
+.management-cards .management-stat::after {
+  display: none;
+}
+.management-cards .management-stat-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--violet);
+  background: var(--violet-soft);
+  border-radius: 10px;
+}
+.management-cards .management-stat-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.management-cards .management-stat:nth-child(2) .management-stat-icon {
+  color: var(--cyan);
+  background: var(--cyan-soft);
+}
+.management-cards .management-stat:nth-child(3) .management-stat-icon {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.management-cards .management-stat-copy {
+  min-width: 0;
+}
+.management-cards .management-stat-label {
+  display: block;
+  margin: 0;
+  color: var(--ink-faint);
+  font: 400 10px/1.5 var(--font-body);
+}
+.management-cards .management-stat-value {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+  font: 700 22px/1.25 var(--font-display);
+}
+
+.management-cards .management-list-card {
+  margin-top: 16px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+.management-cards .management-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.management-cards .management-list-header h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 700 16px var(--font-display);
+}
+.management-cards .management-list-header p {
+  margin: 3px 0 0;
+  color: var(--ink-faint);
+  font: 10px/1.5 var(--font-body);
+}
+.management-cards .management-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.management-cards .management-list-meta {
+  color: var(--ink-faint);
+  font: 10px var(--font-body);
+}
+
+/* 卡片操作按钮的公共规范；抽屉和弹窗继续使用各页面的现有规则。 */
+.management-cards
+  :is(.management-hero, .management-list-header)
+  button:is(.primary-button, .danger-button) {
+  display: inline-flex;
+  flex-shrink: 0;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  font: 700 12px/1.5 var(--font-body);
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+.management-cards .management-hero button.primary-button {
+  color: #fff;
+  background: linear-gradient(135deg, #df698f, #bd4d79);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 9px 22px rgba(189, 63, 105, 0.2);
+}
+.management-cards .management-hero button.primary-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ea789b, #c8517e);
+  box-shadow: 0 12px 26px rgba(189, 63, 105, 0.28);
+  transform: translateY(-1px);
+}
+.management-cards .management-hero button.primary-button svg {
+  width: 14px;
+  height: 14px;
+}
+.management-cards .management-list-header button.danger-button {
+  min-height: 34px;
+  color: #fff;
+  background: var(--danger);
+  box-shadow: none;
+  font-size: 11px;
+}
+.management-cards .management-list-header button.danger-button:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+.management-cards .management-list-header button.danger-button svg {
+  width: 13px;
+  height: 13px;
+}
+.management-cards
+  :is(.management-hero, .management-list-header)
+  button:is(.primary-button, .danger-button):focus-visible {
+  outline: 0;
+  box-shadow: var(--focus);
+}
+.management-cards
+  :is(.management-hero, .management-list-header)
+  button:is(.primary-button, .danger-button):disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .management-cards :is(.management-hero, .management-list-header) button {
+    transition: none;
+  }
+}
+@media (max-width: 620px) {
+  .management-cards .management-hero {
+    display: block;
+    min-height: 0;
+    padding: 21px 19px;
+  }
+  .management-cards .management-hero-actions {
+    margin-top: 15px;
+  }
+  .management-cards .management-hero > button {
+    margin-top: 15px;
+  }
+  .management-cards .management-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .management-cards .management-list-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .management-cards .management-list-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+}
+
+/* 列表只复用视觉规范，各页自行保留列宽、字段、筛选布局和分页能力。 */
+.management-cards .management-filter {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 14px 17px;
+  border-bottom: 1px solid var(--line);
+}
+.management-cards .management-filter.management-filter-fields {
+  display: grid;
+  align-items: end;
+}
+.management-cards .management-search {
+  display: flex;
+  width: min(440px, 100%);
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  background: var(--surface-solid);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+}
+.management-cards .management-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+.management-cards .management-search > svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+}
+.management-cards .management-search input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  font: 11px var(--font-body);
+}
+.management-cards .management-search input::placeholder {
+  color: var(--ink-faint);
+}
+.management-cards .management-search input:focus {
+  box-shadow: none;
+}
+.management-cards .management-search > button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  place-items: center;
+  padding: 0;
+  color: var(--ink-faint);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+}
+.management-cards .management-search > button svg {
+  width: 12px;
+  height: 12px;
+}
+.management-cards .management-filter-note {
+  margin-left: auto;
+  color: var(--ink-faint);
+  font: 10px var(--font-body);
+}
+.management-cards .management-filter-field {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+.management-cards .management-filter-field > label {
+  color: var(--ink-soft);
+  font: 650 10px var(--font-body);
+}
+.management-cards .management-filter-field > input,
+.management-cards .management-filter .management-filter-select .archive-select-trigger {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  height: 36px;
+  padding: 0 11px;
+  color: var(--ink);
+  background: var(--surface-solid);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  font: 11px var(--font-body);
+}
+.management-cards .management-filter-field > input:focus {
+  outline: 0;
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+.management-cards
+  .management-filter
+  .management-filter-select:is(.open, :focus-within)
+  .archive-select-trigger {
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+.management-cards .management-filter-actions {
+  display: flex;
+  gap: 7px;
+}
+.management-cards .management-filter > button,
+.management-cards .management-filter .management-filter-actions button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 15px;
+  color: var(--ink-soft);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  box-shadow: none;
+  font: 700 11px var(--font-body);
+  text-decoration: none;
+  cursor: pointer;
+}
+.management-cards .management-filter > button.ghost-button,
+.management-cards .management-filter .management-filter-actions button[type='reset'] {
+  padding: 0 11px;
+  background: transparent;
+}
+.management-cards .management-filter > button:hover:not(:disabled),
+.management-cards .management-filter .management-filter-actions button:hover:not(:disabled) {
+  color: var(--accent-strong);
+  background: var(--surface-hover);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  box-shadow: none;
+}
+
+.management-cards .management-table-scroll {
+  overflow-x: auto;
+}
+.management-cards .management-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-family: var(--font-body);
+}
+.management-cards .management-table th {
+  padding: 10px 13px;
+  color: var(--ink-faint);
+  background: var(--surface-muted);
+  border-bottom: 1px solid var(--line);
+  font: 700 10px var(--font-body);
+  white-space: nowrap;
+}
+.management-cards .management-table td {
+  padding: 12px 13px;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--line);
+  font: 11px var(--font-body);
+  vertical-align: middle;
+}
+.management-cards .management-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+.management-cards .management-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.management-cards .management-table :is(th, td):first-child {
+  padding-left: 17px;
+}
+.management-cards .management-table .management-check-cell {
+  width: 38px;
+}
+.management-cards .management-table input[type='checkbox'] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  vertical-align: middle;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.management-cards .management-table .management-actions-cell {
+  text-align: right;
+}
+.management-cards .management-table button.management-row-name {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  font: 700 13px var(--font-display);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.management-cards .management-table button.management-row-name:hover {
+  color: var(--accent-strong);
+}
+.management-cards .management-table .management-description {
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+.management-cards .management-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.management-cards .management-table button.management-row-action {
+  display: inline-flex;
+  min-width: 29px;
+  min-height: 29px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 6px;
+  color: var(--ink-faint);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font: 11px var(--font-body);
+  text-decoration: none;
+  cursor: pointer;
+}
+.management-cards .management-table button.management-icon-action {
+  width: 29px;
+  height: 29px;
+  padding: 0;
+}
+.management-cards .management-table .management-row-action svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.management-cards .management-table button.management-row-action:hover:not(:disabled) {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+.management-cards .management-table button.management-row-action.danger:hover:not(:disabled) {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.management-cards .management-list-state {
+  display: grid;
+  min-height: 220px;
+  justify-items: center;
+  align-content: center;
+  padding: 36px 20px;
+  color: var(--ink-faint);
+  text-align: center;
+  font: 11px var(--font-body);
+}
+.management-cards .management-state-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  margin: 0 0 12px;
+  color: var(--violet);
+  background: var(--violet-soft);
+  border-radius: 16px;
+}
+.management-cards .management-state-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.management-cards .management-state-icon.management-state-glyph {
+  padding: 14px;
+}
+.management-cards .management-list-state :is(strong, h3) {
+  margin: 0;
+  color: var(--ink);
+  font: 700 15px var(--font-display);
+}
+.management-cards .management-list-state p {
+  max-width: 480px;
+  margin: 5px 0 13px;
+  color: var(--ink-faint);
+  font: 11px/1.5 var(--font-body);
+}
+.management-cards .management-list-state:is(.error, .is-error) .management-state-icon {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.management-cards .management-list-state button:is(.primary-button, .secondary-button) {
+  min-height: 34px;
+  padding: 0 15px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  font: 700 11px var(--font-body);
+}
+.management-cards .management-list-state button.primary-button {
+  color: #fff;
+  background: linear-gradient(135deg, #df698f, #bd4d79);
+}
+.management-cards .management-list-state button.secondary-button {
+  color: var(--ink-soft);
+  background: var(--surface-solid);
+  box-shadow: none;
+}
+
+.management-cards .management-pagination {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font: 10px var(--font-body);
+}
+.management-cards .management-pagination > span,
+.management-cards .management-page-controls > :is(span, label),
+.management-cards .management-page-size-wrap > span {
+  color: var(--ink-faint);
+  font: 10px var(--font-body);
+}
+.management-cards .management-page-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.management-cards .management-page-controls > button {
+  display: grid;
+  min-width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0 7px;
+  color: var(--ink-soft);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 10px var(--font-body);
+  cursor: pointer;
+}
+.management-cards .management-page-controls > button svg {
+  width: 12px;
+  height: 12px;
+}
+.management-cards .management-page-controls > button:is(.active, .current, [aria-current='page']),
+.management-cards .management-page-controls > button:hover:not(:disabled) {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+.management-cards .management-page-controls > input {
+  width: 43px;
+  height: 32px;
+  padding: 0 7px;
+  color: var(--ink-soft);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 10px var(--font-body);
+  text-align: center;
+  appearance: textfield;
+}
+.management-cards .management-page-controls > input::-webkit-outer-spin-button,
+.management-cards .management-page-controls > input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+.management-cards .management-page-size-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.management-cards .management-page-size {
+  width: 84px;
+  flex: 0 0 84px;
+}
+.management-cards .management-page-controls .management-page-size .archive-select-trigger {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 9px;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: 10px var(--font-body);
+}
+.management-cards
+  .management-page-controls
+  .management-page-size:is(.open, :focus-within)
+  .archive-select-trigger {
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+.management-cards .management-page-size .archive-select-trigger > span,
+.management-cards .management-page-size .archive-select-option {
+  white-space: nowrap;
+  font-size: 10px;
+}
+.management-cards
+  .management-list-card
+  :is(.management-filter, .management-table, .management-list-state, .management-page-controls)
+  :is(button, input):focus-visible {
+  outline: 0;
+  box-shadow: var(--focus);
+}
+.management-cards .management-search input:focus-visible {
+  box-shadow: none;
+}
+.management-cards
+  .management-list-card
+  :is(.management-filter, .management-table, .management-list-state, .management-page-controls)
+  :is(button, input):disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+@media (max-width: 620px) {
+  .management-cards .management-filter:not(.management-filter-fields) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .management-cards .management-search {
+    width: 100%;
+  }
+  .management-cards .management-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -3,6 +3,7 @@
  * 管理员用户管理页面：查询账号列表，管理新增、详情和可编辑的账号字段。
  * 重置密码、删除账号通过确认流程调用用户管理接口，与当前账号自助设置分开。
  */
+import '@/assets/adminManagementCards.css'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 import {
   computed,
@@ -54,7 +55,10 @@ const filters = reactive({ username: '', email: '', role: '' as UserRole | '', e
 const appliedFilters = ref<Omit<UserAccountPageQuery, 'pageNum' | 'pageSize'>>({})
 const page = ref<PageResult<UserAccount>>({
   pageNum: 1,
-  pageSize: resolvePageSize(pageSizeOptions.map((option) => option.id), 20),
+  pageSize: resolvePageSize(
+    pageSizeOptions.map((option) => option.id),
+    20
+  ),
   total: 0,
   pages: 0,
   rows: [],
@@ -105,10 +109,10 @@ const busy = computed(() => saving.value || actionSubmitting.value)
 const hasFilters = computed(() => Object.keys(appliedFilters.value).length > 0)
 const emailChanged = computed(() => form.email.trim() !== (currentAccount.value?.email || ''))
 const firstResult = computed(() =>
-  page.value.total ? (page.value.pageNum - 1) * page.value.pageSize + 1 : 0,
+  page.value.total ? (page.value.pageNum - 1) * page.value.pageSize + 1 : 0
 )
 const lastResult = computed(() =>
-  Math.min(page.value.pageNum * page.value.pageSize, page.value.total),
+  Math.min(page.value.pageNum * page.value.pageSize, page.value.total)
 )
 const pageNumbers = computed(() => {
   const pages = page.value.pages
@@ -188,7 +192,7 @@ watch(
       form.currentPassword = ''
       delete errors.currentPassword
     }
-  },
+  }
 )
 function syncScroll() {
   if (!tabActive.value) return
@@ -209,7 +213,7 @@ function unlockScroll() {
 }
 function trapFocus(event: KeyboardEvent) {
   const controls = (event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>(
-    'input:not(:disabled), button:not(:disabled), [tabindex="0"]',
+    'input:not(:disabled), button:not(:disabled), [tabindex="0"]'
   )
   const first = controls[0]
   const last = controls[controls.length - 1]
@@ -261,7 +265,7 @@ async function loadUsers(pageNum = requestedPage.value) {
   try {
     const result = await getUsersPage(
       { pageNum, pageSize: pageSize.value, ...appliedFilters.value },
-      controller.signal,
+      controller.signal
     )
     if (controller.signal.aborted) return
     if (pageNum > 1 && pageNum > Math.max(1, result.pages)) {
@@ -311,7 +315,10 @@ function runSearch() {
   void loadUsers(1)
 }
 function resetFilters() {
-  pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 20)
+  pageSize.value = resolvePageSize(
+    pageSizeOptions.map((option) => option.id),
+    20
+  )
   Object.assign(filters, { username: '', email: '', role: '', enabled: '' })
   appliedFilters.value = {}
   void loadUsers(1)
@@ -539,39 +546,39 @@ async function submitAction() {
 </script>
 
 <template>
-  <section class="users-management">
-    <section class="page-hero" aria-labelledby="usersPageTitle">
-      <div class="hero-copy">
-        <p class="eyebrow">ACGBOX · ACCOUNT DIRECTORY</p>
-        <h1 id="usersPageTitle">用户管理 <span>/ 账号档案</span></h1>
+  <section class="users-management management-cards">
+    <section class="page-hero management-hero" aria-labelledby="usersPageTitle">
+      <div class="hero-copy management-hero-copy">
+        <p class="eyebrow management-eyebrow">ACGBOX · ACCOUNT DIRECTORY</p>
+        <h1 id="usersPageTitle">用户管理 <span>ACCOUNT DIRECTORY</span></h1>
         <p>
           维护资料库账号与访问状态。邮箱验证状态依据账号记录展示；敏感凭据不会出现在列表或详情中。
         </p>
       </div>
-      <div class="hero-actions">
+      <div class="hero-actions management-hero-actions">
         <button class="primary-button" type="button" :disabled="busy" @click="openCreate">
           <AdminIcon name="plus" />新增用户
         </button>
       </div>
     </section>
 
-    <section class="stats-grid" aria-label="账号概况">
-      <article class="stat-card">
-        <span class="stat-icon"><AdminIcon name="user" /></span
-        ><span class="stat-copy"
-          ><span>账号总数</span><strong>{{ stats?.total ?? '—' }}</strong></span
+    <section class="stats-grid management-stats" aria-label="账号概况">
+      <article class="stat-card management-stat">
+        <span class="stat-icon management-stat-icon"><AdminIcon name="user" /></span
+        ><span class="stat-copy management-stat-copy"
+          ><span class="management-stat-label">账号总数</span><strong class="management-stat-value">{{ stats?.total ?? '—' }}</strong></span
         >
       </article>
-      <article class="stat-card">
-        <span class="stat-icon"><AdminIcon name="check" /></span
-        ><span class="stat-copy"
-          ><span>已启用</span><strong>{{ stats?.enabled ?? '—' }}</strong></span
+      <article class="stat-card management-stat">
+        <span class="stat-icon management-stat-icon"><AdminIcon name="check" /></span
+        ><span class="stat-copy management-stat-copy"
+          ><span class="management-stat-label">已启用</span><strong class="management-stat-value">{{ stats?.enabled ?? '—' }}</strong></span
         >
       </article>
-      <article class="stat-card">
-        <span class="stat-icon"><AdminIcon name="user" /></span
-        ><span class="stat-copy"
-          ><span>已停用</span><strong>{{ stats?.disabled ?? '—' }}</strong></span
+      <article class="stat-card management-stat">
+        <span class="stat-icon management-stat-icon"><AdminIcon name="user" /></span
+        ><span class="stat-copy management-stat-copy"
+          ><span class="management-stat-label">已停用</span><strong class="management-stat-value">{{ stats?.disabled ?? '—' }}</strong></span
         >
       </article>
     </section>
@@ -579,19 +586,19 @@ async function submitAction() {
       {{ statsError }} <button type="button" @click="loadStats">重新加载概况</button>
     </p>
 
-    <section class="list-card" aria-labelledby="usersListTitle" :aria-busy="loading">
-      <header class="list-header">
+    <section class="list-card management-list-card" aria-labelledby="usersListTitle" :aria-busy="loading">
+      <header class="list-header management-list-header">
         <div>
           <h2 id="usersListTitle">账号目录</h2>
           <p>账号资料与访问状态一览</p>
         </div>
-        <div class="header-actions">
+        <div class="header-actions management-list-actions">
           <span class="access-note">仅管理员</span
-          ><span class="list-meta">{{ loading ? '正在读取…' : `共 ${page.total} 个账号` }}</span>
+          ><span class="list-meta management-list-meta">{{ loading ? '正在读取…' : `共 ${page.total} 个账号` }}</span>
         </div>
       </header>
-      <form class="filter-row" @submit.prevent="runSearch" @reset.prevent="resetFilters">
-        <div class="field">
+      <form class="filter-row management-filter management-filter-fields" @submit.prevent="runSearch" @reset.prevent="resetFilters">
+        <div class="field management-filter-field">
           <label for="filterUsername">用户名</label
           ><input
             id="filterUsername"
@@ -602,7 +609,7 @@ async function submitAction() {
             autocomplete="off"
           />
         </div>
-        <div class="field">
+        <div class="field management-filter-field">
           <label for="filterEmail">邮箱</label
           ><input
             id="filterEmail"
@@ -613,9 +620,9 @@ async function submitAction() {
             autocomplete="off"
           />
         </div>
-        <div class="field">
+        <div class="field management-filter-field">
           <label for="filterRole">账号角色</label
-          ><ArchiveSelect
+          ><ArchiveSelect class="management-filter-select"
             id="filterRole"
             v-model="filterRoleModel"
             :options="roleOptions"
@@ -623,9 +630,9 @@ async function submitAction() {
             label="账号角色"
           />
         </div>
-        <div class="field">
+        <div class="field management-filter-field">
           <label for="filterEnabled">启用状态</label
-          ><ArchiveSelect
+          ><ArchiveSelect class="management-filter-select"
             id="filterEnabled"
             v-model="filterEnabledModel"
             :options="enabledOptions"
@@ -633,13 +640,13 @@ async function submitAction() {
             label="启用状态"
           />
         </div>
-        <div class="filter-actions">
+        <div class="filter-actions management-filter-actions">
           <button class="primary-button" type="submit">查询</button
           ><button class="secondary-button" type="reset">重置</button>
         </div>
       </form>
-      <div class="table-scroll">
-        <table v-if="!loading && !listError && page.rows.length" class="user-table">
+      <div class="table-scroll management-table-scroll">
+        <table v-if="!loading && !listError && page.rows.length" class="user-table management-table">
           <thead>
             <tr>
               <th scope="col">账号</th>
@@ -647,7 +654,7 @@ async function submitAction() {
               <th scope="col">角色</th>
               <th scope="col">状态</th>
               <th scope="col">创建时间</th>
-              <th scope="col">操作</th>
+              <th class="management-actions-cell" scope="col">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -660,8 +667,8 @@ async function submitAction() {
                         account.role === 'ADMIN'
                           ? 'admin'
                           : account.role === 'EDITOR'
-                            ? 'edit'
-                            : 'user'
+                          ? 'edit'
+                          : 'user'
                       " /></span
                   ><span class="user-name"
                     ><strong>{{ account.username }}</strong></span
@@ -689,9 +696,9 @@ async function submitAction() {
                 }}</span>
               </td>
               <td class="date-cell">{{ shortDate(account.createdAt) }}</td>
-              <td>
+              <td class="management-actions-cell">
                 <button
-                  class="text-action"
+                  class="text-action management-row-action"
                   type="button"
                   :aria-label="`编辑用户 ${account.username}`"
                   @click="openDetail(account.id)"
@@ -705,21 +712,21 @@ async function submitAction() {
       </div>
       <div
         v-if="loading || listError || !page.rows.length"
-        class="empty-state"
+        class="empty-state management-list-state"
         :class="{ 'is-error': !!listError }"
         :role="listError ? 'alert' : 'status'"
       >
-        <span class="empty-illustration"
+        <span class="empty-illustration management-state-icon"
           ><AdminIcon :name="listError ? 'refresh' : loading ? 'clock' : 'search-full'"
         /></span>
         <strong>{{
           loading
             ? '正在读取账号…'
             : listError
-              ? '账号读取失败'
-              : hasFilters
-                ? '没有找到匹配账号'
-                : '暂无用户账号'
+            ? '账号读取失败'
+            : hasFilters
+            ? '没有找到匹配账号'
+            : '暂无用户账号'
         }}</strong>
         <p>
           {{
@@ -744,13 +751,13 @@ async function submitAction() {
           新增用户
         </button>
       </div>
-      <footer class="pagination">
+      <footer class="pagination management-pagination">
         <span class="page-summary"
           >共 {{ page.total }} 条 · 当前 {{ firstResult }}–{{ lastResult }} 条</span
         >
-        <div class="page-controls">
+        <div class="page-controls management-page-controls">
           <span class="page-note">每页</span
-          ><ArchiveSelect
+          ><ArchiveSelect class="management-page-size"
             id="usersPageSize"
             v-model="pageSizeModel"
             :options="pageSizeOptions"
@@ -1106,8 +1113,8 @@ async function submitAction() {
               drawerMode === 'create'
                 ? '新建账号仅支持“编辑”或“用户”角色。'
                 : editingField
-                  ? '保存资料后，该账号可能需要重新登录。'
-                  : '点击资料旁的编辑按钮进行修改。'
+                ? '保存资料后，该账号可能需要重新登录。'
+                : '点击资料旁的编辑按钮进行修改。'
             }}</span>
             <div class="footer-actions">
               <button class="secondary-button" type="button" :disabled="busy" @click="closeDrawer">
@@ -1159,8 +1166,8 @@ async function submitAction() {
                   actionTarget.role === 'ADMIN'
                     ? 'admin'
                     : actionTarget.role === 'EDITOR'
-                      ? 'edit'
-                      : 'user'
+                    ? 'edit'
+                    : 'user'
                 " /></span
             ><span class="target-copy"
               ><strong>{{ actionTarget.username }}</strong
@@ -1219,8 +1226,8 @@ async function submitAction() {
                     actionSubmitting
                       ? '正在处理…'
                       : actionMode === 'delete'
-                        ? '确认删除'
-                        : '确认重置'
+                      ? '确认删除'
+                      : '确认重置'
                   }}
                 </button>
               </div>
@@ -1234,87 +1241,6 @@ async function submitAction() {
 </template>
 
 <style scoped>
-.page-hero {
-  position: relative;
-  display: flex;
-  min-height: 150px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 26px 30px;
-  overflow: hidden;
-  color: var(--ink);
-  background: linear-gradient(
-    112deg,
-    color-mix(in srgb, var(--surface-solid) 90%, transparent),
-    color-mix(in srgb, var(--surface-muted) 82%, transparent)
-  );
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-soft);
-}
-.page-hero::before {
-  position: absolute;
-  top: -54px;
-  right: 13%;
-  width: 208px;
-  height: 208px;
-  content: '';
-  background: none;
-  border: 1px solid rgba(117, 103, 170, 0.15);
-  border-radius: 43% 57% 63% 37%;
-  transform: rotate(28deg);
-}
-.page-hero::after {
-  display: none;
-}
-.hero-copy,
-.hero-actions {
-  position: relative;
-  z-index: 1;
-}
-.eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 9px;
-  color: var(--accent-strong);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-.eyebrow::before {
-  width: 17px;
-  height: 1px;
-  content: '';
-  background: currentColor;
-}
-.page-hero h1 {
-  margin: 0;
-  color: var(--ink);
-  font: 700 clamp(23px, 3vw, 30px)/1.25 var(--font-display);
-  letter-spacing: -0.035em;
-}
-.page-hero h1 span {
-  display: inline-block;
-  margin-left: 0;
-  color: var(--ink-faint);
-  font: 500 12px var(--font-body);
-  letter-spacing: 0;
-  vertical-align: baseline;
-}
-.page-hero p:not(.eyebrow) {
-  max-width: 610px;
-  margin: 8px 0 0;
-  color: var(--ink-soft);
-  font-size: 12px;
-}
-.hero-actions {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 9px;
-}
 .primary-button,
 .secondary-button,
 .ghost-button,
@@ -1389,86 +1315,6 @@ async function submitAction() {
   background: currentColor;
   border-radius: 50%;
 }
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px;
-  margin-top: 16px;
-}
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 13px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: var(--shadow-soft);
-}
-.stat-icon {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 10px;
-  font-size: 15px;
-}
-.stat-card:nth-child(2) .stat-icon {
-  color: var(--cyan);
-  background: var(--cyan-soft);
-}
-.stat-card:nth-child(3) .stat-icon {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.stat-copy span,
-.stat-copy strong {
-  display: block;
-}
-.stat-copy span {
-  color: var(--ink-faint);
-  font-size: 9px;
-}
-.stat-copy strong {
-  margin-top: 2px;
-  font: 700 18px var(--font-display);
-}
-.list-card {
-  margin-top: 16px;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
-}
-.list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
-}
-.list-header h2 {
-  margin: 0;
-  font: 700 14px var(--font-display);
-}
-.list-header p {
-  margin: 3px 0 0;
-  color: var(--ink-faint);
-  font-size: 9px;
-}
-.list-meta {
-  color: var(--ink-faint);
-  font-size: 9px;
-}
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 .filter-row {
   display: grid;
   grid-template-columns:
@@ -1500,9 +1346,7 @@ async function submitAction() {
   border-radius: 9px;
   outline: none;
   font-size: 10px;
-  transition:
-    border-color 0.16s,
-    box-shadow 0.16s;
+  transition: border-color 0.16s, box-shadow 0.16s;
 }
 .field input::placeholder {
   color: var(--ink-faint);
@@ -1521,43 +1365,9 @@ async function submitAction() {
   min-height: 38px;
   padding: 0 12px;
 }
-.table-scroll {
-  overflow: auto;
-}
 .user-table {
   width: 100%;
   min-width: 850px;
-  border-collapse: collapse;
-  text-align: left;
-}
-.user-table th {
-  padding: 10px 13px;
-  color: var(--ink-faint);
-  background: var(--surface-muted);
-  border-bottom: 1px solid var(--line);
-  font-size: 9px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.user-table td {
-  padding: 11px 13px;
-  border-bottom: 1px solid var(--line);
-  color: var(--ink-soft);
-  font-size: 10px;
-  vertical-align: middle;
-}
-.user-table tr:last-child td {
-  border-bottom: 0;
-}
-.user-table tbody tr {
-  transition: background 0.15s;
-}
-.user-table tbody tr:hover {
-  background: var(--surface-hover);
-}
-.user-table th:first-child,
-.user-table td:first-child {
-  padding-left: 18px;
 }
 .user-cell {
   display: flex;
@@ -1676,76 +1486,7 @@ async function submitAction() {
   cursor: not-allowed;
   opacity: 0.55;
 }
-.empty-state {
-  display: grid;
-  justify-items: center;
-  padding: 52px 20px;
-  color: var(--ink-faint);
-  text-align: center;
-}
-.empty-illustration {
-  display: grid;
-  width: 60px;
-  height: 60px;
-  place-items: center;
-  margin-bottom: 12px;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 20px 15px 20px 15px;
-  font-size: 23px;
-}
-.empty-state strong {
-  color: var(--ink);
-  font: 700 14px var(--font-display);
-}
-.empty-state p {
-  margin: 5px 0 12px;
-  font-size: 10px;
-}
-.pagination {
-  display: flex;
-  min-height: 56px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 18px;
-  border-top: 1px solid var(--line);
-}
-.page-summary,
-.page-note {
-  color: var(--ink-faint);
-  font-size: 9px;
-}
-.page-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.page-controls button {
-  display: grid;
-  min-width: 28px;
-  height: 28px;
-  place-items: center;
-  color: var(--ink-soft);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  font-size: 10px;
-}
-.page-controls button:hover:not(:disabled) {
-  color: var(--accent-strong);
-  background: var(--surface-hover);
-}
-.page-controls button:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-.page-controls button.current {
-  color: #fff;
-  background: var(--accent);
-}
-.page-size,
-.jump-page {
+.page-size {
   height: 28px;
   padding: 0 7px;
   color: var(--ink-soft);
@@ -1753,16 +1494,6 @@ async function submitAction() {
   border: 1px solid var(--line);
   border-radius: 7px;
   font-size: 9px;
-}
-.jump-page {
-  width: 43px;
-  text-align: center;
-}
-.page-controls select:focus,
-.jump-page:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: var(--focus);
 }
 .drawer {
   position: fixed;
@@ -2047,11 +1778,6 @@ async function submitAction() {
   border-radius: 9px;
   font-size: 9px;
 }
-.users-management {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding-bottom: 14px;
-}
 .stats-error {
   color: var(--danger);
   font-size: 11px;
@@ -2062,10 +1788,6 @@ async function submitAction() {
 }
 .access-note {
   white-space: nowrap;
-}
-.stat-icon svg {
-  width: 17px;
-  height: 17px;
 }
 .primary-button > svg,
 .text-action > svg {
@@ -2079,21 +1801,11 @@ async function submitAction() {
   gap: 5px;
   font-size: 11px;
 }
-.list-header h2 {
-  font-size: 16px;
-}
-.list-header p,
-.list-meta,
 .field label,
 .field input,
-.user-table td,
 .email-cell strong {
   font-size: 11px;
 }
-.stat-copy span,
-.page-summary,
-.page-note,
-.user-table th,
 .date-cell {
   font-size: 10px;
 }
@@ -2121,18 +1833,6 @@ async function submitAction() {
   width: 12px;
   height: 12px;
 }
-.empty-illustration svg {
-  width: 25px;
-  height: 25px;
-}
-.empty-state.is-error .empty-illustration {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.pagination .page-controls > button svg {
-  width: 13px;
-  height: 13px;
-}
 .users-management :deep(.archive-select-trigger) {
   min-height: 38px;
   height: 38px;
@@ -2142,17 +1842,6 @@ async function submitAction() {
 .users-management :deep(.archive-select-option),
 .users-drawer-layer :deep(.archive-select-option) {
   font-size: 11px;
-}
-.page-controls :deep(.archive-select) {
-  width: 84px;
-  flex: 0 0 auto;
-}
-.page-controls :deep(.archive-select-trigger) {
-  min-height: 30px;
-  height: 30px;
-  padding: 0 9px;
-  font-size: 10px;
-  border-radius: 8px;
 }
 .users-drawer-layer {
   position: fixed;
@@ -2349,50 +2038,6 @@ async function submitAction() {
   }
 }
 @media (max-width: 620px) {
-  .page-hero {
-    min-height: 0;
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 20px;
-    border-radius: 18px;
-  }
-  .page-hero::before {
-    right: -57px;
-  }
-  .hero-actions {
-    width: 100%;
-  }
-  .hero-actions .primary-button {
-    width: 100%;
-  }
-  .stats-grid {
-    gap: 7px;
-  }
-  .stat-card {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-    padding: 10px;
-  }
-  .stat-icon {
-    width: 29px;
-    height: 29px;
-  }
-  .stat-copy span {
-    font-size: 9px;
-  }
-  .stat-copy strong {
-    font-size: 16px;
-  }
-  .list-header {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 14px;
-  }
-  .header-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
   .filter-row {
     padding: 12px;
   }
@@ -2402,15 +2047,6 @@ async function submitAction() {
   }
   .filter-actions button {
     flex: 1;
-  }
-  .pagination {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 12px;
-  }
-  .page-controls {
-    width: 100%;
-    flex-wrap: wrap;
   }
   .drawer-header {
     padding: 18px 17px 14px;

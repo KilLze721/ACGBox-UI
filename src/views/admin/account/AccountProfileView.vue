@@ -73,7 +73,7 @@ let scrollSnapshot:
   | undefined
 
 const roleName = computed(() =>
-  account.value?.role === 'ADMIN' ? '管理员' : account.value?.role === 'EDITOR' ? '编辑' : '用户',
+  account.value?.role === 'ADMIN' ? '管理员' : account.value?.role === 'EDITOR' ? '编辑' : '用户'
 )
 const passwordBytes = computed(() => new TextEncoder().encode(password.newPassword).length)
 const passwordDirty = computed(() => !!(password.currentPassword || password.newPassword))
@@ -86,40 +86,42 @@ const emailDirty = computed(
       flow.newCode ||
       flow.proofExpiresAt ||
       flow.email !== (flow.mode === 'verify' ? account.value?.email : '')
-    ),
+    )
 )
 const dirty = computed(() => passwordDirty.value || emailDirty.value)
 const purpose = computed<UserAccountEmailPurpose>(() =>
-  flow.mode === 'unbind' ? 'UNBIND' : flow.step === 'old' ? 'CHANGE' : 'BIND',
+  flow.mode === 'unbind' ? 'UNBIND' : flow.step === 'old' ? 'CHANGE' : 'BIND'
 )
 const cooldown = computed(() =>
-  Math.max(0, Math.ceil((cooldowns[purpose.value] - now.value) / 1000)),
+  Math.max(0, Math.ceil((cooldowns[purpose.value] - now.value) / 1000))
 )
 const proofSeconds = computed(() =>
-  Math.max(0, Math.ceil((flow.proofExpiresAt - now.value) / 1000)),
+  Math.max(0, Math.ceil((flow.proofExpiresAt - now.value) / 1000))
 )
 const proofTime = computed(
   () =>
-    `${String(Math.floor(proofSeconds.value / 60)).padStart(2, '0')}:${String(proofSeconds.value % 60).padStart(2, '0')}`,
+    `${String(Math.floor(proofSeconds.value / 60)).padStart(2, '0')}:${String(
+      proofSeconds.value % 60
+    ).padStart(2, '0')}`
 )
 const flowTitle = computed(
   () =>
-    ({ bind: '绑定邮箱', verify: '验证已绑定邮箱', change: '更换邮箱', unbind: '解绑邮箱' })[
+    ({ bind: '绑定邮箱', verify: '验证已绑定邮箱', change: '更换邮箱', unbind: '解绑邮箱' }[
       flow.mode || 'bind'
-    ],
+    ])
 )
 const submitLabel = computed(() =>
   flow.step === 'done'
     ? '完成'
     : flow.mode === 'unbind'
-      ? '确认解绑'
-      : flow.step === 'old'
-        ? '验证原邮箱'
-        : flow.mode === 'change'
-          ? '验证并换绑'
-          : flow.mode === 'verify'
-            ? '验证邮箱'
-            : '验证并绑定',
+    ? '确认解绑'
+    : flow.step === 'old'
+    ? '验证原邮箱'
+    : flow.mode === 'change'
+    ? '验证并换绑'
+    : flow.mode === 'verify'
+    ? '验证邮箱'
+    : '验证并绑定'
 )
 defineExpose({ getCloseState: () => ({ dirty: dirty.value, submitting: !!busy.value }) })
 
@@ -161,7 +163,7 @@ watch(
     delete errors.newCode
     delete errors.newEmail
     sendStatus.value = ''
-  },
+  }
 )
 watch(
   [() => flow.mode, () => flow.step, pendingDiscard, busy, active],
@@ -187,15 +189,15 @@ watch(
       focusTarget.focus()
     }
   },
-  { flush: 'post' },
+  { flush: 'post' }
 )
 
 function currentModal() {
   return pendingDiscard.value
     ? discardDialog.value
     : busy.value === 'password'
-      ? savingDialog.value
-      : drawer.value
+    ? savingDialog.value
+    : drawer.value
 }
 function releaseModal() {
   if (!scrollSnapshot) return
@@ -328,7 +330,7 @@ function clearFlow() {
 }
 function askDiscard(
   action: () => void,
-  description = '当前填写的内容尚未保存，放弃后将清空这些内容。',
+  description = '当前填写的内容尚未保存，放弃后将清空这些内容。'
 ) {
   discardOpener = document.activeElement as HTMLElement | null
   discardDescription.value = description
@@ -557,7 +559,7 @@ async function submitEmail() {
         token,
         flow.mode === 'unbind'
           ? '邮箱已解绑，仍可使用用户名与密码登录。'
-          : '邮箱已完成验证并保存，当前设备保持登录，无需重新登录。',
+          : '邮箱已完成验证并保存，当前设备保持登录，无需重新登录。'
       )
     }
   } catch (error) {
@@ -575,7 +577,7 @@ async function submitEmail() {
     <header class="page-intro">
       <div>
         <p class="eyebrow">ACGBOX · PERSONAL ACCOUNT</p>
-        <h1>个人账号 <span>/ 我的资料与安全</span></h1>
+        <h1>个人账号 <span>PERSONAL ACCOUNT</span></h1>
         <p>管理自己的邮箱与登录密码，让每一次登录都有清晰归属。</p>
       </div>
       <div class="index-mark">ACCOUNT FILE<strong>PRIVATE / 01</strong></div>
@@ -744,7 +746,9 @@ async function submitEmail() {
                         autocomplete="current-password"
                         placeholder="请输入当前密码"
                         :aria-invalid="!!errors.currentPassword"
-                        :aria-describedby="`currentPasswordError${passwordError ? ' passwordAlert' : ''}`"
+                        :aria-describedby="`currentPasswordError${
+                          passwordError ? ' passwordAlert' : ''
+                        }`"
                         @input="delete errors.currentPassword"
                       />
                       <button
@@ -777,7 +781,9 @@ async function submitEmail() {
                         autocomplete="new-password"
                         placeholder="请输入新密码"
                         :aria-invalid="!!errors.newPassword"
-                        :aria-describedby="`newPasswordHint newPasswordError byteCount${passwordError ? ' passwordAlert' : ''}`"
+                        :aria-describedby="`newPasswordHint newPasswordError byteCount${
+                          passwordError ? ' passwordAlert' : ''
+                        }`"
                         @input="delete errors.newPassword"
                       />
                       <button
@@ -848,8 +854,8 @@ async function submitEmail() {
                   flow.mode === 'unbind'
                     ? '使用原邮箱验证码确认解绑，无需输入密码。'
                     : flow.mode === 'change'
-                      ? '先验证原邮箱，再验证新邮箱。'
-                      : '通过邮箱验证码确认该邮箱属于你。'
+                    ? '先验证原邮箱，再验证新邮箱。'
+                    : '通过邮箱验证码确认该邮箱属于你。'
                 }}
               </p>
             </div>
@@ -920,7 +926,9 @@ async function submitEmail() {
                         maxlength="6"
                         placeholder="6 位数字"
                         :aria-invalid="!!errors.oldCode"
-                        :aria-describedby="`oldCodeError${flowError ? ' flowAlert' : ''}${sendStatus ? ' codeSendStatus' : ''}`"
+                        :aria-describedby="`oldCodeError${flowError ? ' flowAlert' : ''}${
+                          sendStatus ? ' codeSendStatus' : ''
+                        }`"
                         @input="delete errors.oldCode"
                       /><button
                         id="sendOldCode"
@@ -933,8 +941,8 @@ async function submitEmail() {
                           busy === 'send'
                             ? '发送中…'
                             : cooldown
-                              ? `${cooldown} 秒后重发`
-                              : '获取验证码'
+                            ? `${cooldown} 秒后重发`
+                            : '获取验证码'
                         }}
                       </button>
                     </div>
@@ -951,8 +959,8 @@ async function submitEmail() {
                       flow.mode === 'verify'
                         ? '验证当前邮箱，无需修改邮箱地址。'
                         : flow.mode === 'change'
-                          ? '原邮箱仍然保留，只有新邮箱验证并保存成功后才会替换。'
-                          : '填写邮箱地址并验证，完成后即可使用邮箱与密码登录。'
+                        ? '原邮箱仍然保留，只有新邮箱验证并保存成功后才会替换。'
+                        : '填写邮箱地址并验证，完成后即可使用邮箱与密码登录。'
                     }}
                   </p>
                   <div class="field" :class="{ invalid: errors.newEmail }">
@@ -966,7 +974,9 @@ async function submitEmail() {
                       placeholder="请输入邮箱地址"
                       :readonly="flow.mode === 'verify'"
                       :aria-invalid="!!errors.newEmail"
-                      :aria-describedby="`newEmailError newEmailHint${flowError ? ' flowAlert' : ''}`"
+                      :aria-describedby="`newEmailError newEmailHint${
+                        flowError ? ' flowAlert' : ''
+                      }`"
                       @input="delete errors.newEmail"
                     />
                     <p id="newEmailHint" class="field-hint">
@@ -987,7 +997,9 @@ async function submitEmail() {
                         maxlength="6"
                         placeholder="6 位数字"
                         :aria-invalid="!!errors.newCode"
-                        :aria-describedby="`newCodeError${flowError ? ' flowAlert' : ''}${sendStatus ? ' codeSendStatus' : ''}`"
+                        :aria-describedby="`newCodeError${flowError ? ' flowAlert' : ''}${
+                          sendStatus ? ' codeSendStatus' : ''
+                        }`"
                         @input="delete errors.newCode"
                       /><button
                         id="sendNewCode"
@@ -1000,8 +1012,8 @@ async function submitEmail() {
                           busy === 'send'
                             ? '发送中…'
                             : cooldown
-                              ? `${cooldown} 秒后重发`
-                              : '获取验证码'
+                            ? `${cooldown} 秒后重发`
+                            : '获取验证码'
                         }}
                       </button>
                     </div>
@@ -1380,11 +1392,7 @@ h1 span {
   border-radius: 11px;
   font-size: 12px;
   font-weight: 650;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    box-shadow 0.15s,
-    transform 0.15s;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 .action-email {
   color: var(--violet);
@@ -1502,9 +1510,7 @@ details.help p {
   border-radius: 9px;
   outline: none;
   font-size: 12px;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .field input:hover {
   border-color: var(--line-strong);

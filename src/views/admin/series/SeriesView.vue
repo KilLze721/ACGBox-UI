@@ -3,6 +3,7 @@
  * 系列管理页面：负责系列搜索、分页、新增、修改、详情及删除确认。
  * 详情中读取关联作品，并通过工作区已有导航能力进入对应管理列表执行名称查询。
  */
+import '@/assets/adminManagementCards.css'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 import {
   computed,
@@ -46,7 +47,10 @@ const navigateLinkedContent =
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<SeriesSummary>>({
   pageNum: 1,
-  pageSize: resolvePageSize(pageSizeOptions.map((option) => option.id), 10),
+  pageSize: resolvePageSize(
+    pageSizeOptions.map((option) => option.id),
+    10
+  ),
   total: 0,
   pages: 0,
   rows: [],
@@ -222,7 +226,10 @@ function runSearch() {
   void loadPage(1)
 }
 function resetSearch() {
-  pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
+  pageSize.value = resolvePageSize(
+    pageSizeOptions.map((option) => option.id),
+    10
+  )
   searchName.value = ''
   appliedName.value = ''
   void loadPage(1)
@@ -359,10 +366,10 @@ function openRelatedWork(work: AnimePageItem) {
 </script>
 
 <template>
-  <section class="series-management">
-    <section class="series-hero">
-      <div class="series-hero-copy">
-        <p class="series-eyebrow">CONTENT ARCHIVE / SERIES INDEX</p>
+  <section class="series-management management-cards">
+    <section class="series-hero management-hero">
+      <div class="series-hero-copy management-hero-copy">
+        <p class="series-eyebrow management-eyebrow">CONTENT ARCHIVE / SERIES INDEX</p>
         <h1>系列管理 <span>SERIES ARCHIVE</span></h1>
         <p>
           维护动画系列档案与说明。新增、修改和详情在当前页面右侧抽屉中打开，便于保留列表上下文。
@@ -373,35 +380,39 @@ function openRelatedWork(work: AnimePageItem) {
       </button>
     </section>
 
-    <section class="series-stats" aria-label="系列统计">
-      <article>
-        <span class="series-stat-icon"><AdminIcon name="series" /></span
-        ><span
-          ><small>系列总数</small><strong>{{ totalSeries }}</strong></span
+    <section class="series-stats management-stats" aria-label="系列统计">
+      <article class="management-stat">
+        <span class="series-stat-icon management-stat-icon"><AdminIcon name="series" /></span
+        ><span class="management-stat-copy"
+          ><small class="management-stat-label">系列总数</small
+          ><strong class="management-stat-value">{{ totalSeries }}</strong></span
         >
       </article>
-      <article>
-        <span class="series-stat-icon"><AdminIcon name="anime" /></span
-        ><span
-          ><small>当前页记录</small><strong>{{ page.rows.length }}</strong></span
+      <article class="management-stat">
+        <span class="series-stat-icon management-stat-icon"><AdminIcon name="anime" /></span
+        ><span class="management-stat-copy"
+          ><small class="management-stat-label">当前页记录</small
+          ><strong class="management-stat-value">{{ page.rows.length }}</strong></span
         >
       </article>
-      <article>
-        <span class="series-stat-icon"><AdminIcon name="check" /></span
-        ><span
-          ><small>已选系列</small><strong>{{ selectedIds.length }}</strong></span
+      <article class="management-stat">
+        <span class="series-stat-icon management-stat-icon"><AdminIcon name="check" /></span
+        ><span class="management-stat-copy"
+          ><small class="management-stat-label">已选系列</small
+          ><strong class="management-stat-value">{{ selectedIds.length }}</strong></span
         >
       </article>
     </section>
 
-    <section class="series-list-card" aria-labelledby="seriesListTitle">
-      <header class="series-list-header">
+    <section class="series-list-card management-list-card" aria-labelledby="seriesListTitle">
+      <header class="series-list-header management-list-header">
         <div>
           <h2 id="seriesListTitle">系列档案列表</h2>
           <p>按最近更新排序 · 修改记录在保存后更新</p>
         </div>
-        <div class="series-header-actions">
-          <span>当前显示 {{ page.rows.length }} 条 · 共 {{ page.total }} 条</span
+        <div class="series-header-actions management-list-actions">
+          <span class="management-list-meta"
+            >当前显示 {{ page.rows.length }} 条 · 共 {{ page.total }} 条</span
           ><button
             class="danger-button"
             type="button"
@@ -412,8 +423,8 @@ function openRelatedWork(work: AnimePageItem) {
           </button>
         </div>
       </header>
-      <form class="series-filter" @submit.prevent="runSearch">
-        <label class="series-search"
+      <form class="series-filter management-filter" @submit.prevent="runSearch">
+        <label class="series-search management-search"
           ><AdminIcon name="search-full" /><input
             v-model="searchName"
             type="text"
@@ -424,11 +435,14 @@ function openRelatedWork(work: AnimePageItem) {
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
       </form>
-      <div class="series-table-scroll">
-        <table v-if="!listLoading && !listError && page.rows.length" class="series-table">
+      <div class="series-table-scroll management-table-scroll">
+        <table
+          v-if="!listLoading && !listError && page.rows.length"
+          class="series-table management-table"
+        >
           <thead>
             <tr>
-              <th class="series-check-cell">
+              <th class="series-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="allVisibleSelected"
@@ -438,12 +452,12 @@ function openRelatedWork(work: AnimePageItem) {
               </th>
               <th class="series-name-cell">系列名称</th>
               <th>简介</th>
-              <th>操作</th>
+              <th class="management-actions-cell">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in page.rows" :key="row.id">
-              <td class="series-check-cell">
+              <td class="series-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="selectedIds.includes(row.id)"
@@ -452,15 +466,25 @@ function openRelatedWork(work: AnimePageItem) {
                 />
               </td>
               <td>
-                <button class="series-row-name" type="button" @click="openDrawer('detail', row)">
-                  {{ row.name }}</button>
+                <button
+                  class="series-row-name management-row-name"
+                  type="button"
+                  @click="openDrawer('detail', row)"
+                >
+                  {{ row.name }}
+                </button>
               </td>
               <td>
-                <ArchiveDescription class="series-row-desc" :text="row.description" empty-text="暂无说明" />
+                <ArchiveDescription
+                  class="series-row-desc management-description"
+                  :text="row.description"
+                  empty-text="暂无简介"
+                />
               </td>
-              <td>
-                <div class="series-row-actions">
+              <td class="management-actions-cell">
+                <div class="series-row-actions management-row-actions">
                   <button
+                    class="management-row-action management-icon-action"
                     type="button"
                     title="查看详情"
                     :aria-label="`查看 ${row.name} 详情`"
@@ -468,6 +492,7 @@ function openRelatedWork(work: AnimePageItem) {
                   >
                     <AdminIcon name="view" /></button
                   ><button
+                    class="management-row-action management-icon-action"
                     type="button"
                     title="编辑"
                     :aria-label="`编辑 ${row.name}`"
@@ -475,7 +500,7 @@ function openRelatedWork(work: AnimePageItem) {
                   >
                     <AdminIcon name="edit" /></button
                   ><button
-                    class="danger"
+                    class="danger management-row-action management-icon-action"
                     type="button"
                     title="删除"
                     :aria-label="`删除 ${row.name}`"
@@ -488,8 +513,8 @@ function openRelatedWork(work: AnimePageItem) {
             </tr>
           </tbody>
         </table>
-        <div v-else class="series-list-state" :class="{ error: !!listError }">
-          <span class="series-state-icon"
+        <div v-else class="series-list-state management-list-state" :class="{ error: !!listError }">
+          <span class="series-state-icon management-state-icon"
             ><AdminIcon :name="listError ? 'refresh' : 'series'"
           /></span>
           <strong>{{
@@ -527,15 +552,15 @@ function openRelatedWork(work: AnimePageItem) {
           </button>
         </div>
       </div>
-      <footer class="series-pagination">
+      <footer class="series-pagination management-pagination">
         <span>第 {{ firstResult }}–{{ lastResult }} 条，共 {{ page.total }} 条</span>
-        <div class="series-page-controls">
-          <label class="page-size-wrap">
+        <div class="series-page-controls management-page-controls">
+          <label class="page-size-wrap management-page-size-wrap">
             <span>每页</span>
             <ArchiveSelect
               id="seriesPageSize"
               v-model="pageSizeModel"
-              class="page-size-select"
+              class="page-size-select management-page-size"
               label="每页条数"
               placeholder="选择数量"
               placement="top"
@@ -631,7 +656,7 @@ function openRelatedWork(work: AnimePageItem) {
               <div class="series-field">
                 <label>系列说明</label>
                 <div class="series-detail-description">
-                  {{ currentSeries?.description?.trim() || '暂无说明' }}
+                  {{ currentSeries?.description?.trim() || '暂无简介' }}
                 </div>
               </div>
               <RelatedAnimeList :model="relatedAnime" title="关联内容" @select="openRelatedWork" />
@@ -758,423 +783,19 @@ function openRelatedWork(work: AnimePageItem) {
 </template>
 
 <style scoped>
-.series-management {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding-bottom: 14px;
-}
-.series-hero {
-  position: relative;
-  display: flex;
-  min-height: 150px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 26px 30px;
-  overflow: hidden;
-  background: linear-gradient(
-    112deg,
-    color-mix(in srgb, var(--surface-solid) 90%, transparent),
-    color-mix(in srgb, var(--surface-muted) 82%, transparent)
-  );
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-soft);
-}
-.series-hero::before {
-  position: absolute;
-  top: -54px;
-  right: 13%;
-  width: 208px;
-  height: 208px;
-  content: '';
-  border: 1px solid rgba(117, 103, 170, 0.15);
-  border-radius: 43% 57% 63% 37%;
-  transform: rotate(28deg);
-}
-.series-hero-copy,
-.series-hero > button {
-  position: relative;
-  z-index: 1;
-}
-.series-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 9px;
-  color: var(--accent-strong);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-}
-.series-eyebrow::before {
-  width: 17px;
-  height: 1px;
-  content: '';
-  background: currentColor;
-}
-.series-hero h1 {
-  margin: 0;
-  font: 700 clamp(23px, 3vw, 30px) / 1.25 var(--font-display);
-  letter-spacing: -0.035em;
-}
-.series-hero h1 span {
-  color: var(--ink-faint);
-  font: 500 12px var(--font-body);
-  letter-spacing: 0;
-}
-.series-hero-copy > p:last-child {
-  max-width: 610px;
-  margin: 8px 0 0;
-  color: var(--ink-soft);
-  font-size: 12px;
-}
-.series-hero .primary-button {
-  flex: 0 0 auto;
-  min-height: 38px;
-  font-size: 12px;
-}
-.series-hero .primary-button svg {
-  width: 14px;
-  height: 14px;
-}
-.series-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px;
-  margin-top: 16px;
-}
-.series-stats article {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: var(--shadow-soft);
-}
-.series-stat-icon {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 10px;
-}
-.series-stat-icon svg {
-  width: 18px;
-  height: 18px;
-}
-.series-stats article:nth-child(2) .series-stat-icon {
-  color: var(--cyan);
-  background: var(--cyan-soft);
-}
-.series-stats article:nth-child(3) .series-stat-icon {
-  color: var(--accent);
-  background: var(--accent-soft);
-}
-.series-stats small,
-.series-stats strong {
-  display: block;
-}
-.series-stats small {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.series-stats strong {
-  margin-top: 2px;
-  color: var(--ink);
-  font: 700 22px var(--font-display);
-}
-.series-list-card {
-  margin-top: 16px;
-  overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
-}
-.series-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
-}
-.series-list-header h2 {
-  margin: 0;
-  font: 700 16px var(--font-display);
-}
-.series-list-header p {
-  margin: 3px 0 0;
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.series-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.series-header-actions > span {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.series-header-actions .danger-button {
-  min-height: 34px;
-  font-size: 11px;
-}
-.series-header-actions .danger-button svg {
-  width: 13px;
-  height: 13px;
-}
-.series-header-actions .danger-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-}
-.series-filter {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 14px 17px;
-  border-bottom: 1px solid var(--line);
-}
-.series-search {
-  display: flex;
-  width: min(440px, 100%);
-  align-items: center;
-  gap: 8px;
-  padding: 0 11px;
-  background: var(--surface-solid);
-  border: 1px solid var(--line-strong);
-  border-radius: 9px;
-}
-.series-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: var(--focus);
-}
-.series-search > svg {
-  width: 15px;
-  height: 15px;
-  flex: 0 0 auto;
-  color: var(--ink-faint);
-}
-.series-search input {
-  width: 100%;
-  height: 36px;
-  padding: 0;
-  color: var(--ink);
-  background: transparent;
-  border: 0;
-  outline: none;
-  box-shadow: none;
-  font-size: 11px;
-}
-.series-search input:focus {
-  box-shadow: none;
-}
-.series-filter > button {
-  min-height: 36px;
-  font-size: 11px;
-}
-.series-table-scroll {
-  overflow-x: auto;
-}
 .series-table {
   table-layout: fixed;
   width: 100%;
   min-width: 760px;
-  border-collapse: collapse;
-  text-align: left;
-}
-.series-table th {
-  padding: 10px 13px;
-  color: var(--ink-faint);
-  background: var(--surface-muted);
-  border-bottom: 1px solid var(--line);
-  font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.series-table td {
-  padding: 12px 13px;
-  color: var(--ink-soft);
-  border-bottom: 1px solid var(--line);
-  font-size: 11px;
-  vertical-align: middle;
-}
-.series-table tbody tr:hover {
-  background: var(--surface-hover);
-}
-.series-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-.series-table th:first-child,
-.series-table td:first-child {
-  padding-left: 17px;
 }
 .series-table th:last-child {
   width: 115px;
-  text-align: right;
 }
-.series-name-cell { width: 28%; }
-.series-check-cell {
-  width: 38px;
+.series-name-cell {
+  width: 28%;
 }
-.series-check-cell input,
 .series-delete-check input {
   accent-color: var(--accent);
-}
-.series-row-name {
-  display: block;
-  padding: 0;
-  color: var(--ink);
-  background: transparent;
-  font: 700 13px var(--font-display);
-  text-align: left;
-}
-.series-row-name:hover {
-  color: var(--accent-strong);
-}
-.series-row-desc {
-  color: var(--ink-soft);
-  font-size: 10px;
-}
-.series-row-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 4px;
-}
-.series-row-actions button {
-  display: grid;
-  width: 29px;
-  height: 29px;
-  place-items: center;
-  color: var(--ink-faint);
-  background: transparent;
-  border-radius: 7px;
-}
-.series-row-actions button svg {
-  width: 14px;
-  height: 14px;
-}
-.series-row-actions button:hover {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.series-row-actions button.danger:hover {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.series-list-state {
-  display: grid;
-  min-height: 220px;
-  justify-items: center;
-  align-content: center;
-  padding: 36px 20px;
-  color: var(--ink-faint);
-  text-align: center;
-}
-.series-state-icon {
-  display: grid;
-  width: 52px;
-  height: 52px;
-  place-items: center;
-  margin-bottom: 12px;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 16px;
-}
-.series-state-icon svg {
-  width: 24px;
-  height: 24px;
-}
-.series-list-state strong {
-  color: var(--ink);
-  font: 700 15px var(--font-display);
-}
-.series-list-state p {
-  max-width: 480px;
-  margin: 5px 0 13px;
-  font-size: 11px;
-}
-.series-list-state.error .series-state-icon {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.series-list-state button {
-  min-height: 34px;
-  font-size: 11px;
-}
-.series-pagination {
-  display: flex;
-  min-height: 64px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 20px;
-  border-top: 1px solid var(--line);
-}
-.series-pagination > span,
-.series-page-controls {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.series-page-controls {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.series-page-controls button {
-  display: grid;
-  min-width: 32px;
-  height: 32px;
-  place-items: center;
-  color: var(--ink-soft);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 10px;
-}
-.series-page-controls button svg {
-  width: 12px;
-  height: 12px;
-}
-.series-page-controls button:hover:not(:disabled) {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border-color: rgba(217, 95, 134, 0.3);
-}
-.series-page-controls button.active {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border-color: rgba(217, 95, 134, 0.3);
-}
-.series-page-controls button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.series-page-controls input {
-  height: 32px;
-  padding: 0 7px;
-  color: var(--ink-soft);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 10px;
-}
-.series-page-controls input {
-  width: 43px;
-  text-align: center;
-}
-.series-page-controls input::-webkit-outer-spin-button,
-.series-page-controls input::-webkit-inner-spin-button {
-  margin: 0;
-  appearance: none;
 }
 .series-drawer-layer {
   position: fixed;
@@ -1625,40 +1246,6 @@ function openRelatedWork(work: AnimePageItem) {
   border-color: var(--danger);
 }
 @media (max-width: 620px) {
-  .series-hero {
-    display: block;
-    min-height: 0;
-    padding: 21px 19px;
-  }
-  .series-hero > button {
-    margin-top: 15px;
-  }
-  .series-stats {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-  .series-list-header {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .series-header-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .series-filter {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .series-search {
-    width: 100%;
-  }
-  .series-pagination {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .series-page-controls {
-    flex-wrap: wrap;
-  }
   .series-drawer {
     width: 100vw;
   }

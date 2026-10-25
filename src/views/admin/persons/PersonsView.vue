@@ -3,6 +3,7 @@
  * 人物管理页面：维护允许同名的创作人员档案，支持分页搜索、跨页选择和抽屉编辑。
  * 复用管理端请求、主题和工作区关闭保护，按人物标识分页读取关联动画与全部职责。
  */
+import '@/assets/adminManagementCards.css'
 import {
   computed,
   inject,
@@ -34,9 +35,8 @@ import type { AnimePageItem, PageResult, Person } from '@/types/api'
 type DrawerMode = 'create' | 'edit' | 'detail'
 const route = useRoute()
 const router = useRouter()
-const navigateLinkedContent = inject<(path: '/admin/anime', keyword: string) => Promise<void>>(
-  'navigateLinkedContent',
-)
+const navigateLinkedContent =
+  inject<(path: '/admin/anime', keyword: string) => Promise<void>>('navigateLinkedContent')
 const relatedAnime = useRelatedAnime()
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const pageSizeOptions = pageSizeValues.map((value) => ({ id: value, name: `${value} 条` }))
@@ -57,7 +57,7 @@ const selectedPersons = ref(new Map<number, Person>())
 const selectedTargets = computed(() => [...selectedPersons.value.values()])
 const allVisibleSelected = computed(
   () =>
-    page.value.rows.length > 0 && page.value.rows.every((row) => selectedPersons.value.has(row.id)),
+    page.value.rows.length > 0 && page.value.rows.every((row) => selectedPersons.value.has(row.id))
 )
 const listLoading = ref(false)
 const listError = ref('')
@@ -74,7 +74,10 @@ const pageNumbers = computed(() => {
 const pageSummary = computed(() => {
   if (!page.value.total) return '共 0 条'
   const start = (page.value.pageNum - 1) * page.value.pageSize + 1
-  return `第 ${start}–${Math.min(page.value.pageNum * page.value.pageSize, page.value.total)} 条，共 ${page.value.total} 条`
+  return `第 ${start}–${Math.min(
+    page.value.pageNum * page.value.pageSize,
+    page.value.total
+  )} 条，共 ${page.value.total} 条`
 })
 const pageSizeModel = computed({
   get: () => String(pageSize.value),
@@ -106,11 +109,11 @@ const discardDialog = ref<HTMLElement>()
 const isDirty = computed(
   () =>
     (drawerMode.value === 'create' || drawerMode.value === 'edit') &&
-    JSON.stringify(form) !== initialFormState.value,
+    JSON.stringify(form) !== initialFormState.value
 )
 const drawerVisible = computed(() => tabActive.value && drawerMode.value !== null)
 const modalVisible = computed(
-  () => tabActive.value && (deleteTargets.value.length > 0 || !!discardAction.value),
+  () => tabActive.value && (deleteTargets.value.length > 0 || !!discardAction.value)
 )
 let pageController: AbortController | undefined
 let totalController: AbortController | undefined
@@ -166,7 +169,7 @@ watch(
     await nextTick()
     if (count && tabActive.value) deleteDialog.value?.focus()
     else if (tabActive.value) deleteTrigger?.focus()
-  },
+  }
 )
 watch(discardAction, async (action) => {
   await nextTick()
@@ -189,7 +192,7 @@ function handleDialogKey(event: KeyboardEvent, close: () => void) {
     const root = event.currentTarget as HTMLElement
     const controls = [
       ...root.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+        'button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex="0"]'
       ),
     ].filter((element) => element.getClientRects().length > 0)
     const first = controls[0]
@@ -243,7 +246,7 @@ async function loadPage(pageNum: number) {
       pageNum,
       pageSize.value,
       appliedName.value,
-      controller.signal,
+      controller.signal
     )
     if (controller.signal.aborted) return
     page.value = result
@@ -351,9 +354,12 @@ async function openDrawer(mode: DrawerMode, id?: number) {
   }
 }
 function personRoles(anime: AnimePageItem) {
-  return anime.persons
-    ?.filter((person) => person.personId === currentPerson.value?.id)
-    .map((person) => person.role).join('、') || '未注明职责'
+  return (
+    anime.persons
+      ?.filter((person) => person.personId === currentPerson.value?.id)
+      .map((person) => person.role)
+      .join('、') || '未注明职责'
+  )
 }
 function openRelatedAnime(anime: AnimePageItem) {
   finishCloseDrawer()
@@ -367,8 +373,8 @@ async function savePerson() {
   nameError.value = !name
     ? '请填写人物姓名。'
     : Array.from(name).length > 100
-      ? '人物姓名不能超过 100 个字符。'
-      : ''
+    ? '人物姓名不能超过 100 个字符。'
+    : ''
   if (nameError.value) {
     document.getElementById('personName')?.focus()
     return
@@ -397,7 +403,9 @@ async function savePerson() {
 function openDelete(targets: Person[]) {
   if (!targets.length || saving.value || deleting.value) return
   protectChanges(() => {
-    deleteTrigger = drawerMode.value ? drawerTrigger : document.activeElement as HTMLElement | null
+    deleteTrigger = drawerMode.value
+      ? drawerTrigger
+      : (document.activeElement as HTMLElement | null)
     finishCloseDrawer()
     deleteTargets.value = [...targets]
     deleteConfirmed.value = false
@@ -431,11 +439,11 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <section class="persons-management">
-    <section class="persons-hero">
-      <div>
-        <p class="persons-eyebrow">CONTENT ARCHIVE / PEOPLE INDEX</p>
-        <h1>人物管理 <span>/ 创作人员档案</span></h1>
+  <section class="persons-management management-cards">
+    <section class="persons-hero management-hero">
+      <div class="management-hero-copy">
+        <p class="persons-eyebrow management-eyebrow">CONTENT ARCHIVE / PEOPLE INDEX</p>
+        <h1>人物管理 <span>PEOPLE INDEX</span></h1>
         <p>记录常用署名与人物简介。保留同名人物的独立档案，让每一份署名都能清晰辨认。</p>
       </div>
       <button class="primary-button" type="button" @click="requestDrawer('create')">
@@ -445,34 +453,37 @@ async function confirmDelete() {
     <p v-if="toast" class="persons-notice" :class="{ error: toast.error }" role="status">
       <AdminIcon name="check" />{{ toast.message }}
     </p>
-    <section class="persons-stats" aria-label="人物统计">
-      <article>
-        <span><AdminIcon name="user" /></span>
-        <div>
-          <small>人物档案总数</small><strong>{{ totalPersons ?? '—' }}</strong>
+    <section class="persons-stats management-stats" aria-label="人物统计">
+      <article class="management-stat">
+        <span class="management-stat-icon"><AdminIcon name="user" /></span>
+        <div class="management-stat-copy">
+          <small class="management-stat-label">人物总数</small
+          ><strong class="management-stat-value">{{ totalPersons ?? '—' }}</strong>
         </div>
       </article>
-      <article>
-        <span><AdminIcon name="archive" /></span>
-        <div>
-          <small>当前页记录</small><strong>{{ listLoading ? '—' : page.rows.length }}</strong>
+      <article class="management-stat">
+        <span class="management-stat-icon"><AdminIcon name="archive" /></span>
+        <div class="management-stat-copy">
+          <small class="management-stat-label">当前页记录</small
+          ><strong class="management-stat-value">{{ listLoading ? '—' : page.rows.length }}</strong>
         </div>
       </article>
-      <article>
-        <span><AdminIcon name="check" /></span>
-        <div>
-          <small>已选人物</small><strong>{{ selectedPersons.size }}</strong>
+      <article class="management-stat">
+        <span class="management-stat-icon"><AdminIcon name="check" /></span>
+        <div class="management-stat-copy">
+          <small class="management-stat-label">已选人物</small
+          ><strong class="management-stat-value">{{ selectedPersons.size }}</strong>
         </div>
       </article>
     </section>
-    <section class="persons-list-card" aria-labelledby="personsListTitle">
-      <header class="persons-list-header">
+    <section class="persons-list-card management-list-card" aria-labelledby="personsListTitle">
+      <header class="persons-list-header management-list-header">
         <div>
           <h2 id="personsListTitle">人物档案</h2>
           <p>按最近更新排序 · 同名人物可结合简介与详情区分</p>
         </div>
-        <div>
-          <span>共 {{ page.total }} 条</span
+        <div class="management-list-actions">
+          <span class="management-list-meta">共 {{ page.total }} 条</span
           ><button
             class="danger-button"
             type="button"
@@ -483,8 +494,8 @@ async function confirmDelete() {
           </button>
         </div>
       </header>
-      <form class="persons-search-form" @submit.prevent="runSearch">
-        <label class="persons-search"
+      <form class="persons-search-form management-filter" @submit.prevent="runSearch">
+        <label class="persons-search management-search"
           ><AdminIcon name="search-full" /><input
             v-model="searchName"
             type="text"
@@ -494,17 +505,20 @@ async function confirmDelete() {
         /></label>
         <button class="secondary-button" type="submit">查询</button
         ><button class="ghost-button" type="button" @click="resetSearch">重置</button>
-        <span>同名可保留，档案不自动合并。</span>
+        <span class="management-filter-note">同名可保留，档案不自动合并。</span>
       </form>
       <div v-if="selectedPersons.size" class="persons-selection">
         <span>已选 {{ selectedPersons.size }} 位人物 · 跨页保留选择</span
         ><button type="button" @click="selectedPersons.clear()">清空选择</button>
       </div>
-      <div class="persons-table-scroll">
-        <table v-if="!listLoading && !listError && page.rows.length" class="persons-table">
+      <div class="persons-table-scroll management-table-scroll">
+        <table
+          v-if="!listLoading && !listError && page.rows.length"
+          class="persons-table management-table"
+        >
           <thead>
             <tr>
-              <th class="persons-check-cell">
+              <th class="persons-check-cell management-check-cell">
                 <input
                   type="checkbox"
                   :checked="allVisibleSelected"
@@ -513,8 +527,8 @@ async function confirmDelete() {
                 />
               </th>
               <th class="persons-name-cell">姓名 / 常用署名</th>
-              <th>人物简介</th>
-              <th class="persons-actions-cell">操作</th>
+              <th>简介</th>
+              <th class="persons-actions-cell management-actions-cell">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -523,7 +537,7 @@ async function confirmDelete() {
               :key="person.id"
               :class="{ selected: selectedPersons.has(person.id) }"
             >
-              <td>
+              <td class="management-check-cell">
                 <input
                   type="checkbox"
                   :checked="selectedPersons.has(person.id)"
@@ -533,17 +547,20 @@ async function confirmDelete() {
               </td>
               <td>
                 <button
-                  class="persons-name"
+                  class="persons-name management-row-name"
                   type="button"
                   @click="requestDrawer('detail', person.id)"
                 >
                   {{ person.name }}
                 </button>
               </td>
-              <td><ArchiveDescription :text="person.description" /></td>
               <td>
-                <div class="persons-row-actions">
+                <ArchiveDescription class="management-description" :text="person.description" />
+              </td>
+              <td class="management-actions-cell">
+                <div class="persons-row-actions management-row-actions">
                   <button
+                    class="management-row-action management-icon-action"
                     type="button"
                     title="查看详情"
                     :aria-label="`查看人物 ${person.name}详情`"
@@ -552,6 +569,7 @@ async function confirmDelete() {
                     <AdminIcon name="view" />
                   </button>
                   <button
+                    class="management-row-action management-icon-action"
                     type="button"
                     title="编辑"
                     :aria-label="`编辑人物 ${person.name}`"
@@ -561,7 +579,7 @@ async function confirmDelete() {
                   </button>
                   <button
                     type="button"
-                    class="danger"
+                    class="danger management-row-action management-icon-action"
                     title="删除"
                     :aria-label="`删除人物 ${person.name}`"
                     @click="openDelete([person])"
@@ -573,17 +591,25 @@ async function confirmDelete() {
             </tr>
           </tbody>
         </table>
-        <div v-else class="persons-list-state" :class="{ error: listError }" role="status">
-          <AdminIcon :name="listError ? 'info' : 'user'" />
+        <div
+          v-else
+          class="persons-list-state management-list-state"
+          :class="{ error: listError }"
+          role="status"
+        >
+          <AdminIcon
+            class="management-state-icon management-state-glyph"
+            :name="listError ? 'info' : 'user'"
+          />
           <h3>
             {{
               listLoading
                 ? '正在读取人物档案…'
                 : listError
-                  ? '人物档案读取失败'
-                  : appliedName
-                    ? '没有匹配的人物'
-                    : '暂无人物档案'
+                ? '人物档案读取失败'
+                : appliedName
+                ? '没有匹配的人物'
+                : '暂无人物档案'
             }}
           </h3>
           <p>
@@ -612,10 +638,11 @@ async function confirmDelete() {
           </button>
         </div>
       </div>
-      <footer class="persons-pagination">
+      <footer class="persons-pagination management-pagination">
         <span>{{ pageSummary }}</span>
-        <div class="persons-page-controls">
+        <div class="persons-page-controls management-page-controls">
           <ArchiveSelect
+            class="management-page-size"
             id="personsPageSize"
             v-model="pageSizeModel"
             :options="pageSizeOptions"
@@ -676,11 +703,6 @@ async function confirmDelete() {
         {{ jumpError }}
       </p>
     </section>
-    <p class="persons-footnote">
-      <AdminIcon
-        name="info"
-      />人物被作品引用时不能删除；批量操作中任一人物被引用，整批均不删除。删除人物不会删除作品或自动解除关联。
-    </p>
     <Teleport to="body">
       <div v-if="drawerVisible" class="persons-drawer-layer" @click.self="closeDrawer">
         <aside
@@ -700,8 +722,8 @@ async function confirmDelete() {
                   drawerMode === 'create'
                     ? '新增人物'
                     : drawerMode === 'edit'
-                      ? '编辑人物'
-                      : '人物详情'
+                    ? '编辑人物'
+                    : '人物详情'
                 }}
               </h2>
               <p>
@@ -914,217 +936,6 @@ async function confirmDelete() {
 </template>
 
 <style scoped>
-.persons-management {
-  width: min(1220px, 100%);
-  margin: 0 auto;
-}
-.persons-hero {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  min-height: 150px;
-  padding: 26px 30px;
-  overflow: hidden;
-  color: var(--ink);
-  background: linear-gradient(
-    112deg,
-    color-mix(in srgb, var(--surface-solid) 90%, transparent),
-    color-mix(in srgb, var(--surface-muted) 82%, transparent)
-  );
-  border: 1px solid var(--line);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-soft);
-}
-.persons-hero::before {
-  position: absolute;
-  top: -54px;
-  right: 13%;
-  width: 208px;
-  height: 208px;
-  border: 1px solid rgba(117, 103, 170, 0.15);
-  border-radius: 43% 57% 63% 37%;
-  transform: rotate(28deg);
-  content: '';
-  pointer-events: none;
-}
-.persons-hero > div {
-  position: relative;
-  z-index: 1;
-}
-.persons-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 9px;
-  color: var(--accent-strong);
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-}
-.persons-eyebrow::before {
-  width: 17px;
-  height: 1px;
-  content: '';
-  background: currentColor;
-}
-.persons-hero h1 {
-  margin: 0;
-  font: 700 clamp(23px, 3vw, 30px) / 1.25 var(--font-display);
-  letter-spacing: -0.035em;
-}
-.persons-hero h1 span {
-  color: var(--ink-faint);
-  font: 500 12px var(--font-body);
-  letter-spacing: 0;
-}
-.persons-hero > div > p:last-child {
-  max-width: 610px;
-  margin: 8px 0 0;
-  color: var(--ink-soft);
-  font-size: 12px;
-}
-.persons-hero > button {
-  flex: 0 0 auto;
-  position: relative;
-}
-.persons-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px;
-  margin-top: 16px;
-}
-.persons-stats article {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 17px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: var(--shadow-soft);
-}
-.persons-stats article > span {
-  display: grid;
-  width: 35px;
-  height: 35px;
-  place-items: center;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 11px;
-  flex: 0 0 auto;
-}
-.persons-stats article:nth-child(2) > span {
-  color: var(--cyan);
-  background: var(--cyan-soft);
-}
-.persons-stats article:nth-child(3) > span {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.persons-stats svg {
-  width: 19px;
-  height: 19px;
-}
-.persons-stats small,
-.persons-stats strong {
-  display: block;
-}
-.persons-stats small {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.persons-stats strong {
-  margin-top: 1px;
-  font: 700 21px/1.3 var(--font-display);
-}
-.persons-list-card {
-  margin-top: 16px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: var(--shadow-soft);
-}
-.persons-list-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 17px 19px;
-  border-bottom: 1px solid var(--line);
-}
-.persons-list-header h2 {
-  margin: 0;
-  font: 700 15px var(--font-display);
-}
-.persons-list-header p {
-  margin: 5px 0 0;
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.persons-list-header > div:last-child {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 0 0 auto;
-}
-.persons-list-header > div > span {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.persons-list-header .danger-button {
-  min-height: 34px;
-  padding: 0 11px;
-  border-radius: 9px;
-  font-size: 10px;
-}
-.persons-search-form {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--line);
-}
-.persons-search {
-  display: flex;
-  width: min(365px, 100%);
-  align-items: center;
-  gap: 8px;
-  padding: 0 11px;
-  color: var(--ink-faint);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-}
-.persons-search svg {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
-}
-.persons-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: var(--focus);
-}
-.persons-search input {
-  min-width: 0;
-  width: 100%;
-  height: 38px;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  font-size: 11px;
-}
-.persons-search-form > button {
-  min-height: 38px;
-  font-size: 11px;
-}
-.persons-search-form > span {
-  margin-left: auto;
-  color: var(--ink-faint);
-  font-size: 10px;
-}
 .persons-selection {
   display: flex;
   align-items: center;
@@ -1141,69 +952,20 @@ async function confirmDelete() {
   background: transparent;
   font-size: 11px;
 }
-.persons-table-scroll {
-  overflow-x: auto;
-  border-radius: 0 0 12px 12px;
-}
 .persons-table {
   width: 100%;
-  min-width: 790px;
+  min-width: 760px;
   table-layout: fixed;
-  border-collapse: collapse;
-  text-align: left;
-}
-.persons-table th {
-  padding: 11px 13px;
-  color: var(--ink-faint);
-  background: var(--surface-muted);
-  border-bottom: 1px solid var(--line);
-  font-size: 10px;
-  font-weight: 650;
-  white-space: nowrap;
-}
-.persons-table td {
-  padding: 13px;
-  color: var(--ink-soft);
-  border-bottom: 1px solid var(--line);
-  font-size: 11px;
-  vertical-align: middle;
-}
-.persons-table tr:last-child td {
-  border-bottom: 0;
-}
-.persons-table tbody tr:hover {
-  background: var(--surface-hover);
 }
 .persons-table tr.selected {
   background: color-mix(in srgb, var(--accent-soft) 25%, var(--surface-solid));
 }
-.persons-check-cell {
-  width: 40px;
-}
 .persons-name-cell {
-  width: 20%;
+  width: 28%;
 }
 .persons-actions-cell {
-  width: 112px;
+  width: 115px;
 }
-.persons-name {
-  padding: 2px 0;
-  color: var(--ink);
-  background: transparent;
-  font-size: 12px;
-  font-weight: 700;
-  text-align: left;
-  overflow-wrap: anywhere;
-}
-.persons-name:hover {
-  color: var(--accent-strong);
-}
-.persons-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.persons-row-actions button,
 .persons-icon-button {
   display: grid;
   width: 29px;
@@ -1214,117 +976,16 @@ async function confirmDelete() {
   background: transparent;
   border-radius: 7px;
 }
-.persons-row-actions svg,
 .persons-icon-button svg {
   width: 15px;
   height: 15px;
 }
-.persons-row-actions button:hover {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.persons-row-actions button.danger:hover {
-  color: var(--danger);
-}
-.persons-list-state {
-  display: grid;
-  min-height: 260px;
-  justify-items: center;
-  align-content: center;
-  padding: 30px 20px;
-  color: var(--ink-faint);
-  text-align: center;
-  font-size: 12px;
-}
-.persons-list-state > svg {
-  width: 36px;
-  height: 36px;
-  color: var(--violet);
-}
-.persons-list-state h3 {
-  margin: 12px 0 0;
-  color: var(--ink);
-  font: 700 16px var(--font-display);
-}
-.persons-list-state p {
-  max-width: 420px;
-  margin: 7px 0 15px;
-  color: var(--ink-soft);
-  line-height: 1.8;
-}
-.persons-list-state.error,
 .persons-error {
   color: var(--danger);
-}
-.persons-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 18px;
-  border-top: 1px solid var(--line);
-  font-size: 10px;
-  color: var(--ink-faint);
-}
-.persons-page-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.persons-page-controls :deep(.archive-select) {
-  width: 92px;
-}
-.persons-page-controls :deep(.archive-select-trigger) {
-  height: 32px;
-  font-size: 10px;
-  white-space: nowrap;
-}
-.persons-page-controls :deep(.archive-select-option) {
-  font-size: 10px;
-}
-.persons-page-controls button {
-  display: grid;
-  min-width: 30px;
-  height: 30px;
-  place-items: center;
-  color: var(--ink-soft);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  font-size: 10px;
-}
-.persons-page-controls button.active {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.persons-page-controls svg {
-  width: 12px;
-  height: 12px;
-}
-.persons-page-controls input {
-  width: 42px;
-  height: 30px;
-  padding: 0 6px;
-  color: var(--ink-soft);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  text-align: center;
-  font-size: 10px;
 }
 .persons-jump-error {
   padding: 0 18px 10px;
   margin: 0;
-}
-.persons-footnote {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  margin: 13px 3px 0;
-  color: var(--ink-faint);
-  font-size: 10px;
-  line-height: 1.8;
 }
 .persons-footnote svg {
   width: 14px;
@@ -1764,59 +1425,6 @@ async function confirmDelete() {
   }
 }
 @media (max-width: 620px) {
-  .persons-hero {
-    min-height: 0;
-    padding: 20px;
-    align-items: flex-start;
-    flex-direction: column;
-    border-radius: 18px;
-    gap: 17px;
-  }
-  .persons-hero > button {
-    width: 100%;
-  }
-  .persons-stats {
-    gap: 7px;
-  }
-  .persons-stats article {
-    padding: 11px 10px;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .persons-stats small {
-    font-size: 9px;
-  }
-  .persons-stats strong {
-    font-size: 18px;
-  }
-  .persons-list-header {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 15px;
-  }
-  .persons-list-header > div:last-child {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .persons-search-form {
-    flex-wrap: wrap;
-    padding: 12px;
-  }
-  .persons-search {
-    width: 100%;
-  }
-  .persons-search-form > button {
-    flex: 1;
-  }
-  .persons-search-form > span {
-    margin-left: 0;
-  }
-  .persons-pagination {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 12px;
-  }
   .persons-drawer-header {
     padding: 20px 18px 16px;
   }
@@ -1840,7 +1448,9 @@ async function confirmDelete() {
   }
 }
 @media (max-width: 700px) {
-  .persons-detail-drawer { width: 100vw; }
+  .persons-detail-drawer {
+    width: 100vw;
+  }
   .persons-detail-drawer .persons-drawer-header,
   .persons-detail-drawer .persons-drawer-body,
   .persons-detail-drawer .persons-drawer-footer {
@@ -1851,6 +1461,8 @@ async function confirmDelete() {
     align-items: stretch;
     flex-direction: column;
   }
-  .persons-detail-drawer .persons-drawer-footer > div { justify-content: flex-end; }
+  .persons-detail-drawer .persons-drawer-footer > div {
+    justify-content: flex-end;
+  }
 }
 </style>
