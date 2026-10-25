@@ -83,6 +83,10 @@ export interface NamedOption {
   name: string
 }
 
+export interface SortableNamedOption extends NamedOption {
+  sortOrder: number
+}
+
 export interface CompanyOption extends NamedOption {
   description: string | null
 }
@@ -91,6 +95,7 @@ export interface AnimeCompany {
   companyId: number
   companyName: string
   role: string | null
+  sortOrder: number
 }
 
 export interface ExternalLink {
@@ -133,7 +138,7 @@ export interface AnimeDetail {
   status: number
   description: string | null
   aliasNames: string[]
-  companies: Array<{ companyId: number; role: string | null }>
+  companies: Array<{ companyId: number; role: string | null; sortOrder: number }>
   externalLinks: ExternalLink[]
   tagIds: number[]
   seriesId: number | null
@@ -153,7 +158,7 @@ export interface AnimePayload {
   status: number
   description?: string | null
   aliasNames?: string[]
-  companies?: Array<{ companyId: number; role: string | null }>
+  companies?: Array<{ companyId: number; role: string | null; sortOrder?: number }>
   externalLinks?: ExternalLink[]
   tagIds?: number[]
   seriesId?: number | null

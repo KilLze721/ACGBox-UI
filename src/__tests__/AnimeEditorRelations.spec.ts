@@ -57,7 +57,7 @@ function stubRequests() {
           description: null,
           aliasNames: [],
           tagIds: [],
-          companies: [{ companyId: 3, role: '动画制作' }],
+          companies: [{ companyId: 3, role: '动画制作', sortOrder: 0 }],
           externalLinks: [{ title: '官网', url: 'https://example.com', sortOrder: 0 }],
           seriesId: 5,
           seriesSortOrder: 1,
@@ -139,7 +139,7 @@ describe('新增和修改动画的关联资料', () => {
     document.querySelector<HTMLButtonElement>('.anime-confirm-actions .primary-button')?.click()
     await flushPromises()
 
-    expect(submittedPayload?.companies).toEqual([{ companyId: 3, role: '原画协力' }])
+    expect(submittedPayload?.companies).toEqual([{ companyId: 3, role: '原画协力', sortOrder: 0 }])
     expect(submittedPayload?.seriesId).toBe(5)
     wrapper.unmount()
     wrapper = undefined

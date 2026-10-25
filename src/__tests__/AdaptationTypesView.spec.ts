@@ -6,9 +6,9 @@ import AdaptationTypesView from '@/views/admin/adaptation-types/AdaptationTypesV
 function mockApi() {
   const requests: Array<{ path: string; body?: unknown }> = []
   let types = [
-    { id: 2, name: '漫画改' },
-    { id: 3, name: '小说改' },
-    { id: 1, name: '原创' },
+    { id: 2, name: '漫画改', sortOrder: -10 },
+    { id: 3, name: '小说改', sortOrder: 0 },
+    { id: 1, name: '原创', sortOrder: 2 },
   ]
   vi.stubGlobal(
     'fetch',
@@ -20,7 +20,7 @@ function mockApi() {
       if (path.endsWith('/adaptation-type/list')) data = [...types]
       else if (path.endsWith('/adaptation-type/2')) data = types.find((item) => item.id === 2)
       else if (path.endsWith('/adaptation-type/create')) {
-        const created = { id: 4, name: body.name }
+        const created = { id: 4, name: body.name, sortOrder: body.sortOrder }
         types = [...types, created]
         data = created
       } else if (path.endsWith('/adaptation-type/update')) {
@@ -60,6 +60,7 @@ describe('改编类型管理页面', () => {
     expect(wrapper.findAll('.adaptation-table th').map((cell) => cell.text())).toEqual([
       '',
       '改编类型名称',
+      '排序',
       '操作',
     ])
     expect(wrapper.find('.adaptation-table').text()).not.toContain('#2')
@@ -98,7 +99,7 @@ describe('改编类型管理页面', () => {
     await flushPromises()
     expect(
       requests.find((request) => request.path === '/api/adaptation-type/create')?.body,
-    ).toEqual({ name: '游戏改' })
+    ).toEqual({ name: '游戏改', sortOrder: 0 })
     expect(document.body.querySelector('.adaptation-drawer')).toBeNull()
 
     await wrapper.get('button[aria-label="编辑改编类型 漫画改"]').trigger('click')
@@ -116,7 +117,7 @@ describe('改编类型管理页面', () => {
     await flushPromises()
     expect(
       requests.find((request) => request.path === '/api/adaptation-type/update')?.body,
-    ).toEqual({ id: 2, name: '漫画改编' })
+    ).toEqual({ id: 2, name: '漫画改编', sortOrder: -10 })
     expect(wrapper.find('.adaptation-table').text()).toContain('漫画改编')
     wrapper.unmount()
   })

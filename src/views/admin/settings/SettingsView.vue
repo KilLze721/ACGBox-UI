@@ -16,6 +16,7 @@ import {
 import { getBroadcastTypes, getRegions } from '@/api/catalog'
 import { getSystemHealth } from '@/api/system'
 import { getCurrentUser } from '@/utils/auth'
+import { useCatalogRefresh } from '@/utils/catalogChanges'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import {
@@ -125,8 +126,9 @@ defineExpose({ getCloseState: () => ({ dirty: dirty.value, submitting: false }) 
 watch(themeMode, () => {
   pendingThemeReset.value = false
 })
+const refreshCatalogs = useCatalogRefresh(['broadcast'], loadCatalogs)
 onMounted(() => {
-  void loadCatalogs()
+  void refreshCatalogs()
   void loadHealth()
 })
 onDeactivated(() => {
@@ -538,7 +540,7 @@ function confirmReset() {
                 class="text-button"
                 type="button"
                 :disabled="catalogLoading"
-                @click="loadCatalogs"
+                @click="refreshCatalogs"
               >
                 {{ catalogLoading ? '正在读取…' : '重新读取选项' }}
               </button>

@@ -217,10 +217,10 @@ async function closeAndReturnToAnime() {
   height: 36px;
 }
 .anime-create-page :deep(.anime-repeat-row:has(.anime-entity-select)) {
-  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.8fr) 36px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.8fr) auto;
 }
 .anime-create-page :deep(.anime-link-row) {
-  grid-template-columns: minmax(110px, 0.8fr) minmax(180px, 1.5fr) 82px 36px;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(180px, 1.5fr) auto;
 }
 .anime-create-page :deep(.anime-switch-row strong) {
   font-size: 12px;
@@ -236,6 +236,9 @@ async function closeAndReturnToAnime() {
   font-size: 12px;
 }
 @media (max-width: 620px) {
+  .anime-create-page :deep(.anime-repeat-row:has(.anime-entity-select)) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
   .anime-create-page :deep(.anime-editor-hero),
   .anime-create-page :deep(.anime-editor-card) {
     padding: 20px;
@@ -244,7 +247,7 @@ async function closeAndReturnToAnime() {
     font-size: 25px;
   }
   .anime-create-page :deep(.anime-link-row) {
-    grid-template-columns: 1fr 1fr 56px 36px;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 }
 </style>

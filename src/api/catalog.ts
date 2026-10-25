@@ -1,20 +1,20 @@
 import { get, post } from './http'
-import type { CompanyOption, NamedOption, PageResult } from '@/types/api'
+import type { CompanyOption, NamedOption, PageResult, SortableNamedOption } from '@/types/api'
 
 export function getBroadcastTypes(signal?: AbortSignal) {
-  return get<NamedOption[]>('/broadcast-type/list', {}, signal)
+  return get<SortableNamedOption[]>('/broadcast-type/list', {}, signal)
 }
 
 export function getBroadcastTypeById(id: number, signal?: AbortSignal) {
-  return get<NamedOption>(`/broadcast-type/${id}`, {}, signal)
+  return get<SortableNamedOption>(`/broadcast-type/${id}`, {}, signal)
 }
 
-export function createBroadcastType(payload: { name: string }) {
-  return post<NamedOption>('/broadcast-type/create', payload)
+export function createBroadcastType(payload: { name: string; sortOrder?: number | null }) {
+  return post<SortableNamedOption>('/broadcast-type/create', payload)
 }
 
-export function updateBroadcastType(payload: NamedOption) {
-  return post<NamedOption>('/broadcast-type/update', payload)
+export function updateBroadcastType(payload: NamedOption & { sortOrder?: number | null }) {
+  return post<SortableNamedOption>('/broadcast-type/update', payload)
 }
 
 export function deleteBroadcastTypes(ids: number[]) {
@@ -22,19 +22,19 @@ export function deleteBroadcastTypes(ids: number[]) {
 }
 
 export function getAdaptationTypes(signal?: AbortSignal) {
-  return get<NamedOption[]>('/adaptation-type/list', {}, signal)
+  return get<SortableNamedOption[]>('/adaptation-type/list', {}, signal)
 }
 
 export function getAdaptationTypeById(id: number, signal?: AbortSignal) {
-  return get<NamedOption>(`/adaptation-type/${id}`, {}, signal)
+  return get<SortableNamedOption>(`/adaptation-type/${id}`, {}, signal)
 }
 
-export function createAdaptationType(payload: { name: string }) {
-  return post<NamedOption>('/adaptation-type/create', payload)
+export function createAdaptationType(payload: { name: string; sortOrder?: number | null }) {
+  return post<SortableNamedOption>('/adaptation-type/create', payload)
 }
 
-export function updateAdaptationType(payload: NamedOption) {
-  return post<NamedOption>('/adaptation-type/update', payload)
+export function updateAdaptationType(payload: NamedOption & { sortOrder?: number | null }) {
+  return post<SortableNamedOption>('/adaptation-type/update', payload)
 }
 
 export function deleteAdaptationTypes(ids: number[]) {

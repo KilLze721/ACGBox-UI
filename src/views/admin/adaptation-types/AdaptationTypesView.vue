@@ -13,24 +13,29 @@ import {
   updateAdaptationType,
 } from '@/api/catalog'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
-import type { NamedOption } from '@/types/api'
+import { notifyCatalogChanged, useCatalogRefresh } from '@/utils/catalogChanges'
+import { parseSortOrder } from '@/utils/sortOrder'
+import type { NamedOption, SortableNamedOption } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit'
 
 const route = useRoute()
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
-const types = ref<NamedOption[]>([])
+const types = ref<SortableNamedOption[]>([])
 const searchName = ref(initialName)
 const appliedName = ref(initialName)
 const selectedIds = ref<number[]>([])
 const loading = ref(false)
 const listError = ref('')
 const drawerMode = ref<DrawerMode | null>(null)
-const currentType = ref<NamedOption | null>(null)
+const currentType = ref<SortableNamedOption | null>(null)
 const drawerLoading = ref(false)
 const drawerError = ref('')
 const formName = ref('')
 const initialFormName = ref('')
+const formSortOrder = ref('0')
+const initialFormSortOrder = ref('0')
+const sortOrderError = ref('')
 const nameError = ref('')
 const saving = ref(false)
 const deleteTargets = ref<NamedOption[]>([])
@@ -61,14 +66,17 @@ const selectedTargets = computed(() =>
   types.value.filter((item) => selectedIds.value.includes(item.id)),
 )
 const isDirty = computed(
-  () => drawerMode.value !== null && formName.value !== initialFormName.value,
+  () =>
+    drawerMode.value !== null &&
+    (formName.value !== initialFormName.value || formSortOrder.value !== initialFormSortOrder.value),
 )
 
 defineExpose({
   getCloseState: () => ({ dirty: isDirty.value, submitting: saving.value || deleting.value }),
 })
 
-onMounted(() => void loadTypes())
+const refreshTypes = useCatalogRefresh(['adaptation'], loadTypes)
+onMounted(() => void refreshTypes())
 onActivated(() => {
   tabActive.value = true
   if (drawerMode.value || deleteTargets.value.length) lockScroll()
@@ -159,7 +167,7 @@ function closeDrawer() {
   currentType.value = null
   drawerError.value = ''
 }
-async function openDrawer(mode: DrawerMode, row?: NamedOption) {
+async function openDrawer(mode: DrawerMode, row?: SortableNamedOption) {
   drawerController?.abort()
   const controller = new AbortController()
   drawerController = controller
@@ -167,6 +175,9 @@ async function openDrawer(mode: DrawerMode, row?: NamedOption) {
   currentType.value = row ?? null
   formName.value = row?.name ?? ''
   initialFormName.value = formName.value
+  formSortOrder.value = String(row?.sortOrder ?? 0)
+  initialFormSortOrder.value = formSortOrder.value
+  sortOrderError.value = ''
   nameError.value = ''
   drawerError.value = ''
   drawerLoading.value = mode === 'edit'
@@ -177,6 +188,8 @@ async function openDrawer(mode: DrawerMode, row?: NamedOption) {
     currentType.value = type
     formName.value = type.name
     initialFormName.value = type.name
+    formSortOrder.value = String(type.sortOrder)
+    initialFormSortOrder.value = formSortOrder.value
   } catch (error) {
     if (controller.signal.aborted) return
     currentType.value = null
@@ -188,19 +201,23 @@ async function openDrawer(mode: DrawerMode, row?: NamedOption) {
 async function saveType() {
   const name = formName.value.trim()
   nameError.value = name ? '' : '改编类型名称不能为空。'
-  if (nameError.value || saving.value || drawerLoading.value) return
+  const sortOrder = parseSortOrder(formSortOrder.value)
+  sortOrderError.value =
+    sortOrder === null ? '排序请输入 -2147483648 至 2147483647 之间的整数。' : ''
+  if (nameError.value || sortOrder === null || saving.value || drawerLoading.value) return
   if (drawerMode.value === 'edit' && !currentType.value) return
   saving.value = true
   drawerError.value = ''
   try {
     const created = drawerMode.value === 'create'
-    if (created) await createAdaptationType({ name })
-    else await updateAdaptationType({ id: currentType.value!.id, name })
+    if (created) await createAdaptationType({ name, sortOrder })
+    else await updateAdaptationType({ id: currentType.value!.id, name, sortOrder })
+    notifyCatalogChanged('adaptation')
     drawerMode.value = null
     currentType.value = null
     if (created) resetSearch()
     showToast(created ? '改编类型已添加。' : '改编类型已修改。')
-    await loadTypes()
+    await refreshTypes()
   } catch (error) {
     const message = messageOf(error, '保存失败，请稍后重试。')
     if (message.includes('已存在') || message.includes('重复')) nameError.value = message
@@ -229,9 +246,10 @@ async function confirmDelete() {
   const count = deleteTargets.value.length
   try {
     await deleteAdaptationTypes(deleteTargets.value.map((item) => item.id))
+    notifyCatalogChanged('adaptation')
     deleteTargets.value = []
     showToast(`已删除 ${count} 个改编类型。`)
-    await loadTypes()
+    await refreshTypes()
   } catch (error) {
     deleteError.value = messageOf(error, '删除失败，请稍后重试。')
   } finally {
@@ -278,7 +296,7 @@ async function confirmDelete() {
       <header class="adaptation-list-header">
         <div>
           <h2 id="adaptationListTitle">改编类型词条</h2>
-          <p>全量读取 · 按名称升序 · 支持名称关键词筛选</p>
+          <p>全量读取 · 按排序值升序 · 支持名称关键词筛选</p>
         </div>
         <div class="adaptation-header-actions">
           <span>显示 {{ filteredTypes.length }} 条</span>
@@ -322,6 +340,7 @@ async function confirmDelete() {
                 />
               </th>
               <th>改编类型名称</th>
+              <th class="adaptation-sort-cell">排序</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -338,6 +357,7 @@ async function confirmDelete() {
               <td>
                 <span class="adaptation-name">{{ item.name }}</span>
               </td>
+              <td class="adaptation-sort-cell">{{ item.sortOrder }}</td>
               <td>
                 <div class="adaptation-row-actions">
                   <button
@@ -438,10 +458,31 @@ async function confirmDelete() {
                   v-model="formName"
                   placeholder="例如：漫画改、小说改、原创"
                   autocomplete="off"
+                  :disabled="saving"
                   @input="nameError = ''"
                 />
                 <p v-if="nameError" class="adaptation-error" role="alert">{{ nameError }}</p>
-                <p class="adaptation-hint">名称需唯一；当前仅维护改编类型名称。</p>
+                <p class="adaptation-hint">名称需唯一，排序决定列表和动画表单中的显示顺序。</p>
+              </div>
+              <div class="adaptation-field" :class="{ invalid: !!sortOrderError }">
+                <label for="adaptationEditorSortOrder">排序 <span>*</span></label>
+                <input
+                  id="adaptationEditorSortOrder"
+                  v-model="formSortOrder"
+                  type="text"
+                  inputmode="text"
+                  :disabled="saving"
+                  :aria-invalid="!!sortOrderError"
+                  :aria-describedby="sortOrderError ? 'adaptationSortOrderError' : undefined"
+                  @input="sortOrderError = ''"
+                />
+                <p
+                  v-if="sortOrderError"
+                  id="adaptationSortOrderError"
+                  class="adaptation-error"
+                  role="alert"
+                >{{ sortOrderError }}</p>
+                <p class="adaptation-hint">数值越小越靠前，支持负整数；相同数值保持稳定顺序。</p>
               </div>
               <p v-if="drawerError" class="adaptation-save-error" role="alert">{{ drawerError }}</p>
             </form>
@@ -760,6 +801,14 @@ async function confirmDelete() {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+}
+.adaptation-sort-cell {
+  width: 110px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.adaptation-field + .adaptation-field {
+  margin-top: 20px;
 }
 .adaptation-table th,
 .adaptation-table td {

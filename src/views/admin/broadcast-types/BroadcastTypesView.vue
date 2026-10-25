@@ -13,24 +13,29 @@ import {
   updateBroadcastType,
 } from '@/api/catalog'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
-import type { NamedOption } from '@/types/api'
+import { notifyCatalogChanged, useCatalogRefresh } from '@/utils/catalogChanges'
+import { parseSortOrder } from '@/utils/sortOrder'
+import type { NamedOption, SortableNamedOption } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit'
 
 const route = useRoute()
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
-const types = ref<NamedOption[]>([])
+const types = ref<SortableNamedOption[]>([])
 const searchName = ref(initialName)
 const appliedName = ref(initialName)
 const selectedIds = ref<number[]>([])
 const loading = ref(false)
 const listError = ref('')
 const drawerMode = ref<DrawerMode | null>(null)
-const currentType = ref<NamedOption | null>(null)
+const currentType = ref<SortableNamedOption | null>(null)
 const drawerLoading = ref(false)
 const drawerError = ref('')
 const formName = ref('')
 const initialFormName = ref('')
+const formSortOrder = ref('0')
+const initialFormSortOrder = ref('0')
+const sortOrderError = ref('')
 const nameError = ref('')
 const saving = ref(false)
 const deleteTargets = ref<NamedOption[]>([])
@@ -48,9 +53,7 @@ let previousHtmlOverflow: string | undefined
 
 const filteredTypes = computed(() => {
   const keyword = appliedName.value.toLocaleLowerCase()
-  return types.value
-    .filter((type) => !keyword || type.name.toLocaleLowerCase().includes(keyword))
-    .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  return types.value.filter((type) => !keyword || type.name.toLocaleLowerCase().includes(keyword))
 })
 const allVisibleSelected = computed(
   () =>
@@ -61,14 +64,17 @@ const selectedTargets = computed(() =>
   types.value.filter((type) => selectedIds.value.includes(type.id)),
 )
 const isDirty = computed(
-  () => drawerMode.value !== null && formName.value !== initialFormName.value,
+  () =>
+    drawerMode.value !== null &&
+    (formName.value !== initialFormName.value || formSortOrder.value !== initialFormSortOrder.value),
 )
 
 defineExpose({
   getCloseState: () => ({ dirty: isDirty.value, submitting: saving.value || deleting.value }),
 })
 
-onMounted(() => void loadTypes())
+const refreshTypes = useCatalogRefresh(['broadcast'], loadTypes)
+onMounted(() => void refreshTypes())
 onActivated(() => {
   tabActive.value = true
   if (drawerMode.value || deleteTargets.value.length) lockScroll()
@@ -159,7 +165,7 @@ function closeDrawer() {
   currentType.value = null
   drawerError.value = ''
 }
-async function openDrawer(mode: DrawerMode, row?: NamedOption) {
+async function openDrawer(mode: DrawerMode, row?: SortableNamedOption) {
   drawerController?.abort()
   const controller = new AbortController()
   drawerController = controller
@@ -167,6 +173,9 @@ async function openDrawer(mode: DrawerMode, row?: NamedOption) {
   currentType.value = row ?? null
   formName.value = row?.name ?? ''
   initialFormName.value = formName.value
+  formSortOrder.value = String(row?.sortOrder ?? 0)
+  initialFormSortOrder.value = formSortOrder.value
+  sortOrderError.value = ''
   nameError.value = ''
   drawerError.value = ''
   drawerLoading.value = mode === 'edit'
@@ -177,6 +186,8 @@ async function openDrawer(mode: DrawerMode, row?: NamedOption) {
     currentType.value = type
     formName.value = type.name
     initialFormName.value = type.name
+    formSortOrder.value = String(type.sortOrder)
+    initialFormSortOrder.value = formSortOrder.value
   } catch (error) {
     if (controller.signal.aborted) return
     currentType.value = null
@@ -188,19 +199,23 @@ async function openDrawer(mode: DrawerMode, row?: NamedOption) {
 async function saveType() {
   const name = formName.value.trim()
   nameError.value = name ? '' : '放送类型名称不能为空。'
-  if (nameError.value || saving.value || drawerLoading.value) return
+  const sortOrder = parseSortOrder(formSortOrder.value)
+  sortOrderError.value =
+    sortOrder === null ? '排序请输入 -2147483648 至 2147483647 之间的整数。' : ''
+  if (nameError.value || sortOrder === null || saving.value || drawerLoading.value) return
   if (drawerMode.value === 'edit' && !currentType.value) return
   saving.value = true
   drawerError.value = ''
   try {
     const created = drawerMode.value === 'create'
-    if (created) await createBroadcastType({ name })
-    else await updateBroadcastType({ id: currentType.value!.id, name })
+    if (created) await createBroadcastType({ name, sortOrder })
+    else await updateBroadcastType({ id: currentType.value!.id, name, sortOrder })
+    notifyCatalogChanged('broadcast')
     drawerMode.value = null
     currentType.value = null
     if (created) resetSearch()
     showToast(created ? '放送类型已添加。' : '放送类型已修改。')
-    await loadTypes()
+    await refreshTypes()
   } catch (error) {
     const message = messageOf(error, '保存失败，请稍后重试。')
     if (message.includes('已存在') || message.includes('重复')) nameError.value = message
@@ -229,9 +244,10 @@ async function confirmDelete() {
   const count = deleteTargets.value.length
   try {
     await deleteBroadcastTypes(deleteTargets.value.map((type) => type.id))
+    notifyCatalogChanged('broadcast')
     deleteTargets.value = []
     showToast(`已删除 ${count} 个放送类型。`)
-    await loadTypes()
+    await refreshTypes()
   } catch (error) {
     deleteError.value = messageOf(error, '删除失败，请稍后重试。')
   } finally {
@@ -278,7 +294,7 @@ async function confirmDelete() {
       <header class="broadcast-list-header">
         <div>
           <h2 id="broadcastListTitle">放送类型词条</h2>
-          <p>全量读取 · 按名称升序 · 名称在页面内筛选</p>
+          <p>全量读取 · 按排序值升序 · 名称在页面内筛选</p>
         </div>
         <div class="broadcast-header-actions">
           <span>显示 {{ filteredTypes.length }} 条</span>
@@ -319,6 +335,7 @@ async function confirmDelete() {
                 />
               </th>
               <th>放送类型名称</th>
+              <th class="broadcast-sort-cell">排序</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -335,6 +352,7 @@ async function confirmDelete() {
               <td>
                 <span class="broadcast-name">{{ type.name }}</span>
               </td>
+              <td class="broadcast-sort-cell">{{ type.sortOrder }}</td>
               <td>
                 <div class="broadcast-row-actions">
                   <button
@@ -435,10 +453,31 @@ async function confirmDelete() {
                   v-model="formName"
                   placeholder="例如：TV、WEB、OVA、剧场版"
                   autocomplete="off"
+                  :disabled="saving"
                   @input="nameError = ''"
                 />
                 <p v-if="nameError" class="broadcast-error" role="alert">{{ nameError }}</p>
-                <p class="broadcast-hint">名称需唯一；当前仅维护放送类型名称。</p>
+                <p class="broadcast-hint">名称需唯一，排序决定列表和动画表单中的显示顺序。</p>
+              </div>
+              <div class="broadcast-field" :class="{ invalid: !!sortOrderError }">
+                <label for="broadcastEditorSortOrder">排序 <span>*</span></label>
+                <input
+                  id="broadcastEditorSortOrder"
+                  v-model="formSortOrder"
+                  type="text"
+                  inputmode="text"
+                  :disabled="saving"
+                  :aria-invalid="!!sortOrderError"
+                  :aria-describedby="sortOrderError ? 'broadcastSortOrderError' : undefined"
+                  @input="sortOrderError = ''"
+                />
+                <p
+                  v-if="sortOrderError"
+                  id="broadcastSortOrderError"
+                  class="broadcast-error"
+                  role="alert"
+                >{{ sortOrderError }}</p>
+                <p class="broadcast-hint">数值越小越靠前，支持负整数；相同数值保持稳定顺序。</p>
               </div>
               <p v-if="drawerError" class="broadcast-save-error" role="alert">{{ drawerError }}</p>
             </form>
@@ -749,6 +788,14 @@ async function confirmDelete() {
   min-width: 580px;
   border-collapse: collapse;
   text-align: left;
+}
+.broadcast-sort-cell {
+  width: 110px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.broadcast-field + .broadcast-field {
+  margin-top: 20px;
 }
 .broadcast-table th {
   padding: 11px 14px;

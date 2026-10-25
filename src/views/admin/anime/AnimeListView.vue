@@ -28,6 +28,7 @@ import ArchiveDateInput from '@/components/admin/ArchiveDateInput.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import { getArchiveDateBound, validateArchiveDate } from '@/utils/archiveDate'
 import { pageSizeValues, readPreferences, resolvePageSize } from '@/utils/preferences'
+import { useCatalogRefresh } from '@/utils/catalogChanges'
 import AnimeCrudDrawer from './AnimeCrudDrawer.vue'
 
 const route = inject(routeLocationKey, null)
@@ -294,8 +295,9 @@ const sortSummary = computed(() => {
   return `${field} · ${direction}`
 })
 
+const refreshCatalogs = useCatalogRefresh(['broadcast', 'adaptation'], loadCatalogs)
 onMounted(() => {
-  void loadCatalogs()
+  void refreshCatalogs()
   void loadStats()
   void loadPage(1)
   void openLinkedDetail()
@@ -758,6 +760,7 @@ async function openLinkedDetail() {
           companyId: company.companyId,
           companyName: `#${company.companyId}`,
           role: company.role,
+          sortOrder: company.sortOrder,
         })),
         externalLinks: detail.externalLinks,
         personalRating: detail.personalRatingScore,

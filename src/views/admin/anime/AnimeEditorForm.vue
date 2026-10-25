@@ -22,6 +22,7 @@ import AnimeSuggestionInput from '@/components/admin/AnimeSuggestionInput.vue'
 import AnimeEntitySelect from '@/components/admin/AnimeEntitySelect.vue'
 import { companyRoles as defaultCompanyRoles, linkTitleSuggestions as defaultLinkTitles } from '@/config/animeFormOptions'
 import { readPreferences } from '@/utils/preferences'
+import { useCatalogRefresh } from '@/utils/catalogChanges'
 import type {
   AnimeDetail,
   AnimePayload,
@@ -63,8 +64,14 @@ interface AnimeForm {
   description: string
   aliasNames: string[]
   tagIds: number[]
-  companies: Array<{ companyId: string; companyName: string; role: string }>
-  externalLinks: Array<{ title: string; url: string; sortOrder: string }>
+  companies: Array<{
+    rowKey: number
+    companyId: string
+    companyName: string
+    role: string
+    sortOrder: number
+  }>
+  externalLinks: Array<{ rowKey: number; title: string; url: string; sortOrder: string }>
   seriesId: string
   seriesName: string
   seriesSortOrder: string
@@ -81,9 +88,14 @@ const loading = ref(true)
 const submitting = ref(false)
 const confirmationAction = ref<'save' | 'reset' | 'cancel' | null>(null)
 const loadError = ref('')
+const catalogWarning = ref('')
 const errorMessage = ref('')
 const errors = reactive<Record<string, string>>({})
 let loadController: AbortController | undefined
+let typeController: AbortController | undefined
+let nextCompanyRowKey = 0
+let nextExternalLinkRowKey = 0
+const refreshTypeOptions = useCatalogRefresh(['broadcast', 'adaptation'], loadTypeOptions)
 
 const statusOptions: NamedOption[] = [
   { id: 1, name: '未放送' },
@@ -151,11 +163,14 @@ function applyAnime(
     aliasNames: [...(anime.aliasNames ?? [])],
     tagIds: [...(anime.tagIds ?? [])],
     companies: (anime.companies ?? []).map((company, index) => ({
+      rowKey: nextCompanyRowKey++,
       companyId: String(company.companyId),
       companyName: companyNames[index]?.name ?? '',
       role: company.role ?? '',
+      sortOrder: company.sortOrder,
     })),
     externalLinks: (anime.externalLinks ?? []).map((link) => ({
+      rowKey: nextExternalLinkRowKey++,
       title: link.title ?? '',
       url: link.url,
       sortOrder: String(link.sortOrder ?? 0),
@@ -167,25 +182,41 @@ function applyAnime(
   initialFormState.value = getFormSnapshot()
 }
 
+async function loadTypeOptions() {
+  const controller = new AbortController()
+  typeController = controller
+  try {
+    const [broadcast, adaptation] = await Promise.all([
+      getBroadcastTypes(controller.signal),
+      getAdaptationTypes(controller.signal),
+    ])
+    if (controller.signal.aborted) return
+    broadcastTypes.value = broadcast
+    adaptationTypes.value = adaptation
+    catalogWarning.value = ''
+  } catch (error) {
+    if (!controller.signal.aborted)
+      catalogWarning.value = error instanceof Error ? error.message : '类型选项读取失败，请重试。'
+  }
+}
+
 onMounted(async () => {
   const controller = new AbortController()
   loadController = controller
   try {
-    const [broadcast, adaptation, region, allTags, anime] = await Promise.all([
-      getBroadcastTypes(controller.signal),
-      getAdaptationTypes(controller.signal),
+    const [, region, allTags, anime] = await Promise.all([
+      refreshTypeOptions(),
       getRegions(controller.signal),
       getAllPages((pageNum) => getTags(pageNum, 100, controller.signal)),
       props.mode === 'edit' && props.animeId
         ? getAnimeDetail(props.animeId, controller.signal)
         : Promise.resolve(null),
     ])
-    broadcastTypes.value = broadcast
-    adaptationTypes.value = adaptation
+    if (catalogWarning.value) throw new Error(catalogWarning.value)
     regions.value = region
     tags.value = allTags
     if (entryPreferences) {
-      if (!broadcast.some((option) => String(option.id) === form.broadcastTypeId)) entryPreferences.broadcastTypeId = form.broadcastTypeId = ''
+      if (!broadcastTypes.value.some((option) => String(option.id) === form.broadcastTypeId)) entryPreferences.broadcastTypeId = form.broadcastTypeId = ''
       if (!region.some((option) => String(option.id) === form.regionId)) entryPreferences.regionId = form.regionId = ''
       initialFormState.value = getFormSnapshot()
     }
@@ -207,7 +238,10 @@ onMounted(async () => {
   }
 })
 
-onBeforeUnmount(() => loadController?.abort())
+onBeforeUnmount(() => {
+  loadController?.abort()
+  typeController?.abort()
+})
 
 function searchCompanies(name: string, pageNum: number, signal: AbortSignal) {
   return getCompanies(name, 10, signal, pageNum)
@@ -222,23 +256,91 @@ function addAlias() {
 }
 
 function removeAlias(index: number) {
+  if (submitting.value) return
   form.aliasNames.splice(index, 1)
 }
 
+function moveAlias(index: number, offset: number) {
+  const target = index + offset
+  if (submitting.value || target < 0 || target >= form.aliasNames.length) return
+  const [alias] = form.aliasNames.splice(index, 1)
+  form.aliasNames.splice(target, 0, alias!)
+}
+
 function addCompany() {
-  form.companies.push({ companyId: '', companyName: '', role: '' })
+  const sortOrder = Math.min(
+    2147483647,
+    Math.max(-1, ...form.companies.map((company) => company.sortOrder)) + 1,
+  )
+  form.companies.push({
+    rowKey: nextCompanyRowKey++, companyId: '', companyName: '', role: '', sortOrder,
+  })
 }
 
 function removeCompany(index: number) {
+  if (submitting.value) return
   form.companies.splice(index, 1)
+  clearCompanyErrors()
+}
+
+function clearCompanyErrors() {
+  Object.keys(errors)
+    .filter((key) => key.startsWith('company-'))
+    .forEach((key) => delete errors[key])
+}
+
+function moveCompany(index: number, offset: number) {
+  const target = index + offset
+  if (submitting.value || target < 0 || target >= form.companies.length) return
+  const [company] = form.companies.splice(index, 1)
+  form.companies.splice(target, 0, company!)
+  // 只有明确调整顺序时才重排有效行；普通职责编辑保留原始排序值。
+  let sortOrder = 0
+  form.companies.forEach((row) => {
+    row.sortOrder = sortOrder
+    if (row.companyId) sortOrder += 1
+  })
+  clearCompanyErrors()
 }
 
 function addExternalLink() {
-  form.externalLinks.push({ title: '', url: '', sortOrder: '0' })
+  if (submitting.value) return
+  const sortOrder = Math.min(
+    2147483647,
+    Math.max(-1, ...form.externalLinks.map((link) => Number(link.sortOrder))) + 1,
+  )
+  form.externalLinks.push({
+    rowKey: nextExternalLinkRowKey++,
+    title: '',
+    url: '',
+    sortOrder: String(sortOrder),
+  })
 }
 
 function removeExternalLink(index: number) {
+  if (submitting.value) return
   form.externalLinks.splice(index, 1)
+  clearExternalLinkErrors()
+}
+
+function clearExternalLinkErrors() {
+  Object.keys(errors)
+    .filter((key) => key.startsWith('external-'))
+    .forEach((key) => delete errors[key])
+}
+
+function moveExternalLink(index: number, offset: number) {
+  const target = index + offset
+  if (submitting.value || target < 0 || target >= form.externalLinks.length) return
+  const [link] = form.externalLinks.splice(index, 1)
+  form.externalLinks.splice(target, 0, link!)
+  // 显式移动时按有效链接顺序重排；只编辑标题或地址时保留原排序值。
+  let sortOrder = 0
+  form.externalLinks.forEach((row) => {
+    row.sortOrder = String(sortOrder)
+    if (row.url.trim()) sortOrder += 1
+  })
+  clearExternalLinkErrors()
 }
 
 function toggleTag(id: number) {
@@ -332,6 +434,7 @@ function buildPayload(): AnimePayload {
       .map((company) => ({
         companyId: Number(company.companyId),
         role: company.role.trim() || null,
+        sortOrder: company.sortOrder,
       })),
     externalLinks: form.externalLinks
       .filter((link) => link.url.trim())
@@ -415,6 +518,10 @@ async function confirmAction() {
       {{ loadError }}
     </div>
     <form v-else class="anime-editor-content" @submit.prevent="requestSave">
+      <p v-if="catalogWarning" class="anime-catalog-warning" role="alert">
+        类型选项更新失败：{{ catalogWarning }}
+        <button type="button" @click="refreshTypeOptions">重新读取选项</button>
+      </p>
       <header class="anime-editor-hero">
         <div>
           <p class="eyebrow">
@@ -613,18 +720,35 @@ async function confirmAction() {
                 :key="`alias-${index}`"
                 class="anime-repeat-row"
               >
-                <input v-model="form.aliasNames[index]" type="text" placeholder="输入别名" />
-                <button
-                  class="anime-remove-button"
-                  type="button"
-                  :aria-label="`移除别名 ${index + 1}`"
-                  @click="removeAlias(index)"
-                >
-                  <AdminIcon name="close" />
-                </button>
+                <input v-model="form.aliasNames[index]" type="text" placeholder="输入别名" :disabled="submitting" />
+                <div class="anime-repeat-actions">
+                  <button
+                    class="anime-order-button move-up"
+                    type="button"
+                    :aria-label="`上移别名 ${index + 1}`"
+                    title="上移"
+                    :disabled="submitting || index === 0"
+                    @click="moveAlias(index, -1)"
+                  ><AdminIcon name="right" /></button>
+                  <button
+                    class="anime-order-button move-down"
+                    type="button"
+                    :aria-label="`下移别名 ${index + 1}`"
+                    title="下移"
+                    :disabled="submitting || index === form.aliasNames.length - 1"
+                    @click="moveAlias(index, 1)"
+                  ><AdminIcon name="right" /></button>
+                  <button
+                    class="anime-remove-button"
+                    type="button"
+                    :aria-label="`移除别名 ${index + 1}`"
+                    :disabled="submitting"
+                    @click="removeAlias(index)"
+                  ><AdminIcon name="close" /></button>
+                </div>
               </div>
             </div>
-            <button class="anime-inline-button" type="button" @click="addAlias">
+            <button class="anime-inline-button" type="button" :disabled="submitting" @click="addAlias">
               <AdminIcon name="plus" />添加别名
             </button>
           </div>
@@ -662,7 +786,7 @@ async function confirmAction() {
             <div class="anime-repeat-list">
               <div
                 v-for="(company, index) in form.companies"
-                :key="`company-${index}`"
+                :key="company.rowKey"
                 class="anime-repeat-row"
                 :class="{ invalid: errors[`company-${index}`] }"
               >
@@ -685,17 +809,34 @@ async function confirmAction() {
                   placeholder="请输入职责"
                   :suggestions="companyRoles"
                 />
-                <button
-                  class="anime-remove-button"
-                  type="button"
-                  :aria-label="`移除公司 ${index + 1}`"
-                  @click="removeCompany(index)"
-                >
-                  <AdminIcon name="close" />
-                </button>
+                <div class="anime-repeat-actions">
+                  <button
+                    class="anime-order-button move-up"
+                    type="button"
+                    :aria-label="`上移公司 ${index + 1}`"
+                    title="上移"
+                    :disabled="submitting || index === 0"
+                    @click="moveCompany(index, -1)"
+                  ><AdminIcon name="right" /></button>
+                  <button
+                    class="anime-order-button move-down"
+                    type="button"
+                    :aria-label="`下移公司 ${index + 1}`"
+                    title="下移"
+                    :disabled="submitting || index === form.companies.length - 1"
+                    @click="moveCompany(index, 1)"
+                  ><AdminIcon name="right" /></button>
+                  <button
+                    class="anime-remove-button"
+                    type="button"
+                    :aria-label="`移除公司 ${index + 1}`"
+                    :disabled="submitting"
+                    @click="removeCompany(index)"
+                  ><AdminIcon name="close" /></button>
+                </div>
               </div>
             </div>
-            <button class="anime-inline-button" type="button" @click="addCompany">
+            <button class="anime-inline-button" type="button" :disabled="submitting" @click="addCompany">
               <AdminIcon name="plus" />添加公司
             </button>
           </div>
@@ -738,7 +879,7 @@ async function confirmAction() {
             <div class="anime-repeat-list">
               <div
                 v-for="(link, index) in form.externalLinks"
-                :key="`link-${index}`"
+                :key="link.rowKey"
                 class="anime-repeat-row anime-link-row"
                 :class="{ invalid: errors[`external-${index}`] }"
               >
@@ -753,30 +894,41 @@ async function confirmAction() {
                   v-model="link.url"
                   type="url"
                   placeholder="https://..."
+                  :disabled="submitting"
+                  :aria-label="`外链地址 ${index + 1}`"
                   @input="errors[`external-${index}`] = ''"
                 />
-                <input
-                  v-model="link.sortOrder"
-                  class="sort-order-input"
-                  type="number"
-                  min="0"
-                  step="1"
-                  aria-label="排序值"
-                />
-                <button
-                  class="anime-remove-button"
-                  type="button"
-                  :aria-label="`移除外链 ${index + 1}`"
-                  @click="removeExternalLink(index)"
-                >
-                  <AdminIcon name="close" />
-                </button>
+                <div class="anime-repeat-actions">
+                  <button
+                    class="anime-order-button move-up"
+                    type="button"
+                    :aria-label="`上移外链 ${index + 1}`"
+                    title="上移"
+                    :disabled="submitting || index === 0"
+                    @click="moveExternalLink(index, -1)"
+                  ><AdminIcon name="right" /></button>
+                  <button
+                    class="anime-order-button move-down"
+                    type="button"
+                    :aria-label="`下移外链 ${index + 1}`"
+                    title="下移"
+                    :disabled="submitting || index === form.externalLinks.length - 1"
+                    @click="moveExternalLink(index, 1)"
+                  ><AdminIcon name="right" /></button>
+                  <button
+                    class="anime-remove-button"
+                    type="button"
+                    :aria-label="`移除外链 ${index + 1}`"
+                    :disabled="submitting"
+                    @click="removeExternalLink(index)"
+                  ><AdminIcon name="close" /></button>
+                </div>
                 <small v-if="errors[`external-${index}`]" class="field-error">{{
                   errors[`external-${index}`]
                 }}</small>
               </div>
             </div>
-            <button class="anime-inline-button" type="button" @click="addExternalLink">
+            <button class="anime-inline-button" type="button" :disabled="submitting" @click="addExternalLink">
               <AdminIcon name="plus" />添加外链
             </button>
           </div>
@@ -1034,10 +1186,10 @@ async function confirmAction() {
   gap: 7px;
 }
 .anime-repeat-row:has(.anime-entity-select) {
-  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.8fr) 32px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(110px, 0.8fr) auto;
   align-items: start;
 }
-.anime-repeat-row:has(.anime-entity-select) > .anime-remove-button {
+.anime-repeat-row:has(.anime-entity-select) > .anime-repeat-actions {
   margin-top: 3px;
 }
 .anime-repeat-row > select {
@@ -1066,6 +1218,54 @@ async function confirmAction() {
 .anime-remove-button svg {
   width: 13px;
   height: 13px;
+}
+.anime-repeat-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.anime-order-button {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.anime-order-button svg {
+  width: 14px;
+  height: 14px;
+}
+.anime-order-button.move-up svg {
+  transform: rotate(-90deg);
+}
+.anime-order-button.move-down svg {
+  transform: rotate(90deg);
+}
+.anime-order-button:hover:not(:disabled) {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+.anime-order-button:focus-visible,
+.anime-remove-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.anime-editor-content .anime-repeat-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.anime-catalog-warning {
+  color: var(--danger);
+  font-size: 11px;
+}
+.anime-catalog-warning button {
+  margin-left: 8px;
+  color: var(--accent-strong);
+  background: transparent;
 }
 .anime-inline-button {
   display: inline-flex;
@@ -1247,10 +1447,7 @@ async function confirmAction() {
   margin-top: 20px;
 }
 .anime-link-row {
-  grid-template-columns: minmax(110px, 0.8fr) minmax(180px, 1.5fr) 74px 32px;
-}
-.anime-link-row .sort-order-input {
-  text-align: center;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(180px, 1.5fr) auto;
 }
 .anime-editor-grid .field .field-error,
 .anime-repeat-row .field-error {
@@ -1279,6 +1476,17 @@ async function confirmAction() {
   opacity: 0.6;
 }
 @media (max-width: 620px) {
+  .anime-repeat-row:has(.anime-entity-select) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .anime-repeat-row:has(.anime-entity-select) > .anime-repeat-actions {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    flex-direction: column;
+  }
+  .anime-repeat-row:has(.anime-entity-select) > .anime-suggestion-input {
+    grid-column: 1;
+  }
   .anime-editor-hero {
     align-items: flex-start;
     flex-direction: column;
@@ -1301,7 +1509,15 @@ async function confirmAction() {
     grid-column: auto;
   }
   .anime-link-row {
-    grid-template-columns: 1fr 1fr 50px 32px;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .anime-link-row > .anime-repeat-actions {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    flex-direction: column;
+  }
+  .anime-link-row > input {
+    grid-column: 1;
   }
   .anime-series-fields {
     grid-template-columns: 1fr;

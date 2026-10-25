@@ -1293,6 +1293,7 @@ async function submitAction() {
 }
 .page-hero h1 {
   margin: 0;
+  color: var(--ink);
   font: 700 clamp(23px, 3vw, 30px)/1.25 var(--font-display);
   letter-spacing: -0.035em;
 }

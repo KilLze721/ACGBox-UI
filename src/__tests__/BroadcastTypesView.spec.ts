@@ -6,9 +6,9 @@ import BroadcastTypesView from '@/views/admin/broadcast-types/BroadcastTypesView
 function mockApi() {
   const requests: Array<{ path: string; body?: unknown }> = []
   let broadcast = [
-    { id: 2, name: 'TV' },
-    { id: 3, name: 'WEB' },
-    { id: 1, name: 'OVA' },
+    { id: 2, name: 'TV', sortOrder: -10 },
+    { id: 3, name: 'WEB', sortOrder: 0 },
+    { id: 1, name: 'OVA', sortOrder: 2 },
   ]
   vi.stubGlobal(
     'fetch',
@@ -20,7 +20,7 @@ function mockApi() {
       if (path.endsWith('/broadcast-type/list')) data = [...broadcast]
       else if (path.endsWith('/broadcast-type/2')) data = broadcast.find((type) => type.id === 2)
       else if (path.endsWith('/broadcast-type/create')) {
-        const created = { id: 4, name: body.name }
+        const created = { id: 4, name: body.name, sortOrder: body.sortOrder }
         broadcast = [...broadcast, created]
         data = created
       } else if (path.endsWith('/broadcast-type/update')) {
@@ -60,6 +60,7 @@ describe('放送类型管理页面', () => {
     expect(wrapper.findAll('.broadcast-table th').map((cell) => cell.text())).toEqual([
       '',
       '放送类型名称',
+      '排序',
       '操作',
     ])
     expect(wrapper.find('.broadcast-table').text()).not.toContain('#2')
@@ -94,6 +95,7 @@ describe('放送类型管理页面', () => {
     expect(requests.find((request) => request.path === '/api/broadcast-type/create')?.body).toEqual(
       {
         name: '剧场版',
+        sortOrder: 0,
       },
     )
     expect(document.body.querySelector('.broadcast-drawer')).toBeNull()
@@ -111,6 +113,7 @@ describe('放送类型管理页面', () => {
       {
         id: 2,
         name: 'TV放送类型',
+        sortOrder: -10,
       },
     )
     wrapper.unmount()
