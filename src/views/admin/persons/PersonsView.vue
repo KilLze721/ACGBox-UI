@@ -923,59 +923,67 @@ async function confirmDelete() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 20px;
   min-height: 150px;
-  padding: 28px 30px;
+  padding: 26px 30px;
   overflow: hidden;
-  background: var(--surface);
+  color: var(--ink);
+  background: linear-gradient(
+    112deg,
+    color-mix(in srgb, var(--surface-solid) 90%, transparent),
+    color-mix(in srgb, var(--surface-muted) 82%, transparent)
+  );
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-soft);
 }
 .persons-hero::before {
   position: absolute;
-  right: 32px;
-  top: -105px;
-  width: 280px;
-  height: 280px;
-  border: 1px solid var(--line);
-  border-radius: 50%;
+  top: -54px;
+  right: 13%;
+  width: 208px;
+  height: 208px;
+  border: 1px solid rgba(117, 103, 170, 0.15);
+  border-radius: 43% 57% 63% 37%;
+  transform: rotate(28deg);
   content: '';
   pointer-events: none;
+}
+.persons-hero > div {
+  position: relative;
+  z-index: 1;
 }
 .persons-eyebrow {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 10px;
+  margin: 0 0 9px;
   color: var(--accent-strong);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.16em;
 }
 .persons-eyebrow::before {
-  width: 20px;
+  width: 17px;
   height: 1px;
   content: '';
   background: currentColor;
 }
 .persons-hero h1 {
   margin: 0;
-  font: 700 30px/1.25 var(--font-display);
+  font: 700 clamp(23px, 3vw, 30px) / 1.25 var(--font-display);
   letter-spacing: -0.035em;
 }
 .persons-hero h1 span {
-  margin-left: 7px;
   color: var(--ink-faint);
-  font: 400 12px var(--font-body);
+  font: 500 12px var(--font-body);
   letter-spacing: 0;
 }
 .persons-hero > div > p:last-child {
-  max-width: 620px;
-  margin: 9px 0 0;
+  max-width: 610px;
+  margin: 8px 0 0;
   color: var(--ink-soft);
-  font-size: 11px;
-  line-height: 1.8;
+  font-size: 12px;
 }
 .persons-hero > button {
   flex: 0 0 auto;
@@ -1763,14 +1771,6 @@ async function confirmDelete() {
     flex-direction: column;
     border-radius: 18px;
     gap: 17px;
-  }
-  .persons-hero h1 {
-    font-size: 26px;
-  }
-  .persons-hero h1 span {
-    display: block;
-    margin: 7px 0 0;
-    font-size: 10px;
   }
   .persons-hero > button {
     width: 100%;

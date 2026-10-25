@@ -1237,13 +1237,18 @@ async function submitAction() {
 .page-hero {
   position: relative;
   display: flex;
-  min-height: 146px;
+  min-height: 150px;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 25px 30px;
+  padding: 26px 30px;
   overflow: hidden;
-  background: linear-gradient(112deg, var(--surface-solid), var(--surface-muted));
+  color: var(--ink);
+  background: linear-gradient(
+    112deg,
+    color-mix(in srgb, var(--surface-solid) 90%, transparent),
+    color-mix(in srgb, var(--surface-muted) 82%, transparent)
+  );
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-soft);
@@ -1255,19 +1260,13 @@ async function submitAction() {
   width: 208px;
   height: 208px;
   content: '';
+  background: none;
   border: 1px solid rgba(117, 103, 170, 0.15);
   border-radius: 43% 57% 63% 37%;
   transform: rotate(28deg);
 }
 .page-hero::after {
-  position: absolute;
-  top: 20px;
-  right: 20%;
-  width: 88px;
-  height: 88px;
-  content: '';
-  border: 1px dashed rgba(217, 95, 134, 0.22);
-  border-radius: 50%;
+  display: none;
 }
 .hero-copy,
 .hero-actions {
@@ -1280,7 +1279,7 @@ async function submitAction() {
   gap: 8px;
   margin: 0 0 9px;
   color: var(--accent-strong);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -1298,15 +1297,18 @@ async function submitAction() {
   letter-spacing: -0.035em;
 }
 .page-hero h1 span {
+  display: inline-block;
+  margin-left: 0;
   color: var(--ink-faint);
   font: 500 12px var(--font-body);
   letter-spacing: 0;
+  vertical-align: baseline;
 }
 .page-hero p:not(.eyebrow) {
-  max-width: 650px;
+  max-width: 610px;
   margin: 8px 0 0;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 12px;
 }
 .hero-actions {
   display: flex;
@@ -2356,9 +2358,6 @@ async function submitAction() {
   }
   .page-hero::before {
     right: -57px;
-  }
-  .page-hero::after {
-    right: 18px;
   }
   .hero-actions {
     width: 100%;
