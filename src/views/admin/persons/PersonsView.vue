@@ -28,6 +28,10 @@ import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
 import RelatedAnimeList from '@/components/admin/RelatedAnimeList.vue'
+import RelatedBookList from '@/components/admin/RelatedBookList.vue'
+import RelatedContentTabs from '@/components/admin/RelatedContentTabs.vue'
+import { useRelatedBook } from '@/utils/relatedBook'
+import type { BookPageItem } from '@/types/book'
 import { useRelatedAnime } from '@/utils/relatedAnime'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 import type { AnimePageItem, PageResult, Person } from '@/types/api'
@@ -38,6 +42,14 @@ const router = useRouter()
 const navigateLinkedContent =
   inject<(path: '/admin/anime', keyword: string) => Promise<void>>('navigateLinkedContent')
 const relatedAnime = useRelatedAnime()
+const relatedBook = useRelatedBook()
+const relatedType = ref<'anime' | 'book'>('anime')
+const openBookDetail = inject<(id: number) => Promise<void>>('openBookDetail')
+watch(relatedType, (value) => {
+  if (drawerMode.value !== 'detail' || drawerLoading.value || !currentPerson.value) return
+  if (value === 'book') { relatedAnime.suspend(); void relatedBook.resume() }
+  else { relatedBook.suspend(); void relatedAnime.resume() }
+})
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const pageSizeOptions = pageSizeValues.map((value) => ({ id: value, name: `${value} 条` }))
 const pageSize = ref(resolvePageSize(pageSizeValues, 20))
@@ -311,6 +323,7 @@ function closeDrawer() {
 function finishCloseDrawer() {
   drawerController?.abort()
   relatedAnime.cancel()
+  relatedBook.cancel()
   drawerMode.value = null
   currentPerson.value = null
   drawerError.value = ''
@@ -327,6 +340,8 @@ async function openDrawer(mode: DrawerMode, id?: number) {
   if (drawerMode.value === null) drawerTrigger = document.activeElement as HTMLElement | null
   drawerController?.abort()
   relatedAnime.cancel()
+  relatedBook.cancel()
+  relatedType.value = 'anime'
   const controller = new AbortController()
   drawerController = controller
   drawerMode.value = mode
@@ -345,7 +360,10 @@ async function openDrawer(mode: DrawerMode, id?: number) {
     form.name = person.name
     form.description = person.description ?? ''
     initialFormState.value = JSON.stringify(form)
-    if (mode === 'detail') void relatedAnime.open({ personId: person.id })
+    if (mode === 'detail') {
+      relatedBook.prepare({ personId: person.id })
+      void relatedAnime.open({ personId: person.id })
+    }
   } catch (error) {
     if (!controller.signal.aborted)
       drawerError.value = messageOf(error, '人物资料读取失败，请重试。')
@@ -365,6 +383,14 @@ function openRelatedAnime(anime: AnimePageItem) {
   finishCloseDrawer()
   if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', anime.name)
   else void router.push({ path: '/admin/anime', query: { keyword: anime.name } })
+}
+function bookRoles(book: BookPageItem) {
+  return book.persons.filter(person => person.personId === currentPerson.value?.id).map(person => person.role).join('、') || '未注明职责'
+}
+function openRelatedBook(book: BookPageItem) {
+  finishCloseDrawer()
+  if (openBookDetail) void openBookDetail(book.id)
+  else void router.push({ path: '/admin/book', query: { detail: String(book.id) } })
 }
 async function savePerson() {
   if (saving.value || drawerLoading.value || (drawerMode.value === 'edit' && !currentPerson.value))
@@ -772,7 +798,10 @@ async function confirmDelete() {
               <div class="persons-detail-description">
                 {{ currentPerson.description?.trim() ? currentPerson.description : '暂无简介' }}
               </div>
+              <RelatedContentTabs v-model="relatedType" />
+              <RelatedBookList v-if="relatedType === 'book'" :model="relatedBook" title="关联书籍与负责职责" :role-label="bookRoles" @select="openRelatedBook" />
               <RelatedAnimeList
+                v-else
                 :model="relatedAnime"
                 title="关联内容与负责职责"
                 description="关联动画及该人物的全部职责；点击名称搜索此动画"

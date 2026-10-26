@@ -43,6 +43,7 @@ interface TabCloseState {
 
 interface CloseAwarePage {
   getCloseState?: () => TabCloseState
+  openBookDetail?: (id: number) => void
 }
 
 interface PendingTabClose {
@@ -78,6 +79,7 @@ const logoutError = ref('')
 const userMenuRef = ref<HTMLElement>()
 const activeTabId = ref('dashboard')
 const lastAnimeTabId = ref<string | null>(null)
+const lastBookTabId = ref<string | null>(null)
 const pendingTabClose = ref<PendingTabClose | null>(null)
 const pageWrappers = new Map<string, Component>()
 const pageInstances = new Map<string, CloseAwarePage>()
@@ -140,6 +142,8 @@ const canCloseOtherTabs = computed(() =>
 
 provide('returnToAnimeList', returnToAnimeList)
 provide('navigateLinkedContent', navigateLinkedContent)
+provide('returnToBookList', returnToBookList)
+provide('openBookDetail', openBookDetail)
 
 watch(
   () => route.fullPath,
@@ -250,6 +254,8 @@ function openCurrentRouteTab() {
       activeTabId.value = tab.id
       if (tab.path === '/admin/anime') lastAnimeTabId.value = tab.id
       else if (lastAnimeTabId.value === tab.id) lastAnimeTabId.value = null
+      if (tab.path === '/admin/book') lastBookTabId.value = tab.id
+      else if (lastBookTabId.value === tab.id) lastBookTabId.value = null
       void scrollActiveTabIntoView()
       return
     }
@@ -279,6 +285,7 @@ function openCurrentRouteTab() {
   }
   activeTabId.value = tab.id
   if (tab.path === '/admin/anime') lastAnimeTabId.value = tab.id
+  if (tab.path === '/admin/book') lastBookTabId.value = tab.id
 
   void scrollActiveTabIntoView()
 }
@@ -430,6 +437,29 @@ async function returnToAnimeList(createFullPath: string) {
   await nextTick()
   if (route.fullPath !== animePath) return
 
+  if (pendingTabClose.value?.ids.includes(createTab.id)) pendingTabClose.value = null
+  await finishClosingTabs([createTab.id], null)
+}
+
+// 书籍关联按标识打开详情，复用已有列表实例与筛选状态，由列表自行保护未保存表单。
+async function openBookDetail(id: number) {
+  const tab = workspaceTabs.value.find(item => item.id === lastBookTabId.value && item.path === '/admin/book')
+    ?? workspaceTabs.value.find(item => item.path === '/admin/book')
+  if (!tab) { await router.push({ path: '/admin/book', query: { detail: String(id) } }); return }
+  await activateTab(tab)
+  await nextTick()
+  pageInstances.get(tab.id)?.openBookDetail?.(id)
+}
+
+async function returnToBookList(createFullPath: string) {
+  const createTab = workspaceTabs.value.find(tab => tab.fullPath === createFullPath && tab.path === '/admin/book/create')
+  if (!createTab) return
+  const listTab = workspaceTabs.value.find(tab => tab.id === lastBookTabId.value && tab.path === '/admin/book')
+    ?? workspaceTabs.value.find(tab => tab.path === '/admin/book')
+  const path = listTab?.fullPath ?? '/admin/book'
+  await router.replace(path)
+  await nextTick()
+  if (route.fullPath !== path) return
   if (pendingTabClose.value?.ids.includes(createTab.id)) pendingTabClose.value = null
   await finishClosingTabs([createTab.id], null)
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 关联动画共用名称按钮：只有名称可点击，沿用管理页面的搜索跳转语义。 */
-defineProps<{ name: string }>()
+defineProps<{ name: string; label?: string }>()
 defineEmits<{ select: [] }>()
 </script>
 
@@ -8,8 +8,8 @@ defineEmits<{ select: [] }>()
   <button
     type="button"
     class="related-anime-name"
-    :aria-label="`搜索此动画：${name}`"
-    title="搜索此动画"
+    :aria-label="label || `搜索此动画：${name}`"
+    :title="label || '搜索此动画'"
     @click="$emit('select')"
   >
     {{ name }}

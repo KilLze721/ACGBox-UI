@@ -29,9 +29,13 @@ const props = defineProps<{
 
 const route = useRoute()
 const router = useRouter()
-const navigateLinkedContent = inject<
-  (path: '/admin/anime' | '/admin/series' | '/admin/companies' | '/admin/persons', keyword: string) => Promise<void>
->('navigateLinkedContent')
+const navigateLinkedContent =
+  inject<
+    (
+      path: '/admin/anime' | '/admin/series' | '/admin/companies' | '/admin/persons',
+      keyword: string
+    ) => Promise<void>
+  >('navigateLinkedContent')
 const ownerFullPath = route.fullPath
 const visible = computed(() => route.fullPath === ownerFullPath)
 
@@ -58,7 +62,9 @@ const linkedSeriesName = computed(() => {
     : ''
 })
 function linkedCompanyName(companyId: number) {
-  const name = props.anime.companies.find((item) => item.companyId === companyId)?.companyName.trim()
+  const name = props.anime.companies
+    .find((item) => item.companyId === companyId)
+    ?.companyName.trim()
   return name && name !== `#${companyId}` ? name : '查看制作公司'
 }
 let controller: AbortController | undefined
@@ -176,7 +182,9 @@ async function openSeriesDetail() {
 async function openCompanyDetail(companyId: number) {
   if (companyLinkLoading.value !== null) return
   companyLinkError.value = ''
-  let companyName = props.anime.companies.find((item) => item.companyId === companyId)?.companyName.trim()
+  let companyName = props.anime.companies
+    .find((item) => item.companyId === companyId)
+    ?.companyName.trim()
   if (!companyName || companyName === `#${companyId}`) {
     companyLinkLoading.value = companyId
     try {
@@ -391,13 +399,17 @@ function getSafeExternalUrl(value: string) {
                       type="button"
                       :aria-label="`搜索创作人员：${person.personName}`"
                       @click="openPersonDetail(person.personName)"
-                    >{{ person.personName }}<i>{{ person.role }}</i></button>
+                    >
+                      {{ person.personName }}<i>{{ person.role }}</i>
+                    </button>
                     <i v-if="detail.persons && !detail.persons.length">暂无创作人员</i>
                   </div>
-                  <small v-if="!detail.persons" class="anime-detail-series-error" role="alert">接口未返回创作人员关联，暂无法确认人员信息，请重新读取资料。</small>
+                  <small v-if="!detail.persons" class="anime-detail-series-error" role="alert"
+                    >接口未返回创作人员关联，暂无法确认人员信息，请重新读取资料。</small
+                  >
                 </div>
                 <div>
-                  <span>制作公司</span>
+                  <span>制公司</span>
                   <div class="anime-detail-chips anime-detail-company-list">
                     <button
                       v-for="company in detail.companies"
@@ -407,10 +419,14 @@ function getSafeExternalUrl(value: string) {
                       :disabled="companyLinkLoading !== null"
                       :aria-label="`搜索制作公司：${linkedCompanyName(company.companyId)}`"
                       @click="openCompanyDetail(company.companyId)"
-                      >{{ linkedCompanyName(company.companyId) }}<i>{{ company.role || '未注明职责' }}</i></button
+                    >
+                      {{ linkedCompanyName(company.companyId)
+                      }}<i>{{ company.role || '未注明职责' }}</i></button
                     ><i v-if="!detail.companies.length">—</i>
                   </div>
-                  <small v-if="companyLinkError" class="anime-detail-series-error" role="alert">{{ companyLinkError }}</small>
+                  <small v-if="companyLinkError" class="anime-detail-series-error" role="alert">{{
+                    companyLinkError
+                  }}</small>
                 </div>
                 <div>
                   <span>所属系列</span>
@@ -422,10 +438,13 @@ function getSafeExternalUrl(value: string) {
                       :aria-label="`搜索所属系列：${linkedSeriesName || '所属系列'}`"
                       :disabled="seriesLinkLoading"
                       @click="openSeriesDetail"
-                      >{{ linkedSeriesName || '查看所属系列' }}</button
+                    >
+                      {{ linkedSeriesName || '查看所属系列' }}</button
                     ><i v-else>未关联系列</i>
                   </div>
-                  <small v-if="seriesLinkError" class="anime-detail-series-error" role="alert">{{ seriesLinkError }}</small>
+                  <small v-if="seriesLinkError" class="anime-detail-series-error" role="alert">{{
+                    seriesLinkError
+                  }}</small>
                 </div>
               </div>
             </section>
@@ -467,402 +486,4 @@ function getSafeExternalUrl(value: string) {
   </Teleport>
 </template>
 
-<style scoped>
-.anime-crud-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 125;
-  display: flex;
-  justify-content: flex-end;
-  background: rgba(18, 17, 30, 0.43);
-  backdrop-filter: blur(3px);
-  animation: anime-crud-fade 0.16s ease both;
-  overscroll-behavior: contain;
-}
-.anime-crud-drawer {
-  position: relative;
-  width: min(920px, 92vw);
-  height: 100dvh;
-  padding: 22px 25px 28px;
-  max-height: 100dvh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  background: var(--canvas);
-  box-shadow: -22px 0 60px rgba(20, 17, 40, 0.18);
-  animation: anime-crud-slide 0.2s ease both;
-}
-.anime-crud-drawer-close {
-  position: fixed;
-  top: 13px;
-  right: min(938px, calc(92vw + 12px));
-  z-index: 4;
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  color: var(--ink-soft);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: var(--shadow-soft);
-}
-.anime-crud-drawer-close:hover {
-  color: var(--accent-strong);
-}
-.anime-crud-drawer-close svg {
-  width: 16px;
-  height: 16px;
-}
-.anime-detail-panel {
-  display: grid;
-  gap: 13px;
-}
-.anime-detail-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 20px 22px;
-  color: #f5f2ff;
-  background:
-    radial-gradient(circle at 85% 20%, rgba(217, 95, 134, 0.26), transparent 18rem),
-    linear-gradient(125deg, #25233b, #302844);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 19px;
-}
-.anime-detail-hero .eyebrow {
-  margin: 0 0 6px;
-  color: #c2badc;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-}
-.anime-detail-hero h1 {
-  margin: 0;
-  font: 700 23px/1.3 var(--font-display);
-}
-.anime-detail-hero h1 span {
-  color: #c5bfd8;
-  font: 600 10px var(--font-body);
-}
-.anime-detail-hero p:last-child {
-  margin: 6px 0 0;
-  color: #c7c3d3;
-  font-size: 9px;
-}
-.anime-detail-actions {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 7px;
-}
-.anime-detail-actions button {
-  min-height: 35px;
-  padding: 0 10px;
-  font-size: 10px;
-}
-.anime-detail-card {
-  padding: 16px;
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 15px;
-  box-shadow: var(--shadow-soft);
-}
-.anime-detail-title-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.anime-detail-cover {
-  display: grid;
-  width: 78px;
-  height: 104px;
-  flex: 0 0 auto;
-  overflow: hidden;
-  place-items: center;
-  color: white;
-  background: linear-gradient(135deg, var(--accent), var(--violet));
-  border-radius: 10px 5px 10px 5px;
-  font: 700 26px var(--font-display);
-}
-.anime-detail-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.anime-detail-title-copy {
-  min-width: 0;
-}
-.anime-detail-title-copy .eyebrow {
-  margin: 0 0 4px;
-  color: var(--ink-faint);
-  font-size: 8px;
-  letter-spacing: 0.12em;
-}
-.anime-detail-title-copy h2 {
-  margin: 0;
-  overflow-wrap: anywhere;
-  font: 700 20px/1.45 var(--font-display);
-}
-.anime-detail-alias {
-  margin: 3px 0 8px;
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.anime-detail-badges {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.anime-detail-badges .status-badge {
-  padding: 5px 8px;
-  font-size: 9px;
-}
-.anime-detail-badge {
-  padding: 4px 8px;
-  color: var(--violet);
-  background: var(--violet-soft);
-  border-radius: 999px;
-  font-size: 9px;
-}
-.anime-detail-rating {
-  color: var(--yellow);
-  font-size: 10px;
-}
-.anime-detail-section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding-bottom: 10px;
-  margin-bottom: 11px;
-  border-bottom: 1px solid var(--line);
-}
-.anime-detail-section-head h2 {
-  margin: 0;
-  font: 700 12px var(--font-display);
-}
-.anime-detail-section-head p {
-  margin: 3px 0 0;
-  color: var(--ink-faint);
-  font-size: 9px;
-}
-.anime-detail-section-head > span {
-  color: var(--accent);
-  font: 700 16px var(--font-display);
-}
-.anime-detail-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-.anime-detail-grid > div,
-.anime-detail-relations > div {
-  min-width: 0;
-  padding: 9px 10px;
-  background: var(--surface-muted);
-  border-radius: 9px;
-}
-.anime-detail-grid > div.wide {
-  grid-column: 1/-1;
-}
-.anime-detail-grid span,
-.anime-detail-relations > div > span {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--ink-faint);
-  font-size: 8px;
-}
-.anime-detail-grid strong {
-  display: block;
-  overflow-wrap: anywhere;
-  color: var(--ink-soft);
-  font-size: 10px;
-  font-weight: 650;
-}
-.anime-detail-grid strong.detail-url {
-  font: 9px/1.5 var(--font-body);
-}
-.anime-detail-description {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 10px;
-  line-height: 1.8;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.anime-detail-relations {
-  display: grid;
-  gap: 8px;
-}
-.anime-detail-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.anime-detail-chips > span,
-.anime-detail-chips > .anime-detail-series-link {
-  padding: 5px 8px;
-  color: var(--ink-soft);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  font-size: 9px;
-}
-.anime-detail-chips > .anime-detail-series-link {
-  cursor: pointer;
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-}
-.anime-detail-chips > .anime-detail-series-link:hover,
-.anime-detail-chips > .anime-detail-series-link:focus-visible {
-  background: color-mix(in srgb, var(--accent) 20%, var(--surface-solid));
-  border-color: var(--accent);
-}
-.anime-detail-series-error {
-  color: var(--danger);
-  font-size: 10px;
-}
-.anime-detail-chips > span.tag {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
-}
-.anime-detail-chips i {
-  color: var(--ink-faint);
-  font-size: 9px;
-  font-style: normal;
-}
-.anime-detail-company-list > .anime-detail-company-link,
-.anime-detail-person-list > .anime-detail-series-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.anime-detail-company-link i,
-.anime-detail-person-list > .anime-detail-series-link i {
-  padding-left: 6px;
-  border-left: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
-}
-.anime-detail-links {
-  display: grid;
-  gap: 6px;
-}
-.anime-detail-links a {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  padding: 8px 10px;
-  color: var(--ink-soft);
-  background: var(--surface-muted);
-  border-radius: 8px;
-  text-decoration: none;
-}
-.anime-detail-links a:hover {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.anime-detail-links strong {
-  font-size: 9px;
-}
-.anime-detail-links span {
-  overflow-wrap: anywhere;
-  color: var(--ink-faint);
-  font-size: 8px;
-}
-.anime-detail-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 2px 1px 8px;
-}
-.anime-detail-footer > span {
-  margin-right: auto;
-  color: var(--ink-faint);
-  font-size: 9px;
-}
-.anime-detail-footer button {
-  min-height: 36px;
-}
-.anime-detail-state {
-  display: grid;
-  min-height: 180px;
-  place-items: center;
-  padding: 24px;
-  color: var(--ink-soft);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  font-size: 11px;
-  text-align: center;
-}
-.anime-detail-state.error {
-  color: var(--danger);
-}
-@keyframes anime-crud-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes anime-crud-slide {
-  from {
-    opacity: 0.7;
-    transform: translateX(18px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-@media (max-width: 760px) {
-  .anime-crud-drawer {
-    width: min(760px, 96vw);
-    padding: 18px 15px 24px;
-  }
-  .anime-crud-drawer-close {
-    right: 10px;
-  }
-  .anime-detail-hero {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 18px;
-  }
-  .anime-detail-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@media (max-width: 520px) {
-  .anime-crud-drawer {
-    width: 100vw;
-    padding: 14px 12px 22px;
-  }
-  .anime-detail-title-card {
-    align-items: flex-start;
-    gap: 11px;
-  }
-  .anime-detail-cover {
-    width: 62px;
-    height: 82px;
-  }
-  .anime-detail-title-copy h2 {
-    font-size: 16px;
-  }
-  .anime-detail-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .anime-detail-hero h1 span {
-    display: block;
-    margin-top: 2px;
-  }
-  .anime-detail-footer {
-    flex-wrap: wrap;
-  }
-  .anime-detail-footer > span {
-    flex-basis: 100%;
-  }
-}
-</style>
+<style scoped src="@/assets/animeCrudDrawer.css"></style>

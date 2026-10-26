@@ -95,6 +95,30 @@ const router = createRouter({
           },
         },
         {
+          path: 'book',
+          name: 'admin-book-list',
+          component: () => import('@/views/admin/book/BookListView.vue'),
+          meta: { title: '书籍管理', menuName: '书籍管理', icon: 'book', order: 25, section: '内容管理', showInMenu: true, roles: ['ADMIN', 'EDITOR'] },
+        },
+        {
+          path: 'book/create',
+          name: 'admin-book-create',
+          component: () => import('@/views/admin/book/BookCreateView.vue'),
+          meta: { title: '新增书籍', section: '书籍管理', activeMenu: '/admin/book', showInMenu: false, roles: ['ADMIN', 'EDITOR'] },
+        },
+        {
+          path: 'book/:id',
+          name: 'admin-book-detail',
+          redirect: to => ({ path: '/admin/book', query: { detail: String(to.params.id) } }),
+          meta: { title: '书籍详情', section: '书籍管理', activeMenu: '/admin/book', showInMenu: false, roles: ['ADMIN', 'EDITOR'] },
+        },
+        {
+          path: 'book-types',
+          name: 'admin-book-types',
+          component: () => import('@/views/admin/book-types/BookTypesView.vue'),
+          meta: { title: '书籍类型管理', menuName: '书籍类型管理', icon: 'book', order: 26, section: '书籍管理', menuParent: '/admin/book', showInMenu: true, roles: ['ADMIN', 'EDITOR'] },
+        },
+        {
           path: 'series',
           name: 'admin-series',
           component: () => import('@/views/admin/series/SeriesView.vue'),

@@ -6,18 +6,11 @@
 import { computed, inject, onActivated, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { routeLocationKey } from 'vue-router'
 import { deleteAnime, getAnimeDetail, getAnimePage } from '@/api/anime'
-import {
-  getAdaptationTypes,
-  getBroadcastTypes,
-  getCompanies,
-  getRegions,
-  getTags,
-} from '@/api/catalog'
+import { getAdaptationTypes, getBroadcastTypes, getRegions, getTags } from '@/api/catalog'
 import type {
   AnimePageItem,
   AnimePageQuery,
   AnimeSortField,
-  CompanyOption,
   NamedOption,
   PageResult,
   SortDirection,
@@ -26,6 +19,8 @@ import type {
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveDateInput from '@/components/admin/ArchiveDateInput.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
+import AnimeEntitySelect from '@/components/admin/AnimeEntitySelect.vue'
+import { searchRelatedEntities } from '@/api/relatedEntities'
 import { getArchiveDateBound, validateArchiveDate } from '@/utils/archiveDate'
 import { pageSizeValues, readPreferences, resolvePageSize } from '@/utils/preferences'
 import { useCatalogRefresh } from '@/utils/catalogChanges'
@@ -46,6 +41,7 @@ interface AnimeFilters {
   status: string
   regionId: string
   companyId: string
+  personId: string
   companyKeyword: string
   ratingMin: string
   ratingMax: string
@@ -88,6 +84,7 @@ const createDefaultFilters = (): AnimeFilters => ({
   status: '',
   regionId: '',
   companyId: '',
+  personId: '',
   companyKeyword: '',
   ratingMin: '',
   ratingMax: '',
@@ -96,8 +93,23 @@ const createDefaultFilters = (): AnimeFilters => ({
 })
 
 const form = reactive<AnimeFilters>({ ...createDefaultFilters(), keyword: initialKeyword })
+const relatedEntityValue = computed({
+  get: () =>
+    form.personId ? 'person:' + form.personId : form.companyId ? 'company:' + form.companyId : '',
+  set: (value: string) => {
+    form.companyId = form.personId = ''
+    const [kind, id] = value.split(':')
+    if (kind === 'company' && id) form.companyId = id
+    if (kind === 'person' && id) form.personId = id
+  },
+})
 const appliedFilters = ref<AnimeFilters>({ ...createDefaultFilters(), keyword: initialKeyword })
-const pageSize = ref(resolvePageSize(pageSizeOptions.map((option) => option.id), 10))
+const pageSize = ref(
+  resolvePageSize(
+    pageSizeOptions.map((option) => option.id),
+    10,
+  ),
+)
 const pageSizeModel = computed({
   get: () => String(pageSize.value),
   set: (value: string) => {
@@ -121,7 +133,6 @@ const ratingErrors = reactive({
 })
 const catalogWarning = ref('')
 const showAdvancedFilters = ref(false)
-const showCompanySuggestions = ref(false)
 const showTagDropdown = ref(false)
 const tagSearch = ref('')
 const dateRangeEnabled = ref(false)
@@ -158,13 +169,10 @@ const broadcastTypes = ref<NamedOption[]>([])
 const adaptationTypes = ref<NamedOption[]>([])
 const regions = ref<NamedOption[]>([])
 const tags = ref<NamedOption[]>([])
-const companySuggestions = ref<CompanyOption[]>([])
 
 let pageController: AbortController | undefined
 let catalogController: AbortController | undefined
 let statsController: AbortController | undefined
-let companyController: AbortController | undefined
-let companySearchTimer: number | undefined
 let toastTimer: number | undefined
 let hasActivated = false
 
@@ -176,6 +184,7 @@ const advancedFilterCount = computed(
       form.adaptationTypeId,
       form.regionId,
       form.companyId,
+      form.personId,
       form.broadcastStartDate,
       form.broadcastEndDate,
       form.ratingMin,
@@ -193,6 +202,7 @@ const activeFilterCount = computed(() => {
       filters.adaptationTypeId,
       filters.regionId,
       filters.companyId,
+      filters.personId,
       filters.broadcastStartDate,
       filters.broadcastEndDate,
       filters.ratingMin,
@@ -246,6 +256,7 @@ const activeFilterChips = computed(() => {
   if (filters.regionId)
     chips.push({ key: 'regionId', label: `地区：${findName(regions.value, filters.regionId)}` })
   if (filters.companyId) chips.push({ key: 'companyId', label: `公司：${filters.companyKeyword}` })
+  if (filters.personId) chips.push({ key: 'personId', label: `人物：${filters.companyKeyword}` })
   if (filters.broadcastStartDate)
     chips.push({
       key: 'broadcastStartDate',
@@ -315,8 +326,6 @@ onBeforeUnmount(() => {
   pageController?.abort()
   catalogController?.abort()
   statsController?.abort()
-  companyController?.abort()
-  if (companySearchTimer) window.clearTimeout(companySearchTimer)
   if (toastTimer) window.clearTimeout(toastTimer)
 })
 
@@ -341,6 +350,7 @@ function createQuery(pageNum: number): AnimePageQuery {
     status: optionalNumber(filters.status),
     regionId: optionalNumber(filters.regionId),
     companyId: optionalNumber(filters.companyId),
+    personId: optionalNumber(filters.personId),
     ratingMin: optionalNumber(filters.ratingMin),
     ratingMax: optionalNumber(
       appliedRatingRangeEnabled.value ? filters.ratingMax : filters.ratingMin,
@@ -423,8 +433,8 @@ async function loadStats() {
 }
 
 function validateFilters() {
-  if (form.companyKeyword.trim() && !form.companyId) {
-    return '请从联想结果中选择制作公司。'
+  if (form.companyKeyword.trim() && !form.companyId && !form.personId) {
+    return '请从联想结果中选择公司或人物。'
   }
 
   return ''
@@ -570,7 +580,10 @@ function submitQuery() {
 
 // 只有主动重置才重新读取列表偏好，普通切换标签或翻页保留当前临时设置。
 function resetFilters() {
-  pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
+  pageSize.value = resolvePageSize(
+    pageSizeOptions.map((option) => option.id),
+    10,
+  )
   Object.assign(form, createDefaultFilters())
   appliedFilters.value = createDefaultFilters()
   validationMessage.value = ''
@@ -578,7 +591,6 @@ function resetFilters() {
   dateErrors.broadcastEndDate = ''
   ratingErrors.ratingMin = ''
   ratingErrors.ratingMax = ''
-  companySuggestions.value = []
   dateRangeEnabled.value = false
   ratingRangeEnabled.value = false
   appliedRatingRangeEnabled.value = false
@@ -612,46 +624,6 @@ function toggleSortDirection() {
   form.sortDirection = form.sortDirection === 'DESC' ? 'ASC' : 'DESC'
 }
 
-function handleCompanyInput() {
-  form.companyId = ''
-  showCompanySuggestions.value = true
-  if (companySearchTimer) window.clearTimeout(companySearchTimer)
-
-  const keyword = form.companyKeyword.trim()
-  if (!keyword) {
-    companySuggestions.value = []
-    return
-  }
-
-  companySearchTimer = window.setTimeout(() => {
-    companyController?.abort()
-    const controller = new AbortController()
-    companyController = controller
-    void getCompanies(keyword, 10, controller.signal)
-      .then((result) => {
-        if (companyController === controller) companySuggestions.value = result.rows
-      })
-      .catch((error) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          companySuggestions.value = []
-        }
-      })
-  }, 250)
-}
-
-function selectCompany(company: CompanyOption) {
-  form.companyId = String(company.id)
-  form.companyKeyword = company.name
-  companySuggestions.value = []
-  showCompanySuggestions.value = false
-}
-
-function hideCompanySuggestions() {
-  window.setTimeout(() => {
-    showCompanySuggestions.value = false
-  }, 120)
-}
-
 function toggleTag(tagId: number) {
   const index = form.tagIds.indexOf(tagId)
   if (index >= 0) form.tagIds.splice(index, 1)
@@ -662,8 +634,8 @@ function clearFilter(key: string) {
   if (key.startsWith('tag:')) {
     const tagId = Number(key.slice(4))
     form.tagIds = form.tagIds.filter((id) => id !== tagId)
-  } else if (key === 'companyId') {
-    form.companyId = ''
+  } else if (key === 'companyId' || key === 'personId') {
+    form.companyId = form.personId = ''
     form.companyKeyword = ''
   } else if (key in form) {
     const filterKey = key as keyof AnimeFilters
@@ -1074,46 +1046,25 @@ function getCoverGradient(id: number) {
 
               <div
                 class="field advanced-company-field"
-                :class="{ 'has-error': validationMessage.includes('制作公司') }"
+                :class="{ 'has-error': validationMessage.includes('公司或人物') }"
               >
                 <label for="companyKeyword"
-                  >制作公司 <span class="field-label-note">联想选择</span></label
+                  >关联公司 / 人物 <span class="field-label-note">输入后联想</span></label
                 >
-                <div class="input-shell">
-                  <AdminIcon class="input-icon" name="companies" />
-                  <input
-                    id="companyKeyword"
-                    v-model="form.companyKeyword"
-                    class="has-icon"
-                    type="text"
-                    placeholder="输入公司名称"
-                    autocomplete="off"
-                    aria-autocomplete="list"
-                    @input="handleCompanyInput"
-                    @focus="showCompanySuggestions = true"
-                    @blur="hideCompanySuggestions"
-                  />
-                </div>
-                <div
-                  class="suggestion-panel"
-                  :class="{ open: showCompanySuggestions && companySuggestions.length }"
-                  role="listbox"
-                >
-                  <button
-                    v-for="company in companySuggestions"
-                    :key="company.id"
-                    class="company-suggestion-item"
-                    type="button"
-                    role="option"
-                    @mousedown.prevent="selectCompany(company)"
-                  >
-                    {{ company.name }}
-                  </button>
-                </div>
-                <div class="selected-company" :class="{ visible: form.companyId }">
-                  <span>✓</span><span>已选择 {{ form.companyKeyword }}</span>
-                </div>
-                <p class="field-error">请从联想结果中选择制作公司</p>
+                <AnimeEntitySelect
+                  id="companyKeyword"
+                  v-model="relatedEntityValue"
+                  v-model:selected-name="form.companyKeyword"
+                  label="公司或人物"
+                  placeholder="输入公司或人物名称"
+                  :search="searchRelatedEntities"
+                  :search-on-input-only="true"
+                  :show-option-description="true"
+                  :require-explicit-selection="true"
+                  :error-message="
+                    validationMessage.includes('公司或人物') ? validationMessage : undefined
+                  "
+                />
               </div>
 
               <div class="date-filter-group" :class="{ 'range-enabled': dateRangeEnabled }">
@@ -1332,7 +1283,9 @@ function getCoverGradient(id: number) {
                   :title="anime.name"
                   :aria-label="`查看 ${anime.name} 详情`"
                   @click="openCrudDrawer('detail', anime)"
-                >{{ anime.name }}</button>
+                >
+                  {{ anime.name }}
+                </button>
                 <span class="work-alias" :title="anime.aliasNames.join(' · ')">{{
                   anime.aliasNames.join(' · ') || '暂无别名'
                 }}</span>
@@ -1804,33 +1757,27 @@ function getCoverGradient(id: number) {
             </select>
           </label>
 
-          <div class="field company-field">
-            <label for="companyKeyword">制作公司</label>
-            <input
-              id="companyKeyword"
-              v-model="form.companyKeyword"
-              type="search"
-              autocomplete="off"
-              placeholder="输入公司名称并选择"
-              @input="handleCompanyInput"
-              @focus="handleCompanyInput"
-              @blur="hideCompanySuggestions"
-            />
-            <div
-              v-if="showCompanySuggestions && companySuggestions.length"
-              class="company-suggestions"
-              role="listbox"
+          <div
+            class="field advanced-company-field"
+            :class="{ 'has-error': validationMessage.includes('公司或人物') }"
+          >
+            <label for="companyKeyword"
+              >关联公司 / 人物 <span class="field-label-note">输入后联想</span></label
             >
-              <button
-                v-for="company in companySuggestions"
-                :key="company.id"
-                class="company-suggestion-item"
-                type="button"
-                @mousedown.prevent="selectCompany(company)"
-              >
-                {{ company.name }}
-              </button>
-            </div>
+            <AnimeEntitySelect
+              id="companyKeyword"
+              v-model="relatedEntityValue"
+              v-model:selected-name="form.companyKeyword"
+              label="公司或人物"
+              placeholder="输入公司或人物名称"
+              :search="searchRelatedEntities"
+              :search-on-input-only="true"
+              :show-option-description="true"
+              :require-explicit-selection="true"
+              :error-message="
+                validationMessage.includes('公司或人物') ? validationMessage : undefined
+              "
+            />
           </div>
 
           <label class="field">
@@ -2053,7 +2000,9 @@ function getCoverGradient(id: number) {
           <label>
             每页
             <select v-model.number="pageSize" aria-label="每页数量" @change="changePageSize">
-              <option v-for="option in pageSizeOptions" :key="option.id" :value="option.id">{{ option.name }}</option>
+              <option v-for="option in pageSizeOptions" :key="option.id" :value="option.id">
+                {{ option.name }}
+              </option>
             </select>
           </label>
           <button type="button" :disabled="page.pageNum <= 1" @click="goToPage(page.pageNum - 1)">
@@ -2095,818 +2044,13 @@ function getCoverGradient(id: number) {
   </div>
 </template>
 
+<style scoped src="@/assets/animeList.css"></style>
 <style scoped>
-.primary-button[href],
-.primary-action[href] {
-  text-decoration: none;
-}
-.anime-management-page .work-title {
-  width: fit-content;
-  max-width: 100%;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  text-align: left;
-}
-.anime-management-page .work-title:hover,
-.anime-management-page .work-title:focus-visible {
-  color: var(--accent-strong);
-}
-@media not all {
-  .anime-page {
-    display: grid;
-    gap: 20px;
-  }
-
-  .anime-hero,
-  .section-heading,
-  .list-heading,
-  .list-tools,
-  .filter-actions,
-  .page-controls,
-  .pagination {
-    display: flex;
-    align-items: center;
-  }
-
-  .anime-hero {
-    justify-content: space-between;
-    gap: 24px;
-    padding: 4px 2px 10px;
-  }
-
-  .anime-hero h1 {
-    margin: 5px 0 8px;
-    font-family: 'Noto Serif SC', 'STSong', serif;
-    font-size: clamp(26px, 3vw, 38px);
-    line-height: 1.2;
-  }
-
-  .anime-hero h1 span {
-    color: var(--accent);
-    font-size: 11px;
-    letter-spacing: 0.12em;
-  }
-
-  .anime-hero p:last-child,
-  .section-heading p {
-    margin: 0;
-    color: var(--ink-soft);
-  }
-
-  .anime-hero .page-eyebrow {
-    font-size: 10px;
-  }
-
-  .anime-hero p:last-child {
-    font-size: 12px;
-  }
-
-  .anime-page .primary-action,
-  .anime-page .secondary-action {
-    font-size: 12px;
-  }
-
-  .anime-stats {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  .anime-stats article {
-    display: flex;
-    min-height: 86px;
-    align-items: center;
-    justify-content: space-between;
-    padding: 18px 20px;
-    background: rgba(255, 255, 255, 0.86);
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    box-shadow: 0 8px 26px rgba(37, 31, 67, 0.05);
-  }
-
-  .anime-stats span {
-    color: var(--ink-soft);
-    font-size: 10px;
-  }
-
-  .anime-stats strong {
-    color: var(--accent-strong);
-    font-family: 'Noto Serif SC', 'STSong', serif;
-    font-size: 22px;
-    line-height: 1.15;
-  }
-
-  .anime-card {
-    overflow: visible;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid var(--line);
-    border-radius: 20px;
-    box-shadow: 0 14px 42px rgba(37, 31, 67, 0.07);
-  }
-
-  .section-heading,
-  .list-heading {
-    justify-content: space-between;
-    gap: 20px;
-    padding: 18px 20px;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .section-heading h2,
-  .list-heading h2 {
-    margin: 0;
-    font-family: 'Noto Serif SC', 'STSong', serif;
-    font-size: 16px;
-  }
-
-  .section-heading p,
-  .list-heading span,
-  .list-tools {
-    font-size: 10px;
-  }
-
-  .ghost-action,
-  .secondary-action {
-    min-height: 36px;
-    padding: 0 14px;
-    color: var(--ink-soft);
-    background: var(--surface-muted);
-    border: 1px solid var(--line);
-    border-radius: 9px;
-    cursor: pointer;
-    font-size: 11px;
-    font-weight: 650;
-  }
-
-  .ghost-action:hover,
-  .secondary-action:hover {
-    color: var(--accent-strong);
-    border-color: rgba(217, 95, 134, 0.35);
-  }
-
-  .filter-form {
-    padding: 18px 20px;
-  }
-
-  .primary-filters {
-    display: grid;
-    grid-template-columns: minmax(220px, 1.5fr) minmax(230px, 1.5fr) minmax(200px, 1.2fr) 44px auto;
-    gap: 12px;
-    align-items: end;
-  }
-
-  .field {
-    position: relative;
-    display: grid;
-    min-width: 0;
-    gap: 6px;
-    padding: 0;
-    margin: 0;
-    border: 0;
-  }
-
-  .field > span,
-  .field > label,
-  .field legend {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    color: var(--ink-soft);
-    font-size: 10px;
-    font-weight: 700;
-  }
-
-  .field small {
-    color: #9693a8;
-    font-size: 9px;
-    font-weight: 500;
-  }
-
-  .field input,
-  .field select,
-  .page-controls select,
-  .page-controls input {
-    width: 100%;
-    height: 39px;
-    padding: 0 11px;
-    color: var(--ink);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 9px;
-    outline: none;
-    font: inherit;
-  }
-
-  .field input:focus,
-  .field select:focus,
-  .page-controls input:focus,
-  .page-controls select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(217, 95, 134, 0.14);
-  }
-
-  .tag-field legend {
-    width: 100%;
-    margin-bottom: 6px;
-  }
-
-  .tag-mode,
-  .sort-control {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-  }
-
-  .tag-mode button,
-  .sort-control button {
-    height: 28px;
-    padding: 0 9px;
-    color: var(--ink-soft);
-    background: transparent;
-    border: 0;
-    border-radius: 7px;
-    cursor: pointer;
-    font-size: 9px;
-  }
-
-  .tag-mode button.active,
-  .sort-control button.active {
-    color: var(--accent-strong);
-    background: #f9dce6;
-  }
-
-  .tag-options {
-    display: flex;
-    height: 39px;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 8px;
-    overflow-x: auto;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 9px;
-  }
-
-  .tag-options label {
-    display: inline-flex;
-    flex: 0 0 auto;
-    align-items: center;
-    cursor: pointer;
-  }
-
-  .tag-options input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    opacity: 0;
-  }
-
-  .tag-options label span,
-  .option-placeholder {
-    padding: 4px 8px;
-    color: #7567aa;
-    background: #e9e4f7;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    font-size: 9px;
-    white-space: nowrap;
-  }
-
-  .tag-options input:checked + span {
-    color: #fff;
-    background: #7567aa;
-  }
-
-  .sort-control {
-    height: 39px;
-    padding: 4px;
-    background: var(--surface-muted);
-    border: 1px solid var(--line);
-    border-radius: 9px;
-  }
-
-  .sort-control button {
-    height: 29px;
-    flex: 1;
-  }
-
-  .sort-direction {
-    width: 42px;
-    height: 39px;
-    color: var(--accent-strong);
-    background: #f9dce6;
-    border: 1px solid rgba(217, 95, 134, 0.2);
-    border-radius: 9px;
-    cursor: pointer;
-    font-size: 20px;
-  }
-
-  .filter-actions {
-    gap: 7px;
-  }
-
-  .filter-actions .primary-action,
-  .filter-actions .secondary-action {
-    min-width: 64px;
-  }
-
-  .advanced-filters {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 14px 12px;
-    padding-top: 18px;
-    margin-top: 18px;
-    border-top: 1px dashed var(--line);
-  }
-
-  .company-field {
-    z-index: 5;
-    grid-column: span 2;
-  }
-
-  .company-suggestions {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    left: 0;
-    display: grid;
-    max-height: 230px;
-    padding: 6px;
-    overflow-y: auto;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 11px;
-    box-shadow: 0 16px 40px rgba(37, 31, 67, 0.16);
-  }
-
-  .company-suggestions button {
-    display: grid;
-    gap: 2px;
-    padding: 8px;
-    background: transparent;
-    border: 0;
-    border-radius: 7px;
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .company-suggestions strong {
-    font-size: 11px;
-  }
-
-  .company-suggestions button:hover {
-    background: var(--surface-muted);
-  }
-
-  .company-suggestions small {
-    overflow: hidden;
-    color: #9693a8;
-    font-size: 9px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .form-message {
-    margin: 12px 0 0;
-    padding: 9px 11px;
-    border-radius: 8px;
-    font-size: 10px;
-  }
-
-  .error-message {
-    color: #a93e4d;
-    background: #fde4e7;
-  }
-
-  .warning-message {
-    color: #8a671f;
-    background: #fff1c9;
-  }
-
-  .active-filter-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    margin-top: 14px;
-    color: var(--ink-soft);
-    background: var(--surface-muted);
-    border-radius: 9px;
-    font-size: 10px;
-  }
-
-  .active-filter-bar button {
-    padding: 0;
-    color: var(--accent-strong);
-    background: transparent;
-    border: 0;
-    cursor: pointer;
-  }
-
-  .list-card {
-    overflow: hidden;
-  }
-
-  .list-heading > div:first-child {
-    display: grid;
-    gap: 3px;
-  }
-
-  .list-tools {
-    gap: 12px;
-    color: #9693a8;
-    font-size: 9px;
-  }
-
-  .list-tools strong,
-  .list-heading strong {
-    color: var(--ink);
-  }
-
-  .table-wrap {
-    width: 100%;
-    overflow-x: auto;
-  }
-
-  .anime-table {
-    width: 100%;
-    min-width: 1240px;
-    border-collapse: collapse;
-    table-layout: fixed;
-  }
-
-  .anime-table th,
-  .anime-table td {
-    padding: 11px 9px;
-    border-bottom: 1px solid var(--line);
-    text-align: left;
-    vertical-align: middle;
-  }
-
-  .anime-table td {
-    font-size: 10px;
-  }
-
-  .anime-table th {
-    color: #9693a8;
-    background: var(--surface-muted);
-    font-size: 9px;
-    letter-spacing: 0.04em;
-  }
-
-  .anime-table th:nth-child(1) {
-    width: 64px;
-  }
-  .anime-table th:nth-child(2) {
-    width: 210px;
-  }
-  .anime-table th:nth-child(3) {
-    width: 160px;
-  }
-  .anime-table th:nth-child(4) {
-    width: 120px;
-  }
-  .anime-table th:nth-child(5) {
-    width: 102px;
-  }
-  .anime-table th:nth-child(6),
-  .anime-table th:nth-child(7) {
-    width: 82px;
-  }
-  .anime-table th:nth-child(8) {
-    width: 125px;
-  }
-  .anime-table th:nth-child(9) {
-    width: 86px;
-  }
-  .anime-table th:nth-child(10) {
-    width: 92px;
-  }
-  .anime-table th:nth-child(11) {
-    width: 110px;
-  }
-
-  .anime-table tbody tr:hover {
-    background: rgba(249, 220, 230, 0.22);
-  }
-
-  .anime-cover {
-    display: grid;
-    width: 42px;
-    height: 56px;
-    place-items: center;
-    overflow: hidden;
-    color: #fff;
-    background: linear-gradient(145deg, #d95f86, #7567aa);
-    border-radius: 8px 5px 8px 5px;
-    font-family: 'Noto Serif SC', 'STSong', serif;
-    font-size: 9px;
-    font-weight: 800;
-  }
-
-  .anime-cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .work-column > strong,
-  .work-column > small,
-  .company-column > strong,
-  .company-column > small {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .work-column > strong {
-    font-family: 'Noto Serif SC', 'STSong', serif;
-    font-size: 13px;
-  }
-
-  .work-column > small,
-  .company-column > small,
-  .meta-column span {
-    margin-top: 3px;
-    color: #9693a8;
-    font-size: 9px;
-  }
-
-  .work-column .series-name {
-    color: #7567aa;
-  }
-
-  .tag-list,
-  .external-links,
-  .row-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
-  .tag-list span {
-    padding: 4px 7px;
-    color: #7567aa;
-    background: #e9e4f7;
-    border-radius: 999px;
-    font-size: 9px;
-  }
-
-  .meta-column span {
-    display: block;
-  }
-
-  .meta-column strong {
-    color: var(--ink);
-  }
-
-  .status-badge {
-    display: inline-flex;
-    padding: 4px 8px;
-    border-radius: 999px;
-    font-size: 9px;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  .status-1 {
-    color: #9a711e;
-    background: #fff1c9;
-  }
-  .status-2 {
-    color: #237d78;
-    background: #dff5f2;
-  }
-  .status-3 {
-    color: #316f5e;
-    background: #e0f2ec;
-  }
-  .status-4 {
-    color: var(--ink-soft);
-    background: var(--surface-muted);
-  }
-
-  .company-column strong {
-    font-size: 10px;
-  }
-
-  .rating {
-    color: #b77d14;
-    font-family: 'Noto Serif SC', 'STSong', serif;
-    font-size: 13px;
-    font-weight: 800;
-    white-space: nowrap;
-  }
-
-  .empty-value {
-    color: #9693a8;
-    font-size: 9px;
-  }
-
-  .external-links a,
-  .row-actions a {
-    display: inline-grid;
-    min-width: 28px;
-    height: 28px;
-    padding: 0 5px;
-    place-items: center;
-    color: #7567aa;
-    background: #e9e4f7;
-    border-radius: 7px;
-    font-size: 9px;
-    font-weight: 700;
-  }
-
-  .row-actions a:hover,
-  .external-links a:hover {
-    color: var(--accent-strong);
-    background: #f9dce6;
-  }
-
-  .table-state {
-    display: grid;
-    min-height: 300px;
-    padding: 40px 20px;
-    place-items: center;
-    place-content: center;
-    text-align: center;
-  }
-
-  .table-state h3 {
-    margin: 12px 0 4px;
-    font-family: 'Noto Serif SC', 'STSong', serif;
-    font-size: 16px;
-  }
-
-  .table-state p {
-    max-width: 420px;
-    margin: 0 0 15px;
-    color: var(--ink-soft);
-    font-size: 10px;
-  }
-
-  .state-icon,
-  .loading-spinner {
-    display: grid;
-    width: 56px;
-    height: 56px;
-    place-items: center;
-    color: var(--accent-strong);
-    background: #f9dce6;
-    border-radius: 18px 11px;
-    font-family: 'Noto Serif SC', 'STSong', serif;
-    font-size: 22px;
-    font-weight: 800;
-  }
-
-  .loading-spinner {
-    width: 38px;
-    height: 38px;
-    background: transparent;
-    border: 3px solid #f9dce6;
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 800ms linear infinite;
-  }
-
-  .pagination {
-    min-height: 64px;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 12px 20px;
-    border-top: 1px solid var(--line);
-  }
-
-  .page-summary,
-  .page-controls label {
-    color: #9693a8;
-  }
-
-  .page-summary {
-    font-size: 10px;
-  }
-
-  .page-controls label {
-    font-size: 9px;
-  }
-
-  .page-controls {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .page-controls label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .page-controls select {
-    width: auto;
-    height: 32px;
-  }
-
-  .page-controls input {
-    width: 48px;
-    height: 32px;
-  }
-
-  .page-controls > button {
-    min-width: 32px;
-    height: 32px;
-    padding: 0 8px;
-    color: var(--ink-soft);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 10px;
-  }
-
-  .page-controls > button.active {
-    color: var(--accent-strong);
-    background: #f9dce6;
-    border-color: rgba(217, 95, 134, 0.3);
-  }
-
-  .page-controls > button:disabled,
-  .ghost-action:disabled {
-    cursor: not-allowed;
-    opacity: 0.4;
-  }
-
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  @media (max-width: 1120px) {
-    .primary-filters {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .sort-direction {
-      width: 100%;
-    }
-
-    .filter-actions {
-      justify-content: flex-end;
-    }
-  }
-
-  @media (max-width: 760px) {
-    .anime-hero,
-    .list-heading,
-    .pagination {
-      align-items: flex-start;
-      flex-direction: column;
-    }
-
-    .anime-stats,
-    .advanced-filters {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .company-field {
-      grid-column: span 2;
-    }
-
-    .page-controls {
-      width: 100%;
-    }
-  }
-
-  @media (max-width: 520px) {
-    .anime-stats,
-    .primary-filters,
-    .advanced-filters {
-      grid-template-columns: 1fr;
-    }
-
-    .company-field {
-      grid-column: auto;
-    }
-
-    .section-heading {
-      align-items: flex-start;
-      flex-direction: column;
-    }
-  }
+.anime-management-page
+  .advanced-company-field
+  :deep(.anime-entity-select > input:not([type='checkbox'])) {
+  height: 40px;
+  padding-right: 34px;
+  font: inherit;
 }
 </style>

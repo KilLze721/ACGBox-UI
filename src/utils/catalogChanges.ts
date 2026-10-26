@@ -1,7 +1,7 @@
 import { onActivated, onBeforeUnmount, onDeactivated, reactive, watch } from 'vue'
 
-type CatalogKind = 'broadcast' | 'adaptation'
-const revisions = reactive({ broadcast: 0, adaptation: 0 })
+type CatalogKind = 'broadcast' | 'adaptation' | 'book'
+const revisions = reactive({ broadcast: 0, adaptation: 0, book: 0 })
 
 export function notifyCatalogChanged(kind: CatalogKind) {
   revisions[kind] += 1

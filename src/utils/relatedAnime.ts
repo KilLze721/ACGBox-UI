@@ -88,6 +88,7 @@ export function useRelatedAnime() {
     void loadPage(1)
   }
   onBeforeUnmount(cancel)
+  function suspend() { controller?.abort(); state.loading = false }
   return {
     state,
     open,
@@ -97,6 +98,8 @@ export function useRelatedAnime() {
     toggleDirection,
     changePageSize,
     retry: () => loadPage(requestedPage),
+    suspend,
+    resume: () => loadPage(requestedPage),
   }
 }
 

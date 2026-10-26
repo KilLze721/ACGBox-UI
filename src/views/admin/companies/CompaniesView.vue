@@ -29,6 +29,10 @@ import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
 import RelatedAnimeNameLink from '@/components/admin/RelatedAnimeNameLink.vue'
+import RelatedBookList from '@/components/admin/RelatedBookList.vue'
+import RelatedContentTabs from '@/components/admin/RelatedContentTabs.vue'
+import { useRelatedBook } from '@/utils/relatedBook'
+import type { BookPageItem } from '@/types/book'
 import type {
   AnimePageItem,
   AnimeSortField,
@@ -39,6 +43,14 @@ import type {
 } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
+const relatedBook = useRelatedBook()
+const relatedType = ref<'anime' | 'book'>('anime')
+const openBookDetail = inject<(id: number) => Promise<void>>('openBookDetail')
+watch(relatedType, (value) => {
+  if (drawerMode.value !== 'detail' || drawerLoading.value || !currentCompany.value) return
+  if (value === 'book') { relatedController?.abort(); relatedLoading.value = false; void relatedBook.resume() }
+  else { relatedBook.suspend(); void loadRelatedAnime(currentCompany.value, relatedAnime.value.pageNum) }
+})
 const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
   id: value,
   name: `${value} 条`,
@@ -150,6 +162,8 @@ defineExpose({
 onMounted(() => {
   void loadPage(1)
   void loadTotal()
+  const id = Number(route.query.detail)
+  if (Number.isInteger(id) && id > 0) void openDrawer('detail', id)
 })
 onActivated(() => {
   tabActive.value = true
@@ -273,17 +287,20 @@ function closeDrawer() {
   if (saving.value) return
   drawerController?.abort()
   relatedController?.abort()
+  relatedBook.cancel()
   drawerMode.value = null
   currentCompany.value = null
   drawerError.value = ''
 }
-async function openDrawer(mode: DrawerMode, row?: CompanyOption) {
+async function openDrawer(mode: DrawerMode, row?: CompanyOption | number) {
   drawerController?.abort()
   relatedController?.abort()
+  relatedBook.cancel()
+  relatedType.value = 'anime'
   const controller = new AbortController()
   drawerController = controller
   drawerMode.value = mode
-  currentCompany.value = row ?? null
+  currentCompany.value = typeof row === 'number' ? null : row ?? null
   drawerLoading.value = mode !== 'create'
   drawerError.value = ''
   relatedPageSize.value = resolvePageSize(
@@ -305,13 +322,16 @@ async function openDrawer(mode: DrawerMode, row?: CompanyOption) {
   }
   if (!row) return
   try {
-    const company = await getCompanyById(row.id, controller.signal)
+    const company = await getCompanyById(typeof row === 'number' ? row : row.id, controller.signal)
     if (controller.signal.aborted) return
     currentCompany.value = company
     form.name = company.name
     form.description = company.description ?? ''
     initialFormState.value = JSON.stringify(form)
-    if (mode === 'detail') void loadRelatedAnime(company, 1)
+    if (mode === 'detail') {
+      relatedBook.prepare({ companyId: company.id })
+      void loadRelatedAnime(company, 1)
+    }
   } catch (error) {
     if (controller.signal.aborted) return
     currentCompany.value = null
@@ -368,6 +388,14 @@ function openRelatedAnime(anime: AnimePageItem) {
   closeDrawer()
   if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', anime.name)
   else void router.push({ path: '/admin/anime', query: { keyword: anime.name } })
+}
+function bookRoles(book: BookPageItem) {
+  return book.companies.filter(company => company.companyId === currentCompany.value?.id).map(company => company.role).filter(Boolean).join('、') || '未注明职责'
+}
+function openRelatedBook(book: BookPageItem) {
+  closeDrawer()
+  if (openBookDetail) void openBookDetail(book.id)
+  else void router.push({ path: '/admin/book', query: { detail: String(book.id) } })
 }
 async function saveCompany() {
   const name = form.name.trim()
@@ -727,7 +755,9 @@ async function confirmDelete() {
                   {{ currentCompany?.description?.trim() || '暂无简介' }}
                 </div>
               </div>
-              <section class="companies-association">
+              <RelatedContentTabs v-model="relatedType" />
+              <RelatedBookList v-if="relatedType === 'book'" :model="relatedBook" title="关联书籍与负责职责" :role-label="bookRoles" @select="openRelatedBook" />
+              <section v-else class="companies-association">
                 <header>
                   <div>
                     <h3>关联内容与负责职责</h3>

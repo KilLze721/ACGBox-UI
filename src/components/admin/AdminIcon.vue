@@ -37,6 +37,9 @@ defineProps<{
       <rect x="3" y="4" width="18" height="16" rx="3" />
       <path d="m10 9 5 3-5 3V9ZM7 4l2-2m8 2-2-2" />
     </g>
+    <g v-else-if="name === 'book' || name === 'book-types'">
+      <path d="M12 5C9 3 5 3 3 4v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-2-1-6-1-9 1Zm0 0v15M6 8h3m-3 4h3m6-4h3m-3 4h3" />
+    </g>
     <g v-else-if="name === 'series'">
       <path d="M6 3h12v18H6zM9 7h6M9 11h6M9 15h3" />
     </g>

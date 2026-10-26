@@ -28,6 +28,10 @@ import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
 import RelatedAnimeList from '@/components/admin/RelatedAnimeList.vue'
+import RelatedBookList from '@/components/admin/RelatedBookList.vue'
+import RelatedContentTabs from '@/components/admin/RelatedContentTabs.vue'
+import { useRelatedBook } from '@/utils/relatedBook'
+import type { BookPageItem } from '@/types/book'
 import { useRelatedAnime } from '@/utils/relatedAnime'
 import type { AnimePageItem, NamedOption, PageResult, SeriesSummary } from '@/types/api'
 
@@ -73,6 +77,14 @@ const currentSeries = ref<SeriesSummary | null>(null)
 const drawerLoading = ref(false)
 const drawerError = ref('')
 const relatedAnime = useRelatedAnime()
+const relatedBook = useRelatedBook()
+const relatedType = ref<'anime' | 'book'>('anime')
+const openBookDetail = inject<(id: number) => Promise<void>>('openBookDetail')
+watch(relatedType, (value) => {
+  if (drawerMode.value !== 'detail' || drawerLoading.value || !currentSeries.value) return
+  if (value === 'book') { relatedAnime.suspend(); void relatedBook.resume() }
+  else { relatedBook.suspend(); void relatedAnime.resume() }
+})
 const form = reactive({ name: '', description: '' })
 const nameError = ref('')
 const initialFormState = ref('')
@@ -266,6 +278,7 @@ function closeDrawer() {
   if (saving.value) return
   drawerController?.abort()
   relatedAnime.cancel()
+  relatedBook.cancel()
   drawerMode.value = null
   currentSeries.value = null
   drawerError.value = ''
@@ -273,6 +286,8 @@ function closeDrawer() {
 async function openDrawer(mode: DrawerMode, row?: SeriesSummary | number) {
   drawerController?.abort()
   relatedAnime.cancel()
+  relatedBook.cancel()
+  relatedType.value = 'anime'
   const controller = new AbortController()
   drawerController = controller
   drawerMode.value = mode
@@ -294,7 +309,10 @@ async function openDrawer(mode: DrawerMode, row?: SeriesSummary | number) {
     currentSeries.value = detail
     form.name = detail.name
     form.description = detail.description ?? ''
-    if (mode === 'detail') void relatedAnime.open({ seriesId: detail.id })
+    if (mode === 'detail') {
+      relatedBook.prepare({ seriesId: detail.id })
+      void relatedAnime.open({ seriesId: detail.id })
+    }
     if (!controller.signal.aborted) saveInitialFormState()
   } catch (error) {
     if (controller.signal.aborted) return
@@ -362,6 +380,11 @@ function openRelatedWork(work: AnimePageItem) {
   closeDrawer()
   if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', work.name)
   else void router.push({ path: '/admin/anime', query: { keyword: work.name } })
+}
+function openRelatedBook(book: BookPageItem) {
+  closeDrawer()
+  if (openBookDetail) void openBookDetail(book.id)
+  else void router.push({ path: '/admin/book', query: { detail: String(book.id) } })
 }
 </script>
 
@@ -659,7 +682,9 @@ function openRelatedWork(work: AnimePageItem) {
                   {{ currentSeries?.description?.trim() || '暂无简介' }}
                 </div>
               </div>
-              <RelatedAnimeList :model="relatedAnime" title="关联内容" @select="openRelatedWork" />
+              <RelatedContentTabs v-model="relatedType" />
+              <RelatedAnimeList v-if="relatedType === 'anime'" :model="relatedAnime" title="关联动画" @select="openRelatedWork" />
+              <RelatedBookList v-else :model="relatedBook" title="关联书籍" @select="openRelatedBook" />
             </template>
             <form v-else id="seriesEditorForm" @submit.prevent="saveSeries">
               <div class="series-field" :class="{ invalid: nameError }">

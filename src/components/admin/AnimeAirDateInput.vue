@@ -12,6 +12,8 @@ const props = defineProps<{
   invalid?: boolean
   describedBy?: string
   disabled?: boolean
+  label?: string
+  placeholder?: string
 }>()
 
 const emit = defineEmits<{
@@ -30,7 +32,10 @@ const months = Array.from({ length: 12 }, (_, index) => `${index + 1}月`)
 const yearStart = computed(() => Math.floor((visibleYear.value - 1) / 20) * 20 + 1)
 const yearRangeLabel = computed(() => `${yearStart.value}–${Math.min(yearStart.value + 19, 9999)}`)
 const yearOptions = computed(() =>
-  Array.from({ length: Math.min(20, 10000 - yearStart.value) }, (_, index) => yearStart.value + index),
+  Array.from(
+    { length: Math.min(20, 10000 - yearStart.value) },
+    (_, index) => yearStart.value + index
+  )
 )
 const headerLabel = computed(() => {
   if (pickerStep.value === 'year') return yearRangeLabel.value
@@ -53,7 +58,7 @@ watch(
     if (!open.value) return
     if (!value.trim()) pickerStep.value = 'year'
     else syncPickerWithValue(value)
-  },
+  }
 )
 
 onMounted(() => document.addEventListener('pointerdown', handleOutsidePointerDown))
@@ -71,7 +76,10 @@ function parseAirDate(value: string) {
 }
 
 function formatDate(year: number, month: number, day: number) {
-  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(
+    2,
+    '0'
+  )}`
 }
 
 function daysInMonth(year: number, month: number) {
@@ -109,8 +117,10 @@ function ensureOpen() {
 }
 
 function changePeriod(offset: number) {
-  if (pickerStep.value === 'year') visibleYear.value = Math.min(9999, Math.max(1, visibleYear.value + offset * 20))
-  else if (pickerStep.value === 'month') visibleYear.value = Math.min(9999, Math.max(1, visibleYear.value + offset))
+  if (pickerStep.value === 'year')
+    visibleYear.value = Math.min(9999, Math.max(1, visibleYear.value + offset * 20))
+  else if (pickerStep.value === 'month')
+    visibleYear.value = Math.min(9999, Math.max(1, visibleYear.value + offset))
   else {
     const nextMonth = createCalendarDate(visibleYear.value, visibleMonth.value + offset, 1)
     if (nextMonth.getFullYear() < 1 || nextMonth.getFullYear() > 9999) return
@@ -141,7 +151,9 @@ function clearDate() {
 
 function isSelectedDay(day: number) {
   const parts = parseAirDate(props.modelValue)
-  return parts?.year === visibleYear.value && parts.month === visibleMonth.value + 1 && parts.day === day
+  return (
+    parts?.year === visibleYear.value && parts.month === visibleMonth.value + 1 && parts.day === day
+  )
 }
 
 function normalizeInput() {
@@ -161,14 +173,20 @@ function handleKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div ref="root" class="anime-date-input" :class="{ open, invalid, disabled }" @keydown.esc.stop="handleKeydown">
+  <div
+    ref="root"
+    class="anime-date-input"
+    :class="{ open, invalid, disabled }"
+    @keydown.esc.stop="handleKeydown"
+  >
     <input
       :id="id"
       :value="modelValue"
       type="text"
       inputmode="numeric"
       autocomplete="off"
-      placeholder="YYYY-MM-DD"
+      :placeholder="placeholder || 'YYYY-MM-DD 可留空'"
+      :aria-label="label || '开始放送日期'"
       :disabled="disabled"
       :aria-invalid="invalid || undefined"
       :aria-describedby="describedBy"
@@ -182,7 +200,7 @@ function handleKeydown(event: KeyboardEvent) {
     <button
       class="anime-date-trigger"
       type="button"
-      aria-label="打开开始放送日期选择器"
+      :aria-label="`打开${label || '开始放送日期'}选择器`"
       :aria-expanded="open"
       :disabled="disabled"
       @mousedown.prevent
@@ -190,13 +208,23 @@ function handleKeydown(event: KeyboardEvent) {
     >
       <AdminIcon name="calendar" />
     </button>
-    <div v-if="open" class="anime-date-panel" role="dialog" aria-label="选择开始放送日期" @pointerdown.prevent>
+    <div
+      v-if="open"
+      class="anime-date-panel"
+      role="dialog"
+      :aria-label="`选择${label || '开始放送日期'}`"
+      @pointerdown.prevent
+    >
       <header class="anime-date-panel-head">
         <button
           type="button"
-          :aria-label="pickerStep === 'year' ? '上一组年份' : pickerStep === 'month' ? '上一年' : '上个月'"
+          :aria-label="
+            pickerStep === 'year' ? '上一组年份' : pickerStep === 'month' ? '上一年' : '上个月'
+          "
           @click="changePeriod(-1)"
-        ><AdminIcon name="left" /></button>
+        >
+          <AdminIcon name="left" />
+        </button>
         <div class="anime-date-panel-title">
           <template v-if="pickerStep === 'year'">{{ headerLabel }}</template>
           <template v-else-if="pickerStep === 'month'">
@@ -209,19 +237,30 @@ function handleKeydown(event: KeyboardEvent) {
         </div>
         <button
           type="button"
-          :aria-label="pickerStep === 'year' ? '下一组年份' : pickerStep === 'month' ? '下一年' : '下个月'"
+          :aria-label="
+            pickerStep === 'year' ? '下一组年份' : pickerStep === 'month' ? '下一年' : '下个月'
+          "
           @click="changePeriod(1)"
-        ><AdminIcon name="right" /></button>
+        >
+          <AdminIcon name="right" />
+        </button>
       </header>
 
-      <div v-if="pickerStep === 'year'" class="anime-date-year-grid" role="grid" aria-label="选择年份">
+      <div
+        v-if="pickerStep === 'year'"
+        class="anime-date-year-grid"
+        role="grid"
+        aria-label="选择年份"
+      >
         <button
           v-for="year in yearOptions"
           :key="year"
           type="button"
           :class="{ selected: visibleYear === year }"
           @click="chooseYear(year)"
-        >{{ year }}</button>
+        >
+          {{ year }}
+        </button>
       </div>
 
       <template v-else-if="pickerStep === 'month'">
@@ -230,9 +269,15 @@ function handleKeydown(event: KeyboardEvent) {
             v-for="(month, index) in months"
             :key="month"
             type="button"
-            :class="{ selected: parseAirDate(modelValue)?.year === visibleYear && parseAirDate(modelValue)?.month === index + 1 }"
+            :class="{
+              selected:
+                parseAirDate(modelValue)?.year === visibleYear &&
+                parseAirDate(modelValue)?.month === index + 1,
+            }"
             @click="chooseMonth(index)"
-          >{{ month }}</button>
+          >
+            {{ month }}
+          </button>
         </div>
         <footer class="anime-date-panel-foot"><span>选择月份后继续选日期</span></footer>
       </template>
@@ -250,10 +295,15 @@ function handleKeydown(event: KeyboardEvent) {
               :aria-pressed="isSelectedDay(day)"
               :class="{
                 selected: isSelectedDay(day),
-                today: new Date().getFullYear() === visibleYear && new Date().getMonth() === visibleMonth && new Date().getDate() === day,
+                today:
+                  new Date().getFullYear() === visibleYear &&
+                  new Date().getMonth() === visibleMonth &&
+                  new Date().getDate() === day,
               }"
               @click="chooseDay(day)"
-            >{{ day }}</button>
+            >
+              {{ day }}
+            </button>
           </span>
         </div>
         <footer class="anime-date-panel-foot">
@@ -270,44 +320,260 @@ function handleKeydown(event: KeyboardEvent) {
 </template>
 
 <style scoped>
-.anime-date-input { position: relative; display: flex; width: 100%; height: 40px; min-width: 0; align-items: center; overflow: visible; background: var(--surface-solid); border: 1px solid var(--line); border-radius: 10px; transition: border-color 140ms ease, box-shadow 140ms ease; }
-.anime-date-input:hover, .anime-date-input.open { border-color: color-mix(in srgb,var(--accent) 44%,var(--line)); }
-.anime-date-input:focus-within { border-color: var(--accent); box-shadow: var(--focus); }
-.anime-date-input.invalid { border-color: var(--danger); }
-.anime-date-input.disabled { color: var(--ink-faint); background: var(--surface-muted); border-color: var(--line); }
-.anime-date-input.disabled:hover { border-color: var(--line); }
-.anime-date-input > input:not([type='checkbox']) { width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0 8px 0 10px; color: var(--ink); background: transparent; border: 0; border-radius: 0; outline: 0; box-shadow: none; font: 10px var(--font-body); }
-.anime-date-input > input::placeholder { color: var(--ink-faint); }
+.anime-date-input {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 40px;
+  min-width: 0;
+  align-items: center;
+  overflow: visible;
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.anime-date-input:hover,
+.anime-date-input.open {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+}
+.anime-date-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--focus);
+}
+.anime-date-input.invalid {
+  border-color: var(--danger);
+}
+.anime-date-input.disabled {
+  color: var(--ink-faint);
+  background: var(--surface-muted);
+  border-color: var(--line);
+}
+.anime-date-input.disabled:hover {
+  border-color: var(--line);
+}
+.anime-date-input > input:not([type='checkbox']) {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 8px 0 10px;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  box-shadow: none;
+  font: 10px var(--font-body);
+}
+.anime-date-input > input::placeholder {
+  color: var(--ink-faint);
+}
 .anime-date-input > input:not([type='checkbox']):hover,
-.anime-date-input > input:not([type='checkbox']):focus { border-color: transparent; box-shadow: none; }
-.anime-date-trigger { display: grid; width: 36px; height: 34px; flex: 0 0 auto; margin-right: 2px; place-items: center; color: var(--accent-strong); background: transparent; border: 0; border-radius: 8px; transition: background 140ms ease; }
-.anime-date-trigger:hover { background: var(--accent-soft); }
-.anime-date-input.disabled .anime-date-trigger { color: var(--ink-faint); background: transparent; cursor: not-allowed; }
-.anime-date-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; box-shadow: none; }
-.anime-date-trigger:disabled { color: var(--ink-faint); background: transparent; cursor: not-allowed; }
-.anime-date-trigger svg { width: 15px; height: 15px; }
-.anime-date-panel { position: absolute; top: calc(100% + 5px); left: 0; z-index: 150; width: min(300px, calc(100vw - 40px)); padding: 11px; color: var(--ink); background: var(--surface-solid); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 34px rgba(37,31,67,.17); animation: anime-date-in 130ms ease both; }
-.anime-date-panel-head { display: grid; grid-template-columns: 30px 1fr 30px; align-items: center; gap: 6px; margin-bottom: 9px; }
-.anime-date-panel-title { display: flex; justify-content: center; gap: 3px; color: var(--ink); font-size: 11px; font-weight: 700; }
-.anime-date-panel-title button { padding: 3px 5px; color: inherit; background: transparent; border: 0; border-radius: 6px; font: inherit; }
-.anime-date-panel-title button:hover { color: var(--accent-strong); background: var(--accent-soft); }
-.anime-date-panel-head > button { display: grid; width: 28px; height: 28px; place-items: center; color: var(--ink-faint); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 8px; }
-.anime-date-panel-head > button:hover { color: var(--accent-strong); background: var(--accent-soft); border-color: color-mix(in srgb,var(--accent) 35%,var(--line)); }
-.anime-date-panel-head svg { width: 13px; height: 13px; }
-.anime-date-year-grid, .anime-date-month-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 5px; }
-.anime-date-year-grid button, .anime-date-month-grid button { display: grid; min-height: 34px; place-items: center; color: var(--ink-soft); background: transparent; border: 1px solid transparent; border-radius: 8px; font: 10px var(--font-body); }
-.anime-date-year-grid button:hover, .anime-date-month-grid button:hover { color: var(--accent-strong); background: var(--accent-soft); }
-.anime-date-year-grid button.selected, .anime-date-month-grid button.selected { color: var(--accent-strong); background: var(--accent-soft); border-color: color-mix(in srgb,var(--accent) 45%,var(--line)); font-weight: 700; }
-.anime-date-weekdays, .anime-date-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); }
-.anime-date-weekdays { margin-bottom: 3px; color: var(--ink-faint); font-size: 9px; font-weight: 700; text-align: center; }
-.anime-date-weekdays span { display: grid; height: 24px; place-items: center; }
-.anime-date-cell { display: grid; height: 32px; place-items: center; }
-.anime-date-cell button { display: grid; width: 29px; height: 29px; place-items: center; color: var(--ink-soft); background: transparent; border: 1px solid transparent; border-radius: 8px; font: 10px var(--font-body); }
-.anime-date-cell button:hover { color: var(--accent-strong); background: var(--accent-soft); }
-.anime-date-cell button.today { color: var(--accent-strong); border-color: color-mix(in srgb,var(--accent) 40%,var(--line)); font-weight: 700; }
-.anime-date-cell button.selected { color: #fff; background: linear-gradient(135deg,var(--accent),var(--accent-strong)); box-shadow: 0 4px 10px color-mix(in srgb,var(--accent) 25%,transparent); }
-.anime-date-panel-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; margin-top: 7px; border-top: 1px solid var(--line); }
-.anime-date-panel-foot button { padding: 4px 0; color: var(--accent-strong); background: transparent; border: 0; font-size: 9px; font-weight: 700; }
-.anime-date-panel-foot span { color: var(--ink-faint); font-size: 8px; }
-@keyframes anime-date-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
+.anime-date-input > input:not([type='checkbox']):focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+.anime-date-trigger {
+  display: grid;
+  width: 36px;
+  height: 34px;
+  flex: 0 0 auto;
+  margin-right: 2px;
+  place-items: center;
+  color: var(--accent-strong);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  transition: background 140ms ease;
+}
+.anime-date-trigger:hover {
+  background: var(--accent-soft);
+}
+.anime-date-input.disabled .anime-date-trigger {
+  color: var(--ink-faint);
+  background: transparent;
+  cursor: not-allowed;
+}
+.anime-date-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+.anime-date-trigger:disabled {
+  color: var(--ink-faint);
+  background: transparent;
+  cursor: not-allowed;
+}
+.anime-date-trigger svg {
+  width: 15px;
+  height: 15px;
+}
+.anime-date-panel {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 150;
+  width: min(300px, calc(100vw - 40px));
+  padding: 11px;
+  color: var(--ink);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(37, 31, 67, 0.17);
+  animation: anime-date-in 130ms ease both;
+}
+.anime-date-panel-head {
+  display: grid;
+  grid-template-columns: 30px 1fr 30px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 9px;
+}
+.anime-date-panel-title {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+}
+.anime-date-panel-title button {
+  padding: 3px 5px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+}
+.anime-date-panel-title button:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+.anime-date-panel-head > button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--ink-faint);
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.anime-date-panel-head > button:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+.anime-date-panel-head svg {
+  width: 13px;
+  height: 13px;
+}
+.anime-date-year-grid,
+.anime-date-month-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+.anime-date-year-grid button,
+.anime-date-month-grid button {
+  display: grid;
+  min-height: 34px;
+  place-items: center;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font: 10px var(--font-body);
+}
+.anime-date-year-grid button:hover,
+.anime-date-month-grid button:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+.anime-date-year-grid button.selected,
+.anime-date-month-grid button.selected {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  font-weight: 700;
+}
+.anime-date-weekdays,
+.anime-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.anime-date-weekdays {
+  margin-bottom: 3px;
+  color: var(--ink-faint);
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+}
+.anime-date-weekdays span {
+  display: grid;
+  height: 24px;
+  place-items: center;
+}
+.anime-date-cell {
+  display: grid;
+  height: 32px;
+  place-items: center;
+}
+.anime-date-cell button {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font: 10px var(--font-body);
+}
+.anime-date-cell button:hover {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+.anime-date-cell button.today {
+  color: var(--accent-strong);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  font-weight: 700;
+}
+.anime-date-cell button.selected {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.anime-date-panel-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  margin-top: 7px;
+  border-top: 1px solid var(--line);
+}
+.anime-date-panel-foot button {
+  padding: 4px 0;
+  color: var(--accent-strong);
+  background: transparent;
+  border: 0;
+  font-size: 9px;
+  font-weight: 700;
+}
+.anime-date-panel-foot span {
+  color: var(--ink-faint);
+  font-size: 8px;
+}
+@keyframes anime-date-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 </style>

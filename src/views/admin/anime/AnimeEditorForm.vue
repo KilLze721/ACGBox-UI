@@ -158,7 +158,7 @@ async function getAllPages<T>(loadPage: (pageNum: number) => Promise<PageResult<
   const firstPage = await loadPage(1)
   if (firstPage.pages <= 1) return firstPage.rows
   const remaining = await Promise.all(
-    Array.from({ length: firstPage.pages - 1 }, (_, index) => loadPage(index + 2)),
+    Array.from({ length: firstPage.pages - 1 }, (_, index) => loadPage(index + 2))
   )
   return firstPage.rows.concat(remaining.flatMap((page) => page.rows))
 }
@@ -167,7 +167,7 @@ async function getAllPages<T>(loadPage: (pageNum: number) => Promise<PageResult<
 function applyAnime(
   anime: AnimeDetail,
   companyNames: CompanyOption[],
-  selectedSeries: SeriesSummary | null,
+  selectedSeries: SeriesSummary | null
 ) {
   // 未返回关联数据时不能按空数组保存，避免覆盖原有创作人员。
   if (!Array.isArray(anime.persons)) {
@@ -241,7 +241,8 @@ async function loadForm() {
   loadError.value = ''
   personsLoaded.value = props.mode === 'create'
   try {
-    if (props.mode === 'edit' && !props.animeId) throw new Error('未取得动画标识，无法读取修改资料。')
+    if (props.mode === 'edit' && !props.animeId)
+      throw new Error('未取得动画标识，无法读取修改资料。')
     const [, region, allTags, anime] = await Promise.all([
       refreshTypeOptions(),
       getRegions(controller.signal),
@@ -255,14 +256,16 @@ async function loadForm() {
     regions.value = region
     tags.value = allTags
     if (entryPreferences) {
-      if (!broadcastTypes.value.some((option) => String(option.id) === form.broadcastTypeId)) entryPreferences.broadcastTypeId = form.broadcastTypeId = ''
-      if (!region.some((option) => String(option.id) === form.regionId)) entryPreferences.regionId = form.regionId = ''
+      if (!broadcastTypes.value.some((option) => String(option.id) === form.broadcastTypeId))
+        entryPreferences.broadcastTypeId = form.broadcastTypeId = ''
+      if (!region.some((option) => String(option.id) === form.regionId))
+        entryPreferences.regionId = form.regionId = ''
       initialFormState.value = getFormSnapshot()
     }
     if (anime) {
       const [companyNames, selectedSeries] = await Promise.all([
         Promise.all(
-          anime.companies.map((company) => getCompanyById(company.companyId, controller.signal)),
+          anime.companies.map((company) => getCompanyById(company.companyId, controller.signal))
         ),
         anime.seriesId === null
           ? Promise.resolve(null)
@@ -308,10 +311,14 @@ function addPerson() {
   if (submitting.value) return
   const sortOrder = Math.min(
     2147483647,
-    Math.max(-1, ...form.persons.map((person) => person.sortOrder)) + 1,
+    Math.max(-1, ...form.persons.map((person) => person.sortOrder)) + 1
   )
   form.persons.push({
-    rowKey: nextPersonRowKey++, personId: '', personName: '', role: '', sortOrder,
+    rowKey: nextPersonRowKey++,
+    personId: '',
+    personName: '',
+    role: '',
+    sortOrder,
   })
 }
 
@@ -392,10 +399,14 @@ function moveAlias(index: number, offset: number) {
 function addCompany() {
   const sortOrder = Math.min(
     2147483647,
-    Math.max(-1, ...form.companies.map((company) => company.sortOrder)) + 1,
+    Math.max(-1, ...form.companies.map((company) => company.sortOrder)) + 1
   )
   form.companies.push({
-    rowKey: nextCompanyRowKey++, companyId: '', companyName: '', role: '', sortOrder,
+    rowKey: nextCompanyRowKey++,
+    companyId: '',
+    companyName: '',
+    role: '',
+    sortOrder,
   })
 }
 
@@ -429,7 +440,7 @@ function addExternalLink() {
   if (submitting.value) return
   const sortOrder = Math.min(
     2147483647,
-    Math.max(-1, ...form.externalLinks.map((link) => Number(link.sortOrder))) + 1,
+    Math.max(-1, ...form.externalLinks.map((link) => Number(link.sortOrder))) + 1
   )
   form.externalLinks.push({
     rowKey: nextExternalLinkRowKey++,
@@ -524,7 +535,9 @@ function validateForm() {
     } else if (Array.from(role).length > 50) {
       setError(key, '职责不能超过 50 个字符。')
     } else if (
-      !Number.isInteger(person.sortOrder) || person.sortOrder < 0 || person.sortOrder > 2147483647
+      !Number.isInteger(person.sortOrder) ||
+      person.sortOrder < 0 ||
+      person.sortOrder > 2147483647
     ) {
       setError(key, '人员排序必须是 0 至 2147483647 的整数，请通过上移、下移调整。')
     } else {
@@ -562,7 +575,10 @@ function normalizeAirDate(value: string) {
   const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
   const lastDay = month === 2 ? (isLeapYear ? 29 : 28) : [4, 6, 9, 11].includes(month) ? 30 : 31
   if (day < 1 || day > lastDay) return null
-  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(
+    2,
+    '0'
+  )}`
 }
 
 // 将输入框中的字符串、可选空值和重复行整理为后端动画数据模型。
@@ -606,6 +622,11 @@ function buildPayload(): AnimePayload {
     ...(props.mode === 'create' ? { autoCreateSeries: form.autoCreateSeries } : {}),
     personalRatingScore: form.personalRatingScore ? Number(form.personalRatingScore) : null,
   }
+}
+
+function selectRating(value: string) {
+  form.personalRatingScore = value
+  errors.personalRatingScore = ''
 }
 
 function requestSave() {
@@ -784,7 +805,11 @@ async function confirmAction() {
               id="animeAirDate"
               v-model="form.airDate"
               :invalid="!!errors.airDate"
-              @update:model-value="(value) => { if (!value.trim() || normalizeAirDate(value)) errors.airDate = '' }"
+              @update:model-value="
+                (value) => {
+                  if (!value.trim() || normalizeAirDate(value)) errors.airDate = ''
+                }
+              "
             />
             <small v-if="errors.airDate" class="field-error">{{ errors.airDate }}</small>
           </div>
@@ -814,15 +839,22 @@ async function confirmAction() {
                 role="radio"
                 :aria-label="`${score} 分`"
                 :aria-checked="form.personalRatingScore === String(score)"
-                @click="form.personalRatingScore = String(score); errors.personalRatingScore = ''"
-              >★</button>
-              <span class="anime-rating-value">{{ form.personalRatingScore === '' ? '未评分' : form.personalRatingScore }} / 10</span>
+                @click="selectRating(String(score))"
+              >
+                ★
+              </button>
+              <span class="anime-rating-value"
+                >{{ form.personalRatingScore === '' ? '未评分' : form.personalRatingScore }} /
+                10</span
+              >
               <button
                 v-if="form.personalRatingScore"
                 class="anime-rating-clear"
                 type="button"
-                @click="form.personalRatingScore = ''; errors.personalRatingScore = ''"
-              >清除</button>
+                @click="selectRating('')"
+              >
+                清除
+              </button>
             </div>
             <small v-if="errors.personalRatingScore" class="field-error">{{
               errors.personalRatingScore
@@ -879,7 +911,12 @@ async function confirmAction() {
                 :key="`alias-${index}`"
                 class="anime-repeat-row"
               >
-                <input v-model="form.aliasNames[index]" type="text" placeholder="输入别名" :disabled="submitting" />
+                <input
+                  v-model="form.aliasNames[index]"
+                  type="text"
+                  placeholder="输入别名"
+                  :disabled="submitting"
+                />
                 <div class="anime-repeat-actions">
                   <button
                     class="anime-order-button move-up"
@@ -888,7 +925,9 @@ async function confirmAction() {
                     title="上移"
                     :disabled="submitting || index === 0"
                     @click="moveAlias(index, -1)"
-                  ><AdminIcon name="right" /></button>
+                  >
+                    <AdminIcon name="right" />
+                  </button>
                   <button
                     class="anime-order-button move-down"
                     type="button"
@@ -896,18 +935,27 @@ async function confirmAction() {
                     title="下移"
                     :disabled="submitting || index === form.aliasNames.length - 1"
                     @click="moveAlias(index, 1)"
-                  ><AdminIcon name="right" /></button>
+                  >
+                    <AdminIcon name="right" />
+                  </button>
                   <button
                     class="anime-remove-button"
                     type="button"
                     :aria-label="`移除别名 ${index + 1}`"
                     :disabled="submitting"
                     @click="removeAlias(index)"
-                  ><AdminIcon name="close" /></button>
+                  >
+                    <AdminIcon name="close" />
+                  </button>
                 </div>
               </div>
             </div>
-            <button class="anime-inline-button" type="button" :disabled="submitting" @click="addAlias">
+            <button
+              class="anime-inline-button"
+              type="button"
+              :disabled="submitting"
+              @click="addAlias"
+            >
               <AdminIcon name="plus" />添加别名
             </button>
           </div>
@@ -927,13 +975,22 @@ async function confirmAction() {
               </button>
               <span v-if="!tags.length" class="anime-muted-note">暂无可选标签</span>
             </div>
-            <button class="anime-inline-button" type="button" :disabled="submitting" @click="openTagManagement">
+            <button
+              class="anime-inline-button"
+              type="button"
+              :disabled="submitting"
+              @click="openTagManagement"
+            >
               <AdminIcon name="right" />到标签管理中新增
             </button>
-            <small v-if="tagsRefreshing" class="anime-muted-note" role="status">正在更新标签…</small>
+            <small v-if="tagsRefreshing" class="anime-muted-note" role="status"
+              >正在更新标签…</small
+            >
             <small v-if="tagLoadError" class="field-error" role="alert">
               {{ tagLoadError }}
-              <button class="anime-inline-button" type="button" @click="refreshTags">重新读取标签</button>
+              <button class="anime-inline-button" type="button" @click="refreshTags">
+                重新读取标签
+              </button>
             </small>
           </div>
         </div>
@@ -988,7 +1045,9 @@ async function confirmAction() {
                     title="上移"
                     :disabled="submitting || index === 0"
                     @click="movePerson(index, -1)"
-                  ><AdminIcon name="right" /></button>
+                  >
+                    <AdminIcon name="right" />
+                  </button>
                   <button
                     class="anime-order-button move-down"
                     type="button"
@@ -996,21 +1055,41 @@ async function confirmAction() {
                     title="下移"
                     :disabled="submitting || index === form.persons.length - 1"
                     @click="movePerson(index, 1)"
-                  ><AdminIcon name="right" /></button>
+                  >
+                    <AdminIcon name="right" />
+                  </button>
                   <button
                     class="anime-remove-button"
                     type="button"
                     :aria-label="`移除人员 ${index + 1}`"
                     :disabled="submitting"
                     @click="removePerson(index)"
-                  ><AdminIcon name="close" /></button>
+                  >
+                    <AdminIcon name="close" />
+                  </button>
                 </div>
               </div>
             </div>
-            <small v-if="errors.persons" class="field-error" role="alert">{{ errors.persons }}</small>
+            <small v-if="errors.persons" class="field-error" role="alert">{{
+              errors.persons
+            }}</small>
             <div class="anime-person-actions">
-              <button class="anime-inline-button" type="button" :disabled="submitting" @click="addPerson"><AdminIcon name="plus" />添加人员</button>
-              <button class="anime-inline-button" type="button" :disabled="submitting" @click="openPersonManagement"><AdminIcon name="right" />到人物管理新增</button>
+              <button
+                class="anime-inline-button"
+                type="button"
+                :disabled="submitting"
+                @click="addPerson"
+              >
+                <AdminIcon name="plus" />添加人员
+              </button>
+              <button
+                class="anime-inline-button"
+                type="button"
+                :disabled="submitting"
+                @click="openPersonManagement"
+              >
+                <AdminIcon name="right" />到人物管理新增
+              </button>
             </div>
           </div>
           <div class="field full">
@@ -1049,7 +1128,9 @@ async function confirmAction() {
                     title="上移"
                     :disabled="submitting || index === 0"
                     @click="moveCompany(index, -1)"
-                  ><AdminIcon name="right" /></button>
+                  >
+                    <AdminIcon name="right" />
+                  </button>
                   <button
                     class="anime-order-button move-down"
                     type="button"
@@ -1057,22 +1138,36 @@ async function confirmAction() {
                     title="下移"
                     :disabled="submitting || index === form.companies.length - 1"
                     @click="moveCompany(index, 1)"
-                  ><AdminIcon name="right" /></button>
+                  >
+                    <AdminIcon name="right" />
+                  </button>
                   <button
                     class="anime-remove-button"
                     type="button"
                     :aria-label="`移除公司 ${index + 1}`"
                     :disabled="submitting"
                     @click="removeCompany(index)"
-                  ><AdminIcon name="close" /></button>
+                  >
+                    <AdminIcon name="close" />
+                  </button>
                 </div>
               </div>
             </div>
             <div class="anime-person-actions">
-              <button class="anime-inline-button" type="button" :disabled="submitting" @click="addCompany">
+              <button
+                class="anime-inline-button"
+                type="button"
+                :disabled="submitting"
+                @click="addCompany"
+              >
                 <AdminIcon name="plus" />添加公司
               </button>
-              <button class="anime-inline-button" type="button" :disabled="submitting" @click="openCompanyManagement">
+              <button
+                class="anime-inline-button"
+                type="button"
+                :disabled="submitting"
+                @click="openCompanyManagement"
+              >
                 <AdminIcon name="right" />到公司管理新增
               </button>
             </div>
@@ -1108,7 +1203,9 @@ async function confirmAction() {
                 :aria-checked="form.autoCreateSeries"
                 aria-label="无系列时自动创建"
                 @click="form.autoCreateSeries = !form.autoCreateSeries"
-              ><span></span></button>
+              >
+                <span></span>
+              </button>
             </label>
           </div>
           <div class="field full">
@@ -1143,7 +1240,9 @@ async function confirmAction() {
                     title="上移"
                     :disabled="submitting || index === 0"
                     @click="moveExternalLink(index, -1)"
-                  ><AdminIcon name="right" /></button>
+                  >
+                    <AdminIcon name="right" />
+                  </button>
                   <button
                     class="anime-order-button move-down"
                     type="button"
@@ -1151,21 +1250,30 @@ async function confirmAction() {
                     title="下移"
                     :disabled="submitting || index === form.externalLinks.length - 1"
                     @click="moveExternalLink(index, 1)"
-                  ><AdminIcon name="right" /></button>
+                  >
+                    <AdminIcon name="right" />
+                  </button>
                   <button
                     class="anime-remove-button"
                     type="button"
                     :aria-label="`移除外链 ${index + 1}`"
                     :disabled="submitting"
                     @click="removeExternalLink(index)"
-                  ><AdminIcon name="close" /></button>
+                  >
+                    <AdminIcon name="close" />
+                  </button>
                 </div>
                 <small v-if="errors[`external-${index}`]" class="field-error">{{
                   errors[`external-${index}`]
                 }}</small>
               </div>
             </div>
-            <button class="anime-inline-button" type="button" :disabled="submitting" @click="addExternalLink">
+            <button
+              class="anime-inline-button"
+              type="button"
+              :disabled="submitting"
+              @click="addExternalLink"
+            >
               <AdminIcon name="plus" />添加外链
             </button>
           </div>
@@ -1197,19 +1305,40 @@ async function confirmAction() {
         >
           <span class="anime-confirm-mark" aria-hidden="true">?</span>
           <h2 id="animeConfirmTitle">
-            {{ confirmationAction === 'save' ? '确认保存动画？' : confirmationAction === 'reset' ? '确认重置表单？' : '确认取消编辑？' }}
+            {{
+              confirmationAction === 'save'
+                ? '确认保存动画？'
+                : confirmationAction === 'reset'
+                ? '确认重置表单？'
+                : '确认取消编辑？'
+            }}
           </h2>
           <p>
-            {{ confirmationAction === 'save' ? '请确认当前动画资料无误后继续保存。' : confirmationAction === 'reset' ? '当前填写的内容将被清空，是否继续？' : '尚未保存的修改将会丢失，是否离开？' }}
+            {{
+              confirmationAction === 'save'
+                ? '请确认当前动画资料无误后继续保存。'
+                : confirmationAction === 'reset'
+                ? '当前填写的内容将被清空，是否继续？'
+                : '尚未保存的修改将会丢失，是否离开？'
+            }}
           </p>
           <div class="anime-confirm-actions">
+            <button class="secondary-button" type="button" @click="dismissConfirmation">
+              返回
+            </button>
             <button
-              class="secondary-button"
+              class="primary-button"
               type="button"
-              @click="dismissConfirmation"
-            >返回</button>
-            <button class="primary-button" type="button" :disabled="submitting" @click="confirmAction">
-              {{ confirmationAction === 'save' ? '确认保存' : confirmationAction === 'reset' ? '确认重置' : '确认离开' }}
+              :disabled="submitting"
+              @click="confirmAction"
+            >
+              {{
+                confirmationAction === 'save'
+                  ? '确认保存'
+                  : confirmationAction === 'reset'
+                  ? '确认重置'
+                  : '确认离开'
+              }}
             </button>
           </div>
         </section>
@@ -1218,547 +1347,4 @@ async function confirmAction() {
   </div>
 </template>
 
-<style scoped>
-.anime-editor-form {
-  display: grid;
-  gap: 14px;
-}
-.anime-person-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.anime-form-state {
-  padding: 32px;
-  color: var(--ink-soft);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  text-align: center;
-  font-size: 12px;
-}
-.anime-form-state.error,
-.anime-save-error {
-  color: var(--danger);
-}
-.anime-editor-content {
-  display: grid;
-  gap: 14px;
-}
-.anime-editor-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 22px 24px;
-  color: #f5f2ff;
-  background:
-    radial-gradient(circle at 85% 20%, rgba(217, 95, 134, 0.26), transparent 18rem),
-    linear-gradient(125deg, #25233b, #302844);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-}
-.anime-editor-hero .eyebrow {
-  margin: 0 0 7px;
-  color: #c2badc;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-.anime-editor-hero h1 {
-  margin: 0;
-  font: 700 24px/1.3 var(--font-display);
-}
-.anime-editor-hero h1 span {
-  color: #c5bfd8;
-  font: 600 11px var(--font-body);
-}
-.anime-editor-hero p:last-child {
-  margin: 7px 0 0;
-  color: #c7c3d3;
-  font-size: 10px;
-}
-.required-mark {
-  color: var(--accent);
-}
-.anime-editor-actions {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 8px;
-}
-.anime-editor-actions .secondary-button {
-  min-height: 36px;
-  font-size: 10px;
-}
-.anime-editor-actions .primary-button {
-  min-height: 36px;
-  font-size: 10px;
-}
-.anime-editor-card {
-  padding: 19px;
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 17px;
-  box-shadow: var(--shadow-soft);
-}
-.anime-editor-section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 14px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--line);
-}
-.anime-editor-section-head h2 {
-  margin: 0;
-  font: 700 14px var(--font-display);
-}
-.anime-editor-section-head p {
-  margin: 3px 0 0;
-  color: var(--ink-faint);
-  font-size: 9px;
-}
-.anime-editor-section-head > span {
-  color: var(--accent);
-  font: 700 18px var(--font-display);
-}
-.anime-editor-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 15px 13px;
-}
-.anime-editor-grid .field.full {
-  grid-column: 1 / -1;
-}
-.anime-editor-grid .field > span,
-.anime-field-label {
-  display: block;
-  margin-bottom: 6px;
-  color: var(--ink-soft);
-  font-size: 10px;
-  font-weight: 700;
-}
-.anime-editor-grid .field input:not([type='checkbox']),
-.anime-editor-grid .field textarea,
-.anime-repeat-row > input,
-.anime-repeat-row > select {
-  width: 100%;
-  min-width: 0;
-  min-height: 38px;
-  padding: 0 10px;
-  color: var(--ink);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  outline: none;
-  font: 10px var(--font-body);
-}
-.anime-editor-grid .field textarea {
-  min-height: 90px;
-  padding: 10px;
-  resize: vertical;
-}
-.anime-editor-grid .field input:focus,
-.anime-editor-grid .field textarea:focus,
-.anime-repeat-row > input:focus,
-.anime-repeat-row > select:focus {
-  border-color: var(--accent);
-  box-shadow: var(--focus);
-}
-.anime-editor-grid .field.has-error > input,
-.anime-editor-grid .field.has-error .anime-input-suffix {
-  border-color: var(--danger);
-}
-.anime-input-suffix {
-  display: flex;
-  height: 38px;
-  align-items: center;
-  overflow: hidden;
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-}
-.anime-input-suffix input {
-  height: 100%;
-  flex: 1;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-.anime-input-suffix i {
-  padding: 0 10px;
-  color: var(--ink-faint);
-  font-size: 10px;
-  font-style: normal;
-  white-space: nowrap;
-}
-.anime-cover-field {
-  display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
-  align-items: center;
-  gap: 11px;
-}
-.anime-cover-preview {
-  display: grid;
-  width: 68px;
-  height: 86px;
-  overflow: hidden;
-  place-items: center;
-  color: var(--ink-faint);
-  background: var(--surface-muted);
-  border: 1px dashed var(--line-strong);
-  border-radius: 9px;
-  font-size: 8px;
-}
-.anime-cover-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.anime-repeat-list {
-  display: grid;
-  gap: 7px;
-}
-.anime-repeat-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 7px;
-}
-.anime-repeat-row:has(.anime-entity-select) {
-  grid-template-columns: minmax(0, 1.4fr) minmax(110px, 0.8fr) auto;
-  align-items: start;
-}
-.anime-repeat-row:has(.anime-entity-select) > .anime-repeat-actions {
-  margin-top: 3px;
-}
-.anime-repeat-row > select {
-  height: 38px;
-}
-.anime-repeat-row.invalid > * {
-  border-color: var(--danger);
-}
-.anime-repeat-row .field-error {
-  grid-column: 1 / -1;
-}
-.anime-remove-button {
-  display: grid;
-  width: 31px;
-  height: 31px;
-  place-items: center;
-  color: var(--ink-faint);
-  background: var(--surface-muted);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-.anime-remove-button:hover {
-  color: var(--danger);
-  background: var(--danger-soft);
-}
-.anime-remove-button svg {
-  width: 13px;
-  height: 13px;
-}
-.anime-repeat-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.anime-order-button {
-  display: grid;
-  width: 31px;
-  height: 31px;
-  flex: 0 0 auto;
-  place-items: center;
-  color: var(--ink-soft);
-  background: var(--surface-muted);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-.anime-order-button svg {
-  width: 14px;
-  height: 14px;
-}
-.anime-order-button.move-up svg {
-  transform: rotate(-90deg);
-}
-.anime-order-button.move-down svg {
-  transform: rotate(90deg);
-}
-.anime-order-button:hover:not(:disabled) {
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-}
-.anime-order-button:focus-visible,
-.anime-remove-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.anime-editor-content .anime-repeat-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-.anime-catalog-warning {
-  color: var(--danger);
-  font-size: 11px;
-}
-.anime-catalog-warning button {
-  margin-left: 8px;
-  color: var(--accent-strong);
-  background: transparent;
-}
-.anime-inline-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 30px;
-  padding: 0 9px;
-  margin-top: 9px;
-  color: var(--accent-strong);
-  background: var(--surface-solid);
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
-  border-radius: 8px;
-  font-size: 9px;
-  font-weight: 700;
-  transition: background 140ms ease, border-color 140ms ease;
-}
-.anime-inline-button:hover {
-  background: var(--accent-soft);
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
-}
-.anime-inline-button svg {
-  width: 13px;
-  height: 13px;
-}
-.anime-tag-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-.anime-tag-picker .tag-option {
-  min-height: 29px;
-}
-.anime-muted-note {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.anime-series-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.7fr);
-  gap: 10px;
-}
-.anime-switch-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0 0;
-  margin-top: 7px;
-  border-top: 1px solid var(--line);
-}
-.anime-switch-row strong,
-.anime-switch-row small {
-  display: block;
-}
-.anime-switch-row strong {
-  color: var(--ink-soft);
-  font-size: 10px;
-}
-.anime-switch-row small {
-  margin-top: 2px;
-  color: var(--ink-faint);
-  font-size: 9px;
-}
-.anime-switch {
-  position: relative;
-  width: 38px;
-  height: 22px;
-  flex: 0 0 auto;
-  padding: 2px;
-  background: var(--line-strong);
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  transition: background 140ms ease, border-color 140ms ease;
-}
-.anime-switch span {
-  display: block;
-  width: 16px;
-  height: 16px;
-  background: #fff;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(25, 22, 42, 0.2);
-  transition: transform 140ms ease;
-}
-.anime-switch[aria-checked='true'] {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-.anime-switch[aria-checked='true'] span {
-  transform: translateX(16px);
-}
-.anime-switch:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.anime-rating-control {
-  display: flex;
-  min-height: 38px;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px;
-}
-.anime-rating-star {
-  padding: 1px 2px;
-  color: var(--line-strong);
-  background: transparent;
-  border: 0;
-  font-size: 19px;
-  line-height: 1;
-  transition: color 120ms ease, transform 120ms ease;
-}
-.anime-rating-star:hover,
-.anime-rating-star.selected {
-  color: var(--yellow);
-}
-.anime-rating-star:hover {
-  transform: translateY(-1px);
-}
-.anime-rating-value {
-  margin-left: 7px;
-  color: var(--ink-faint);
-  font-size: 9px;
-  white-space: nowrap;
-}
-.anime-rating-clear {
-  padding: 3px 5px;
-  color: var(--accent-strong);
-  background: transparent;
-  border: 0;
-  font-size: 9px;
-}
-.anime-confirm-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  overflow: hidden;
-  background: rgba(18, 17, 30, 0.42);
-  backdrop-filter: blur(3px);
-  overscroll-behavior: contain;
-}
-.anime-confirm-dialog {
-  width: min(390px, 100%);
-  max-height: calc(100dvh - 36px);
-  padding: 22px;
-  overflow-y: auto;
-  color: var(--ink);
-  background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  box-shadow: 0 22px 60px rgba(20, 17, 40, 0.22);
-  overscroll-behavior: contain;
-}
-.anime-confirm-mark {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border-radius: 11px;
-  font-weight: 800;
-}
-.anime-confirm-dialog h2 {
-  margin: 13px 0 6px;
-  font: 700 15px var(--font-display);
-}
-.anime-confirm-dialog p {
-  margin: 0;
-  color: var(--ink-faint);
-  font-size: 10px;
-  line-height: 1.7;
-}
-.anime-confirm-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
-}
-.anime-link-row {
-  grid-template-columns: minmax(110px, 0.8fr) minmax(180px, 1.5fr) auto;
-}
-.anime-editor-grid .field .field-error,
-.anime-repeat-row .field-error {
-  margin: 4px 2px 0;
-  color: var(--danger);
-  font-size: 9px;
-}
-.anime-save-error {
-  padding: 10px 12px;
-  margin: 0;
-  background: var(--danger-soft);
-  border-radius: 9px;
-  font-size: 10px;
-}
-.anime-editor-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 2px 1px 8px;
-}
-.anime-editor-footer button {
-  min-height: 37px;
-}
-.anime-editor-content button:disabled {
-  cursor: wait;
-  opacity: 0.6;
-}
-@media (max-width: 620px) {
-  .anime-repeat-row:has(.anime-entity-select) {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .anime-repeat-row:has(.anime-entity-select) > .anime-repeat-actions {
-    grid-column: 2;
-    grid-row: 1 / 3;
-    flex-direction: column;
-  }
-  .anime-repeat-row:has(.anime-entity-select) > .anime-suggestion-input {
-    grid-column: 1;
-  }
-  .anime-editor-hero {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 18px;
-  }
-  .anime-editor-hero h1 {
-    font-size: 21px;
-  }
-  .anime-editor-hero h1 span {
-    display: block;
-    margin-top: 3px;
-  }
-  .anime-editor-card {
-    padding: 15px;
-  }
-  .anime-editor-grid {
-    grid-template-columns: 1fr;
-  }
-  .anime-editor-grid .field.full {
-    grid-column: auto;
-  }
-  .anime-link-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .anime-link-row > .anime-repeat-actions {
-    grid-column: 2;
-    grid-row: 1 / 3;
-    flex-direction: column;
-  }
-  .anime-link-row > input {
-    grid-column: 1;
-  }
-  .anime-series-fields {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
+<style scoped src="@/assets/animeEditorForm.css"></style>
