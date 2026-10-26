@@ -129,7 +129,7 @@ export interface AnimePageItem {
   episodeCount: number | null
   broadcastType: NamedOption
   adaptationType: NamedOption
-  airDate: string
+  airDate: string | null
   coverImageUrl: string | null
   status: number
   region: NamedOption
@@ -147,7 +147,7 @@ export interface AnimeDetail {
   broadcastTypeId: number
   adaptationTypeId: number
   regionId: number
-  airDate: string
+  airDate: string | null
   coverImageUrl: string | null
   status: number
   description: string | null
@@ -168,7 +168,7 @@ export interface AnimePayload {
   broadcastTypeId: number
   adaptationTypeId: number
   regionId: number
-  airDate: string
+  airDate: string | null
   coverImageUrl?: string | null
   status: number
   description?: string | null

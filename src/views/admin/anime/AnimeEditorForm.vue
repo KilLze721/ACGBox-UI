@@ -179,7 +179,7 @@ function applyAnime(
     adaptationTypeId: String(anime.adaptationTypeId),
     regionId: String(anime.regionId),
     status: String(anime.status),
-    airDate: anime.airDate,
+    airDate: anime.airDate ?? '',
     episodeCount: anime.episodeCount === null ? '' : String(anime.episodeCount),
     personalRatingScore:
       anime.personalRatingScore === null ? '' : String(Math.round(anime.personalRatingScore)),
@@ -484,9 +484,11 @@ function validateForm() {
   if (!form.adaptationTypeId) setError('adaptationTypeId', '请选择改编类型。')
   if (!form.regionId) setError('regionId', '请选择地区。')
   if (!form.status) setError('status', '请选择动画状态。')
-  const normalizedAirDate = normalizeAirDate(form.airDate)
-  if (!normalizedAirDate) setError('airDate', '请输入完整且有效的开始放送日期（YYYY-MM-DD）。')
-  else form.airDate = normalizedAirDate
+  if (form.airDate.trim()) {
+    const normalizedAirDate = normalizeAirDate(form.airDate)
+    if (!normalizedAirDate) setError('airDate', '请输入完整且有效的开始放送日期（YYYY-MM-DD）。')
+    else form.airDate = normalizedAirDate
+  } else form.airDate = ''
   if (form.episodeCount && (!/^\d+$/.test(form.episodeCount) || Number(form.episodeCount) < 0)) {
     setError('episodeCount', '总集数请输入非负整数。')
   }
@@ -572,7 +574,7 @@ function buildPayload(): AnimePayload {
     broadcastTypeId: Number(form.broadcastTypeId),
     adaptationTypeId: Number(form.adaptationTypeId),
     regionId: Number(form.regionId),
-    airDate: normalizeAirDate(form.airDate) ?? form.airDate,
+    airDate: normalizeAirDate(form.airDate),
     coverImageUrl: form.coverImageUrl.trim() || null,
     status: Number(form.status),
     description: form.description.trim() || null,
@@ -777,12 +779,12 @@ async function confirmAction() {
             <small v-if="errors.status" class="field-error">{{ errors.status }}</small>
           </div>
           <div class="field" :class="{ 'has-error': errors.airDate }">
-            <span>开始放送日期 <b class="required-mark">*</b></span>
+            <span>开始放送日期</span>
             <AnimeAirDateInput
               id="animeAirDate"
               v-model="form.airDate"
               :invalid="!!errors.airDate"
-              @update:model-value="(value) => { if (normalizeAirDate(value)) errors.airDate = '' }"
+              @update:model-value="(value) => { if (!value.trim() || normalizeAirDate(value)) errors.airDate = '' }"
             />
             <small v-if="errors.airDate" class="field-error">{{ errors.airDate }}</small>
           </div>
