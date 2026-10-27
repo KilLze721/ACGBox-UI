@@ -15,6 +15,7 @@ import { deleteBooks, getBookPage, getBookTypes } from '@/api/book'
 import { getAdaptationTypes, getRegions, getTags } from '@/api/catalog'
 import { searchRelatedEntities } from '@/api/relatedEntities'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import WorkRelationsSummary from '@/components/admin/WorkRelationsSummary.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import AnimeEntitySelect from '@/components/admin/AnimeEntitySelect.vue'
 import AnimeAirDateInput from '@/components/admin/AnimeAirDateInput.vue'
@@ -113,17 +114,16 @@ const tagDropdownRef = ref<HTMLElement>()
 const dateRangeEnabled = ref(false)
 const ratingRangeEnabled = ref(false)
 const brokenCovers = ref(new Set<string>())
-const selected = ref(new Map<number, BookPageItem>())
-const allSelected = computed(
-  () => page.value.rows.length > 0 && page.value.rows.every((book) => selected.value.has(book.id)),
-)
 const stats = reactive<{
   total: number | null
   ongoing: number | null
   unpublished: number | null
   completed: number | null
 }>({ total: null, ongoing: null, unpublished: null, completed: null })
-type DeleteTarget = Pick<BookDetail, 'id' | 'name' | 'coverImageUrl'>
+type DeleteTarget = Pick<BookDetail, 'id' | 'name' | 'coverImageUrl' | 'publishDate'> & {
+  bookType?: NamedOption
+  bookTypeId?: number
+}
 const deleteTargets = ref<DeleteTarget[]>([]),
   deleteConfirmed = ref(false),
   deleteError = ref(''),
@@ -291,7 +291,6 @@ function clearFilter(key: FilterChipKey) {
     filters[key] = ''
     applied.value[key] = ''
   }
-  selected.value.clear()
   void loadPage(1)
 }
 function closeTagDropdown(event: PointerEvent) {
@@ -311,9 +310,6 @@ function getCoverGradient(id: number) {
 }
 function markCoverBroken(url: string | null) {
   if (url) brokenCovers.value.add(url)
-}
-function personSummary(book: BookPageItem) {
-  return book.persons.map((person) => person.personName + '：' + person.role).join('、')
 }
 
 function messageOf(error: unknown, fallback: string) {
@@ -483,7 +479,6 @@ function submitQuery() {
     ratingMax: ratingRangeEnabled.value ? filters.ratingMax : filters.ratingMin,
   }
   showTags.value = false
-  selected.value.clear()
   void loadPage(1)
 }
 function resetFilters() {
@@ -495,20 +490,12 @@ function resetFilters() {
   pageSize.value = resolvePageSize(pageSizeValues, 20)
   applied.value = { ...filters, tagIds: [] }
   validationMessage.value = ''
-  selected.value.clear()
   void loadPage(1)
 }
 function toggleTag(id: number) {
   const index = filters.tagIds.indexOf(id)
   if (index < 0) filters.tagIds.push(id)
   else filters.tagIds.splice(index, 1)
-}
-function toggleRow(book: BookPageItem, checked: boolean) {
-  if (checked) selected.value.set(book.id, book)
-  else selected.value.delete(book.id)
-}
-function toggleAll(checked: boolean) {
-  page.value.rows.forEach((book) => toggleRow(book, checked))
 }
 function goToPage(value: number | string) {
   const number = typeof value === 'string' ? parseBookInteger(value, 1) : value
@@ -558,11 +545,12 @@ function discardAndContinue() {
   pending.value = null
   action?.()
 }
-function openDelete(targets: DeleteTarget[]) {
-  if (!targets.length || deleting.value) return
+// 仅接收当前书籍，保留原有确认弹窗和删除接口。
+function openDelete(target: DeleteTarget) {
+  if (deleting.value) return
   protect(() => {
     drawerMode.value = null
-    deleteTargets.value = [...targets]
+    deleteTargets.value = [target]
     deleteConfirmed.value = false
     deleteError.value = ''
   })
@@ -580,7 +568,6 @@ async function confirmDelete() {
   deleteError.value = ''
   try {
     await deleteBooks(deleteTargets.value.map((book) => book.id))
-    deleteTargets.value.forEach((book) => selected.value.delete(book.id))
     deleteTargets.value = []
     showToast('书籍档案已删除。')
     await Promise.all([loadPage(page.value.pageNum), loadStats()])
@@ -1004,20 +991,7 @@ function safeUrl(value: string | null) {
               卡片
             </button>
           </div>
-          <button
-            class="danger-button book-bulk-delete"
-            type="button"
-            :disabled="!selected.size || deleting"
-            @click="openDelete([...selected.values()])"
-          >
-            <AdminIcon name="delete" />删除所选 <span>{{ selected.size }}</span>
-          </button>
         </div>
-      </div>
-      <div v-if="selected.size" class="book-selection-bar">
-        <span
-          >已选择 <strong>{{ selected.size }}</strong> 部书籍</span
-        ><button class="ghost-button" type="button" @click="selected.clear()">取消选择</button>
       </div>
       <div class="table-scroll">
         <div
@@ -1081,15 +1055,6 @@ function safeUrl(value: string | null) {
           </caption>
           <thead>
             <tr>
-              <th class="book-check-cell" scope="col">
-                <input
-                  type="checkbox"
-                  :checked="allSelected"
-                  :indeterminate="page.rows.some((book) => selected.has(book.id)) && !allSelected"
-                  aria-label="选择当前页全部书籍"
-                  @change="toggleAll(($event.target as HTMLInputElement).checked)"
-                />
-              </th>
               <th class="cover-cell" scope="col">封面</th>
               <th class="work-cell" scope="col">书籍 / 别名 / 系列</th>
               <th class="tag-cell" scope="col">标签</th>
@@ -1104,19 +1069,7 @@ function safeUrl(value: string | null) {
             </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="book in page.rows"
-              :key="book.id"
-              :class="{ 'book-row-selected': selected.has(book.id) }"
-            >
-              <td class="book-check-cell">
-                <input
-                  type="checkbox"
-                  :checked="selected.has(book.id)"
-                  :aria-label="'选择 ' + book.name"
-                  @change="toggleRow(book, ($event.target as HTMLInputElement).checked)"
-                />
-              </td>
+            <tr v-for="book in page.rows" :key="book.id">
               <td class="cover-cell">
                 <div class="cover" :style="{ '--cover-gradient': getCoverGradient(book.id) }">
                   <img
@@ -1177,27 +1130,11 @@ function safeUrl(value: string | null) {
                 <span class="company-name">{{ book.region?.name || '—' }}</span>
               </td>
               <td class="book-relation-cell">
-                <span class="company-name" :title="personSummary(book)">{{
-                  book.persons
-                    .map((person) => person.personName)
-                    .slice(0, 2)
-                    .join('、') || '暂无人员'
-                }}</span
-                ><span
-                  class="company-role"
-                  :title="
-                    book.companies
-                      .map(
-                        (company) =>
-                          company.companyName + (company.role ? ' · ' + company.role : ''),
-                      )
-                      .join('、')
-                  "
-                  >{{ book.companies[0]?.companyName || '暂无关联公司'
-                  }}<template v-if="book.companies[0]?.role">
-                    · {{ book.companies[0].role }}</template
-                  ></span
-                >
+                <WorkRelationsSummary
+                  :persons="book.persons"
+                  :companies="book.companies"
+                  company-label="关联公司"
+                />
               </td>
               <td class="rating-cell">
                 <span v-if="book.personalRating !== null" class="rating"
@@ -1248,7 +1185,7 @@ function safeUrl(value: string | null) {
                     type="button"
                     title="删除"
                     :aria-label="'删除 ' + book.name"
-                    @click="openDelete([book])"
+                    @click="openDelete(book)"
                   >
                     <AdminIcon name="delete" />
                   </button>
@@ -1258,19 +1195,7 @@ function safeUrl(value: string | null) {
           </tbody>
         </table>
         <div v-else class="book-card-grid">
-          <article
-            v-for="book in page.rows"
-            :key="book.id"
-            class="book-work-card"
-            :class="{ 'book-row-selected': selected.has(book.id) }"
-          >
-            <label class="book-card-select"
-              ><input
-                type="checkbox"
-                :checked="selected.has(book.id)"
-                :aria-label="'选择 ' + book.name"
-                @change="toggleRow(book, ($event.target as HTMLInputElement).checked)"
-            /></label>
+          <article v-for="book in page.rows" :key="book.id" class="book-work-card">
             <div class="book-card-heading">
               <div class="cover" :style="{ '--cover-gradient': getCoverGradient(book.id) }">
                 <img
@@ -1286,10 +1211,13 @@ function safeUrl(value: string | null) {
                   class="work-title"
                   type="button"
                   :title="book.name"
+                  :aria-label="'查看 ' + book.name + ' 详情'"
                   @click="openDrawer('detail', book.id)"
                 >
                   {{ book.name }}</button
-                ><span class="work-alias">{{ book.aliasNames.join(' · ') || '暂无别名' }}</span
+                ><span class="work-alias" :title="book.aliasNames.join(' · ')">{{
+                  book.aliasNames.join(' · ') || '暂无别名'
+                }}</span
                 ><span class="work-series"
                   ><AdminIcon name="series" />{{ book.series?.name || '未归属系列' }}</span
                 >
@@ -1300,27 +1228,77 @@ function safeUrl(value: string | null) {
                 bookStatusNames[book.status]
               }}</span
               ><span v-if="book.personalRating !== null" class="rating"
-                ><span class="rating-star">★</span><strong>{{ book.personalRating }}</strong
+                ><span class="rating-star">★</span
+                ><strong>{{ book.personalRating.toFixed(1) }}</strong
                 ><span>/10</span></span
               ><span v-else class="empty-value">未评分</span>
             </div>
             <div class="meta-stack">
-              <span
-                >{{ book.bookType?.name || '—' }} · {{ book.adaptationType?.name || '—' }} ·
-                {{ book.region?.name || '—' }}</span
-              ><span
-                >{{ book.volumeCount ?? '未知' }} 卷 · {{ book.chapterCount ?? '未知' }} 章</span
-              ><span>首次发表：{{ book.publishDate || '日期未录入' }}</span>
+              <span>
+                <strong>{{ book.volumeCount ?? '—' }}</strong> 卷 ·
+                <strong>{{ book.chapterCount ?? '—' }}</strong> 章
+              </span>
+              <span>{{ book.bookType?.name || '—' }} · {{ book.adaptationType?.name || '—' }}</span>
+              <span>首次发表：{{ book.publishDate || '日期未录入' }}</span>
+              <span>地区：{{ book.region?.name || '—' }}</span>
             </div>
             <div class="tag-list book-card-tags">
               <span v-for="tag in book.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
             </div>
+            <div class="book-card-details">
+              <div class="work-card-relation-group">
+                <span class="work-card-relation-label">创作人员</span>
+                <div v-for="(person, index) in book.persons" :key="index">
+                  <span class="company-name">{{ person.personName }}</span>
+                  <span class="company-role">{{ person.role || '暂无职责' }}</span>
+                </div>
+                <span v-if="!book.persons.length" class="empty-value">暂无人员</span>
+              </div>
+              <div class="work-card-relation-group">
+                <span class="work-card-relation-label">关联公司</span>
+                <div v-for="(company, index) in book.companies" :key="index">
+                  <span class="company-name">{{ company.companyName }}</span>
+                  <span class="company-role">{{ company.role || '暂无职责' }}</span>
+                </div>
+                <span v-if="!book.companies.length" class="empty-value">暂无公司</span>
+              </div>
+            </div>
+            <div
+              v-if="book.externalLinks.some((link) => safeUrl(link.url))"
+              class="external-links book-card-links"
+            >
+              <a
+                v-for="link in book.externalLinks.filter((item) => safeUrl(item.url))"
+                :key="link.url"
+                class="external-link"
+                :href="safeUrl(link.url)"
+                target="_blank"
+                rel="noopener noreferrer"
+                :title="link.title || link.url"
+                >{{ link.title?.trim().slice(0, 2).toUpperCase() || '外链' }}</a
+              >
+            </div>
             <div class="book-card-actions">
-              <button class="ghost-button" type="button" @click="openDrawer('detail', book.id)">
+              <button
+                class="ghost-button"
+                type="button"
+                :aria-label="'查看 ' + book.name"
+                @click="openDrawer('detail', book.id)"
+              >
                 <AdminIcon name="view" />查看</button
-              ><button class="ghost-button" type="button" @click="openDrawer('edit', book.id)">
+              ><button
+                class="ghost-button"
+                type="button"
+                :aria-label="'编辑 ' + book.name"
+                @click="openDrawer('edit', book.id)"
+              >
                 <AdminIcon name="edit" />编辑</button
-              ><button class="ghost-button" type="button" @click="openDelete([book])">
+              ><button
+                class="ghost-button"
+                type="button"
+                :aria-label="'删除 ' + book.name"
+                @click="openDelete(book)"
+              >
                 <AdminIcon name="delete" />删除
               </button>
             </div>
@@ -1406,7 +1384,7 @@ function safeUrl(value: string | null) {
       @close="closeDrawer"
       @edit="openDrawer('edit', drawerId!)"
       @saved="handleSaved"
-      @delete="openDelete([$event])"
+      @delete="openDelete($event)"
     />
     <Teleport to="body">
       <div
@@ -1416,17 +1394,33 @@ function safeUrl(value: string | null) {
       >
         <section
           ref="deleteDialog"
-          class="dialog"
+          class="dialog book-delete-dialog"
           role="dialog"
           aria-modal="true"
           aria-label="确认删除书籍"
           tabindex="-1"
         >
-          <div class="dialog-icon"><AdminIcon name="delete" /></div>
-          <h2>确认删除所选书籍？</h2>
-          <p>将删除 {{ deleteTargets.length }} 条书籍档案，此操作无法通过页面撤销。</p>
+          <div class="dialog-icon" aria-hidden="true"><AdminIcon name="delete" /></div>
+          <h2>确认删除这本书籍？</h2>
+          <p>删除后将从书籍资料库中移除，且无法通过页面撤销。</p>
           <div class="book-delete-targets">
-            <p v-for="target in deleteTargets" :key="target.id">{{ target.name }}</p>
+            <div v-for="target in deleteTargets" :key="target.id" class="delete-target">
+              <div class="delete-target-cover">
+                <img
+                  v-if="safeUrl(target.coverImageUrl) && !brokenCovers.has(target.coverImageUrl!)"
+                  :src="target.coverImageUrl!"
+                  :alt="`${target.name}封面`"
+                  @error="markCoverBroken(target.coverImageUrl)"
+                />
+                <span v-else aria-hidden="true">{{ target.name.slice(0, 1) || 'B' }}</span>
+              </div>
+              <span>
+                <strong>{{ target.name }}</strong>
+                <span>{{
+                  `${target.bookType?.name || bookTypes.find((type) => type.id === target.bookTypeId)?.name || '未知类型'} · ${target.publishDate || '日期待定'}`
+                }}</span>
+              </span>
+            </div>
           </div>
           <label class="dialog-delete-confirm"
             ><input
@@ -1438,7 +1432,8 @@ function safeUrl(value: string | null) {
           >
           <p v-if="deleteError" class="dialog-checkbox-error" role="alert">{{ deleteError }}</p>
           <div class="dialog-note">
-            关联的别名、标签、公司、人物、外链、个人评分及系列归属将按后端规则处理。
+            <span aria-hidden="true">!</span>
+            <span>关联的别名、标签、公司、人物、外链、个人评分及系列归属将按后端规则处理。</span>
           </div>
           <div class="dialog-actions">
             <button
@@ -1488,21 +1483,10 @@ function safeUrl(value: string | null) {
 </template>
 
 <style scoped src="@/assets/animeList.css"></style>
+<style scoped src="@/assets/workListCards.css"></style>
 <style scoped>
 .book-management-page .book-list-table {
   min-width: 1420px;
-}
-.book-management-page .book-list-table .book-check-cell {
-  width: 34px;
-  padding-right: 0;
-  text-align: center;
-}
-.book-management-page input[type='checkbox'] {
-  width: 13px;
-  height: 13px;
-  margin: 0;
-  vertical-align: middle;
-  accent-color: var(--accent);
 }
 .book-management-page .book-list-table .work-cell {
   width: 205px;
@@ -1517,12 +1501,7 @@ function safeUrl(value: string | null) {
   width: 66px;
 }
 .book-management-page .book-list-table .book-relation-cell {
-  width: 155px;
-}
-.book-management-page .book-list-table .company-role {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  width: 185px;
 }
 .book-management-page .book-list-table .empty-value {
   font-size: 10px;
@@ -1551,9 +1530,6 @@ function safeUrl(value: string | null) {
   --status-color: var(--ink-soft);
   --status-bg: var(--surface-muted);
 }
-.book-row-selected {
-  background: color-mix(in srgb, var(--accent-soft) 22%, transparent);
-}
 
 .book-management-page .advanced-grid :deep(.anime-entity-select > input:not([type='checkbox'])),
 .book-management-page .advanced-grid :deep(.anime-date-input > input:not([type='checkbox'])) {
@@ -1576,123 +1552,59 @@ function safeUrl(value: string | null) {
 .book-management-page .advanced-grid :deep(.anime-date-panel) {
   z-index: 160;
 }
-.book-view-toggle {
-  display: flex;
-  flex: 0 0 auto;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--surface-muted);
-}
-.book-view-toggle button {
-  padding: 6px 9px;
-  border-radius: 6px;
-  color: var(--ink-faint);
-  background: transparent;
-  font: 650 10px var(--font-body);
-}
-.book-view-toggle button.active {
-  color: var(--accent-strong);
-  background: var(--surface-solid);
-  box-shadow: var(--shadow-soft);
-}
-.book-bulk-delete {
-  min-height: 32px;
-  gap: 5px;
-  padding: 0 10px;
-  font-size: 10px;
-  white-space: nowrap;
-}
-.book-bulk-delete:disabled {
-  color: var(--ink-faint);
-  background: var(--surface-muted);
-  border: 1px solid var(--line);
-  box-shadow: none;
-  cursor: not-allowed;
-}
-.book-bulk-delete span {
-  min-width: 15px;
-}
-.book-selection-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 20px;
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  font-size: 10px;
-}
-.book-selection-bar .ghost-button {
-  min-height: 26px;
-  padding: 0 8px;
-  color: var(--accent-strong);
-  background: transparent;
-  border-color: transparent;
-  font-size: 10px;
-}
-.book-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
-  gap: 14px;
-  padding: 18px;
-}
-.book-work-card {
-  position: relative;
-  min-width: 0;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface-solid);
-}
-.book-work-card:hover {
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
-}
-.book-card-select {
-  position: absolute;
-  top: 13px;
-  right: 13px;
-}
-.book-card-heading {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding-right: 14px;
-}
-.book-card-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 14px 0 10px;
-}
-.book-card-tags {
-  gap: 6px;
-  margin-top: 12px;
-}
-.book-card-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 5px;
-  padding-top: 12px;
-  margin-top: 12px;
-  border-top: 1px solid var(--line);
-}
-.book-card-actions .ghost-button {
-  min-height: 28px;
-  padding: 0 8px;
-  font-size: 10px;
-}
 .book-dialog-layer {
   z-index: 400;
 }
 .book-delete-targets {
-  max-height: 180px;
-  padding: 8px 12px;
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  margin-top: 17px;
   overflow: auto;
-  background: var(--surface-muted);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  overscroll-behavior: contain;
+}
+.book-delete-targets .delete-target {
+  min-width: 0;
+  margin-top: 0;
+}
+.book-delete-targets .delete-target > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.book-delete-dialog {
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.book-delete-dialog h2 {
+  font-size: 17px;
+}
+.book-delete-dialog .delete-target > span > span {
+  font-size: 10px;
+}
+.book-delete-dialog .dialog-delete-confirm,
+.book-delete-dialog .dialog-checkbox-error,
+.book-delete-dialog .dialog-note,
+.book-delete-dialog .dialog-actions button {
+  font-size: 11px;
+}
+.book-delete-dialog .dialog-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 10px;
+  color: var(--ink-soft);
+}
+.book-delete-dialog .dialog-delete-confirm input {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--danger);
+}
+.book-delete-dialog .dialog-checkbox-error {
+  margin: 5px 0 0 20px;
+  color: var(--danger);
 }
 .book-management-page .page-controls {
   flex-wrap: wrap;
@@ -1716,10 +1628,6 @@ function safeUrl(value: string | null) {
   .book-management-page .list-title {
     flex-wrap: wrap;
     gap: 5px 10px;
-  }
-  .book-card-grid {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 12px;
   }
   .book-management-page .page-controls {
     width: 100%;

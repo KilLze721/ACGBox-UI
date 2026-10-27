@@ -17,6 +17,7 @@ import type {
   TagMatchMode,
 } from '@/types/api'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import WorkRelationsSummary from '@/components/admin/WorkRelationsSummary.vue'
 import ArchiveDateInput from '@/components/admin/ArchiveDateInput.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import AnimeEntitySelect from '@/components/admin/AnimeEntitySelect.vue'
@@ -133,6 +134,8 @@ const ratingErrors = reactive({
 })
 const catalogWarning = ref('')
 const showAdvancedFilters = ref(false)
+const viewMode = ref<'table' | 'cards'>('table')
+const brokenCovers = ref(new Set<string>())
 const showTagDropdown = ref(false)
 const tagSearch = ref('')
 const dateRangeEnabled = ref(false)
@@ -792,6 +795,10 @@ function getCoverGradient(id: number) {
   ]
   return gradients[id % gradients.length]
 }
+
+function markCoverBroken(url: string) {
+  brokenCovers.value.add(url)
+}
 </script>
 
 <template>
@@ -1239,11 +1246,32 @@ function getCoverGradient(id: number) {
           <button class="ghost-button" type="button" :disabled="loading" @click="refreshPage">
             <AdminIcon name="refresh" /><span>刷新</span>
           </button>
+          <div class="anime-view-toggle" role="group" aria-label="动画列表展示方式">
+            <button
+              type="button"
+              :class="{ active: viewMode === 'table' }"
+              :aria-pressed="viewMode === 'table'"
+              @click="viewMode = 'table'"
+            >
+              表格
+            </button>
+            <button
+              type="button"
+              :class="{ active: viewMode === 'cards' }"
+              :aria-pressed="viewMode === 'cards'"
+              @click="viewMode = 'cards'"
+            >
+              卡片
+            </button>
+          </div>
         </div>
       </div>
 
       <div class="table-scroll">
-        <table v-show="!loading && !errorMessage && page.rows.length" class="anime-table">
+        <table
+          v-if="viewMode === 'table' && !loading && !errorMessage && page.rows.length"
+          class="anime-table"
+        >
           <caption class="sr-only">
             动画资料分页列表
           </caption>
@@ -1256,7 +1284,7 @@ function getCoverGradient(id: number) {
               <th class="date-cell" scope="col">开始放送</th>
               <th class="status-cell" scope="col">状态</th>
               <th class="region-cell" scope="col">地区</th>
-              <th class="company-cell" scope="col">制作公司</th>
+              <th class="company-cell" scope="col">创作人员 / 制作公司</th>
               <th class="rating-cell" scope="col">个人评分</th>
               <th class="external-cell" scope="col">外部链接</th>
               <th class="action-cell" scope="col">操作</th>
@@ -1323,10 +1351,7 @@ function getCoverGradient(id: number) {
                 <span class="company-name">{{ anime.region?.name || '—' }}</span>
               </td>
               <td class="company-cell">
-                <span class="company-name" :title="anime.companies[0]?.companyName">{{
-                  anime.companies[0]?.companyName || '—'
-                }}</span
-                ><span class="company-role">{{ anime.companies[0]?.role || '暂无角色' }}</span>
+                <WorkRelationsSummary :persons="anime.persons" :companies="anime.companies" />
               </td>
               <td class="rating-cell">
                 <span v-if="anime.personalRating !== null" class="rating"
@@ -1383,6 +1408,121 @@ function getCoverGradient(id: number) {
             </tr>
           </tbody>
         </table>
+
+        <div
+          v-if="viewMode === 'cards' && !loading && !errorMessage && page.rows.length"
+          class="anime-card-grid"
+        >
+          <article v-for="anime in page.rows" :key="anime.id" class="anime-work-card">
+            <div class="anime-card-heading">
+              <div class="cover" :style="{ '--cover-gradient': getCoverGradient(anime.id) }">
+                <img
+                  v-if="anime.coverImageUrl && !brokenCovers.has(anime.coverImageUrl)"
+                  :src="anime.coverImageUrl"
+                  :alt="`${anime.name}封面`"
+                  loading="lazy"
+                  @error="markCoverBroken(anime.coverImageUrl)"
+                />
+                <span v-else class="cover-code">{{ anime.name.slice(0, 2) }}</span>
+              </div>
+              <div>
+                <button
+                  class="work-title"
+                  type="button"
+                  :title="anime.name"
+                  :aria-label="`查看 ${anime.name} 详情`"
+                  @click="openCrudDrawer('detail', anime)"
+                >
+                  {{ anime.name }}
+                </button>
+                <span class="work-alias" :title="anime.aliasNames.join(' · ')">{{
+                  anime.aliasNames.join(' · ') || '暂无别名'
+                }}</span>
+                <span class="work-series">
+                  <AdminIcon name="series" />{{ anime.series?.name || '未归属系列' }}
+                </span>
+              </div>
+            </div>
+            <div class="anime-card-meta">
+              <span class="status-badge" :class="`status-${anime.status}`">{{
+                statusNames[anime.status] || '未知'
+              }}</span>
+              <span v-if="anime.personalRating !== null" class="rating">
+                <span class="rating-star">★</span>
+                <strong>{{ anime.personalRating.toFixed(1) }}</strong
+                ><span>/10</span>
+              </span>
+              <span v-else class="empty-value">未评分</span>
+            </div>
+            <div class="meta-stack">
+              <span>
+                <strong>{{ anime.episodeCount ?? '—' }}</strong> 集 ·
+                {{ anime.broadcastType?.name || '—' }} · {{ anime.adaptationType?.name || '—' }}
+              </span>
+              <span>开始放送：{{ anime.airDate || '日期未录入' }}</span>
+              <span>地区：{{ anime.region?.name || '—' }}</span>
+            </div>
+            <div class="tag-list anime-card-tags">
+              <span v-for="tag in anime.tags" :key="tag.id" class="tag">{{ tag.name }}</span>
+            </div>
+            <div class="anime-card-details">
+              <div class="work-card-relation-group">
+                <span class="work-card-relation-label">创作人员</span>
+                <div v-for="(person, index) in anime.persons" :key="index">
+                  <span class="company-name">{{ person.personName }}</span>
+                  <span class="company-role">{{ person.role || '暂无职责' }}</span>
+                </div>
+                <span v-if="!anime.persons?.length" class="empty-value">暂无人员</span>
+              </div>
+              <div class="work-card-relation-group">
+                <span class="work-card-relation-label">制作公司</span>
+                <div v-for="(company, index) in anime.companies" :key="index">
+                  <span class="company-name">{{ company.companyName }}</span>
+                  <span class="company-role">{{ company.role || '暂无职责' }}</span>
+                </div>
+                <span v-if="!anime.companies.length" class="empty-value">暂无公司</span>
+              </div>
+            </div>
+            <div v-if="anime.externalLinks.length" class="external-links anime-card-links">
+              <a
+                v-for="link in anime.externalLinks"
+                :key="link.url"
+                class="external-link"
+                :href="getSafeExternalUrl(link.url)"
+                target="_blank"
+                rel="noopener noreferrer"
+                :title="link.title || link.url"
+                >{{ getExternalLinkLabel(link.title) }}</a
+              >
+            </div>
+            <div class="anime-card-actions">
+              <button
+                class="ghost-button"
+                type="button"
+                :aria-label="`查看 ${anime.name}`"
+                @click="openCrudDrawer('detail', anime)"
+              >
+                <AdminIcon name="view" />查看
+              </button>
+              <button
+                class="ghost-button"
+                type="button"
+                :aria-label="`编辑 ${anime.name}`"
+                @click="openCrudDrawer('edit', anime)"
+              >
+                <AdminIcon name="edit" />编辑
+              </button>
+              <button
+                class="ghost-button"
+                type="button"
+                :aria-label="`删除 ${anime.name}`"
+                @click="openDeleteModal(anime)"
+              >
+                <AdminIcon name="delete" />删除
+              </button>
+            </div>
+          </article>
+        </div>
 
         <div
           class="skeleton-body"
@@ -2045,7 +2185,11 @@ function getCoverGradient(id: number) {
 </template>
 
 <style scoped src="@/assets/animeList.css"></style>
+<style scoped src="@/assets/workListCards.css"></style>
 <style scoped>
+.anime-management-page .anime-table .company-cell {
+  width: 185px;
+}
 .anime-management-page
   .advanced-company-field
   :deep(.anime-entity-select > input:not([type='checkbox'])) {
