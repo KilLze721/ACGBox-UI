@@ -16,6 +16,7 @@ import {
 import { getSeriesById, getSeriesPage } from '@/api/series'
 import { getPersonsPage } from '@/api/persons'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import CoverImageUpload from '@/components/admin/CoverImageUpload.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import AnimeAirDateInput from '@/components/admin/AnimeAirDateInput.vue'
 import AnimeSuggestionInput from '@/components/admin/AnimeSuggestionInput.vue'
@@ -101,10 +102,13 @@ const tagsRefreshing = ref(false)
 const loading = ref(true)
 const personsLoaded = ref(props.mode === 'create')
 const submitting = ref(false)
+const coverUploading = ref(false)
+const coverUpload = ref<InstanceType<typeof CoverImageUpload>>()
+const busy = computed(() => submitting.value || coverUploading.value)
 const confirmationAction = ref<'save' | 'reset' | 'cancel' | null>(null)
 const confirmDialog = useModalLayer(
   () => !!confirmationAction.value && visible.value,
-  dismissConfirmation
+  dismissConfirmation,
 )
 const loadError = ref('')
 const catalogWarning = ref('')
@@ -156,7 +160,7 @@ async function getAllPages<T>(loadPage: (pageNum: number) => Promise<PageResult<
   const firstPage = await loadPage(1)
   if (firstPage.pages <= 1) return firstPage.rows
   const remaining = await Promise.all(
-    Array.from({ length: firstPage.pages - 1 }, (_, index) => loadPage(index + 2))
+    Array.from({ length: firstPage.pages - 1 }, (_, index) => loadPage(index + 2)),
   )
   return firstPage.rows.concat(remaining.flatMap((page) => page.rows))
 }
@@ -165,12 +169,12 @@ async function getAllPages<T>(loadPage: (pageNum: number) => Promise<PageResult<
 function applyBook(
   book: BookDetail,
   companyNames: CompanyOption[],
-  selectedSeries: SeriesSummary | null
+  selectedSeries: SeriesSummary | null,
 ) {
   // 未返回关联数据时不能按空数组保存，避免覆盖原有创作人员。
   if (
     [book.persons, book.companies, book.externalLinks, book.aliasNames, book.tagIds].some(
-      (value) => !Array.isArray(value)
+      (value) => !Array.isArray(value),
     )
   ) {
     throw new Error('创作人员关联未能加载，请重新读取书籍资料后再保存。')
@@ -261,7 +265,7 @@ async function loadForm() {
     if (book) {
       const [companyNames, selectedSeries] = await Promise.all([
         Promise.all(
-          book.companies.map((company) => getCompanyById(company.companyId, controller.signal))
+          book.companies.map((company) => getCompanyById(company.companyId, controller.signal)),
         ),
         book.seriesId === null
           ? Promise.resolve(null)
@@ -307,7 +311,7 @@ function addPerson() {
   if (submitting.value) return
   const sortOrder = Math.min(
     2147483647,
-    Math.max(-1, ...form.persons.map((person) => person.sortOrder)) + 1
+    Math.max(-1, ...form.persons.map((person) => person.sortOrder)) + 1,
   )
   form.persons.push({
     rowKey: nextPersonRowKey++,
@@ -395,7 +399,7 @@ function moveAlias(index: number, offset: number) {
 function addCompany() {
   const sortOrder = Math.min(
     2147483647,
-    Math.max(-1, ...form.companies.map((company) => company.sortOrder)) + 1
+    Math.max(-1, ...form.companies.map((company) => company.sortOrder)) + 1,
   )
   form.companies.push({
     rowKey: nextCompanyRowKey++,
@@ -436,7 +440,7 @@ function addExternalLink() {
   if (submitting.value) return
   const sortOrder = Math.min(
     2147483647,
-    Math.max(-1, ...form.externalLinks.map((link) => Number(link.sortOrder))) + 1
+    Math.max(-1, ...form.externalLinks.map((link) => Number(link.sortOrder))) + 1,
   )
   form.externalLinks.push({
     rowKey: nextExternalLinkRowKey++,
@@ -607,7 +611,7 @@ function normalizePublishDate(value: string) {
   if (day < 1 || day > lastDay) return null
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(
     2,
-    '0'
+    '0',
   )}`
 }
 
@@ -663,12 +667,12 @@ function buildPayload(): BookPayload {
 }
 
 function requestSave() {
-  if (loading.value || loadError.value || submitting.value || !validateForm()) return
+  if (loading.value || loadError.value || busy.value || !validateForm()) return
   confirmationAction.value = 'save'
 }
 
 async function saveForm() {
-  if (submitting.value || !validateForm()) return
+  if (loading.value || loadError.value || busy.value || !validateForm()) return
   submitting.value = true
   errorMessage.value = ''
   const submittedFormState = getFormSnapshot()
@@ -688,17 +692,19 @@ async function saveForm() {
 }
 
 function resetForm() {
+  if (busy.value) return
+  coverUpload.value?.reset()
   Object.assign(form, createDefaultForm())
   Object.keys(errors).forEach((key) => delete errors[key])
 }
 
 function requestReset() {
-  if (submitting.value) return
+  if (busy.value) return
   confirmationAction.value = 'reset'
 }
 
 function requestCancel() {
-  if (submitting.value) return
+  if (busy.value) return
   if (!getCloseState().dirty) {
     emit('cancelled')
     return
@@ -710,18 +716,19 @@ function requestCancel() {
 function getCloseState() {
   return {
     dirty: getFormSnapshot() !== initialFormState.value,
-    submitting: submitting.value,
+    submitting: busy.value,
   }
 }
 
 defineExpose({ requestCancel, getCloseState })
 
 function dismissConfirmation() {
-  if (submitting.value) return
+  if (busy.value) return
   confirmationAction.value = null
 }
 
 async function confirmAction() {
+  if (busy.value) return
   const action = confirmationAction.value
   confirmationAction.value = null
   if (action === 'save') await saveForm()
@@ -741,7 +748,7 @@ async function confirmAction() {
       v-else
       class="anime-editor-content"
       :inert="submitting"
-      :aria-busy="submitting"
+      :aria-busy="busy"
       @submit.prevent="requestSave"
     >
       <p v-if="catalogWarning" class="anime-catalog-warning" role="alert">
@@ -762,10 +769,11 @@ async function confirmAction() {
             class="secondary-button"
             type="button"
             @click="requestReset"
+            :disabled="busy"
           >
             重置表单
           </button>
-          <button class="primary-button" type="submit" :disabled="submitting">
+          <button class="primary-button" type="submit" :disabled="busy">
             <AdminIcon name="check" />{{
               submitting ? '正在保存…' : mode === 'create' ? '保存书籍' : '保存修改'
             }}
@@ -918,29 +926,19 @@ async function confirmAction() {
               errors.personalRatingScore
             }}</small>
           </div>
-          <label class="field full" :class="{ 'has-error': errors.coverImageUrl }">
-            <span>封面图片 URL</span>
-            <div class="anime-cover-field">
-              <div class="anime-cover-preview">
-                <img
-                  v-if="form.coverImageUrl"
-                  :src="form.coverImageUrl"
-                  alt="书籍封面预览"
-                  @error="errors.coverImageUrl = '封面地址无法加载。'"
-                />
-                <span v-else>BOOK FILE</span>
-              </div>
-              <input
-                v-model="form.coverImageUrl"
-                type="url"
-                placeholder="https://..."
-                @input="errors.coverImageUrl = ''"
-              />
-            </div>
-            <small v-if="errors.coverImageUrl" class="field-error">{{
-              errors.coverImageUrl
-            }}</small>
-          </label>
+          <div class="field full" :class="{ 'has-error': errors.coverImageUrl }">
+            <span>封面图片</span>
+            <CoverImageUpload
+              :key="`${mode}:${bookId ?? 'new'}`"
+              ref="coverUpload"
+              v-model="form.coverImageUrl"
+              target-type="BOOK"
+              :disabled="submitting || !!confirmationAction"
+              :error="errors.coverImageUrl"
+              @uploading-change="coverUploading = $event"
+              @update:model-value="errors.coverImageUrl = ''"
+            />
+          </div>
           <label class="field full">
             <span>书籍简介</span>
             <textarea
@@ -1347,8 +1345,10 @@ async function confirmAction() {
 
       <p v-if="errorMessage" class="anime-save-error" role="alert">{{ errorMessage }}</p>
       <footer class="anime-editor-footer">
-        <button class="secondary-button" type="button" @click="requestCancel">取消</button>
-        <button class="primary-button" type="submit" :disabled="submitting">
+        <button class="secondary-button" type="button" :disabled="busy" @click="requestCancel">
+          取消
+        </button>
+        <button class="primary-button" type="submit" :disabled="busy">
           <AdminIcon name="check" />{{
             submitting ? '正在保存…' : mode === 'create' ? '保存书籍' : '保存修改'
           }}
@@ -1376,8 +1376,8 @@ async function confirmAction() {
               confirmationAction === 'save'
                 ? '确认保存书籍？'
                 : confirmationAction === 'reset'
-                ? '确认重置表单？'
-                : '确认取消编辑？'
+                  ? '确认重置表单？'
+                  : '确认取消编辑？'
             }}
           </h2>
           <p>
@@ -1385,26 +1385,26 @@ async function confirmAction() {
               confirmationAction === 'save'
                 ? '请确认当前书籍资料无误后继续保存。'
                 : confirmationAction === 'reset'
-                ? '当前填写的内容将被清空，是否继续？'
-                : '尚未保存的修改将会丢失，是否离开？'
+                  ? '当前填写的内容将被清空，是否继续？'
+                  : '尚未保存的修改将会丢失，是否离开？'
             }}
           </p>
           <div class="anime-confirm-actions">
-            <button class="secondary-button" type="button" @click="dismissConfirmation">
+            <button
+              class="secondary-button"
+              type="button"
+              :disabled="busy"
+              @click="dismissConfirmation"
+            >
               返回
             </button>
-            <button
-              class="primary-button"
-              type="button"
-              :disabled="submitting"
-              @click="confirmAction"
-            >
+            <button class="primary-button" type="button" :disabled="busy" @click="confirmAction">
               {{
                 confirmationAction === 'save'
                   ? '确认保存'
                   : confirmationAction === 'reset'
-                  ? '确认重置'
-                  : '确认离开'
+                    ? '确认重置'
+                    : '确认离开'
               }}
             </button>
           </div>

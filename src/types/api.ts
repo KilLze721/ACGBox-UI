@@ -4,6 +4,18 @@ export interface ApiResult<T> {
   data: T
 }
 
+export type ImageUploadTarget = 'ANIME' | 'BOOK'
+
+export interface ImageUploadResult {
+  url: string
+  objectKey: string
+  targetType: ImageUploadTarget
+  contentType: string
+  size: number
+  width: number
+  height: number
+}
+
 export interface LoginResult {
   token: string
   expiresIn: number

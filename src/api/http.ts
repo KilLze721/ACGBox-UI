@@ -7,6 +7,7 @@ async function parseResult<T>(
   response: Response,
   requestToken: string | null,
   loginRequest = false,
+  multipartRequest = false,
 ): Promise<T> {
   if (response.status === 401) {
     // 只清理本次请求使用的登录状态，避免旧请求影响刚完成的新登录。
@@ -18,6 +19,16 @@ async function parseResult<T>(
   }
   if (response.status === 403) {
     throw new Error('此账号无管理端访问权限。')
+  }
+  if (multipartRequest && response.status === 413) {
+    let message = ''
+    try {
+      const result = (await response.json()) as ApiResult<unknown>
+      if (typeof result.message === 'string') message = result.message
+    } catch {
+      // 代理可能返回空响应或 HTML，使用明确的上传大小提示。
+    }
+    throw new Error(message || '图片不能超过 5 MiB，上传请求不能超过 6 MiB。')
   }
   if (!response.ok) {
     throw new Error(`请求失败（HTTP ${response.status}）`)
@@ -63,6 +74,22 @@ export async function post<T>(path: string, body: object, signal?: AbortSignal):
   })
 
   return parseResult<T>(response, token, loginRequest)
+}
+
+/** 提交文件表单，Content-Type 和 boundary 由浏览器生成。 */
+export async function postFormData<T>(
+  path: string,
+  body: FormData,
+  signal?: AbortSignal,
+): Promise<T> {
+  const token = getToken()
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: 'POST',
+    signal,
+    headers: getHeaders(token),
+    body,
+  })
+  return parseResult<T>(response, token, false, true)
 }
 
 /**
