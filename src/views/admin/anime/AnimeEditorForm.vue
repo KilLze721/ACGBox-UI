@@ -130,9 +130,9 @@ const statusOptions: NamedOption[] = [
 function createDefaultForm(): AnimeForm {
   return {
     name: '',
-    broadcastTypeId: entryPreferences?.broadcastTypeId ?? '',
+    broadcastTypeId: '',
     adaptationTypeId: '',
-    regionId: entryPreferences?.regionId ?? '',
+    regionId: '',
     status: props.mode === 'create' ? '' : '1',
     airDate: '',
     episodeCount: '',
@@ -259,13 +259,6 @@ async function loadForm() {
     if (catalogWarning.value) throw new Error(catalogWarning.value)
     regions.value = region
     tags.value = allTags
-    if (entryPreferences) {
-      if (!broadcastTypes.value.some((option) => String(option.id) === form.broadcastTypeId))
-        entryPreferences.broadcastTypeId = form.broadcastTypeId = ''
-      if (!region.some((option) => String(option.id) === form.regionId))
-        entryPreferences.regionId = form.regionId = ''
-      initialFormState.value = getFormSnapshot()
-    }
     if (anime) {
       const [companyNames, selectedSeries] = await Promise.all([
         Promise.all(

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * 系统设置页面：维护当前浏览器的主题、列表偏好及之后新建作品的录入默认值。
+ * 系统设置页面：维护当前浏览器的主题、列表偏好及之后新建作品的录入建议。
  * 提供限定范围的偏好重置、真实构建信息和管理员可用的后端服务健康检测。
  */
 import {
   computed,
   nextTick,
+  onActivated,
   onBeforeUnmount,
   onDeactivated,
   onMounted,
@@ -13,12 +14,9 @@ import {
   ref,
   watch,
 } from 'vue'
-import { getBroadcastTypes, getRegions } from '@/api/catalog'
 import { getSystemHealth } from '@/api/system'
 import { getCurrentUser } from '@/utils/auth'
-import { useCatalogRefresh } from '@/utils/catalogChanges'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
-import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import {
   defaultPreferences,
   pageSizeValues,
@@ -30,7 +28,7 @@ import {
   type PersonalPreferences,
   type ThemeMode,
 } from '@/utils/preferences'
-import type { DependencyHealth, NamedOption, SystemHealth } from '@/types/api'
+import type { DependencyHealth, SystemHealth } from '@/types/api'
 import projectReadme from '../../../../README.md?url&no-inline'
 
 const sections = [
@@ -110,17 +108,13 @@ const suggestionErrors = reactive({
   bookPersonRoles: '',
 })
 const activeSection = ref('appearance')
-const regions = ref<NamedOption[]>([])
-const broadcastTypes = ref<NamedOption[]>([])
-const catalogLoading = ref(false)
-const catalogErrors = reactive({ regionId: '', broadcastTypeId: '' })
-const catalogLoaded = reactive({ regionId: false, broadcastTypeId: false })
 const status = ref('')
 const saveError = ref('')
 const resetScope = ref<'lists' | 'all' | null>(null)
 const resetDialog = ref<HTMLDialogElement>()
 const pageRoot = ref<HTMLElement>()
-let catalogController: AbortController | undefined
+let trackingSections = false
+let sectionScrollFrame = 0
 let healthController: AbortController | undefined
 const isAdmin = getCurrentUser()?.role === 'ADMIN'
 const healthResult = ref<SystemHealth | null>(null)
@@ -159,7 +153,6 @@ const resetItems = computed(() => [
   ...(resetScope.value === 'all'
     ? [
         '主题模式：浅色',
-        '默认地区与放送类型：不预设',
         `外链标题建议：${defaultPreferences().linkTitles.join('、')}`,
         `动画制作公司职责建议：${defaultPreferences().companyRoles.join('、')}`,
         `动画人物职责建议：${defaultPreferences().personRoles.join('、')}`,
@@ -173,17 +166,18 @@ defineExpose({ getCloseState: () => ({ dirty: dirty.value, submitting: false }) 
 watch(themeMode, () => {
   pendingThemeReset.value = false
 })
-const refreshCatalogs = useCatalogRefresh(['broadcast'], loadCatalogs)
 onMounted(() => {
-  void refreshCatalogs()
   void loadHealth()
+  startSectionTracking()
 })
+onActivated(startSectionTracking)
 onDeactivated(() => {
+  stopSectionTracking()
   closeReset()
   healthController?.abort()
 })
 onBeforeUnmount(() => {
-  catalogController?.abort()
+  stopSectionTracking()
   healthController?.abort()
   closeReset()
 })
@@ -191,6 +185,50 @@ onBeforeUnmount(() => {
 function scrollToSection(id: string) {
   activeSection.value = id
   pageRoot.value?.querySelector(`#${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+// 以章节的滚动对齐位置同步目录；到达页尾时选中最后一节，避免短章节无法高亮。
+function updateActiveSection() {
+  sectionScrollFrame = 0
+  const root = pageRoot.value
+  if (!root?.isConnected) return
+  const cards = sections
+    .map(({ id }) => root.querySelector<HTMLElement>(`#${id}`))
+    .filter((card): card is HTMLElement => !!card)
+  const first = cards[0]
+  if (!first) return
+  const offset = Number.parseFloat(window.getComputedStyle(first).scrollMarginTop) || 0
+  const scroller = document.scrollingElement ?? document.documentElement
+  const atBottom =
+    scroller.scrollHeight > window.innerHeight &&
+    scroller.scrollTop + window.innerHeight >= scroller.scrollHeight - 2
+  let current = first
+  for (const card of cards) {
+    if (atBottom || card.getBoundingClientRect().top <= offset + 1) current = card
+  }
+  activeSection.value = current.id
+}
+
+function scheduleSectionUpdate() {
+  if (trackingSections && !sectionScrollFrame)
+    sectionScrollFrame = window.requestAnimationFrame(updateActiveSection)
+}
+
+function startSectionTracking() {
+  if (!trackingSections) {
+    trackingSections = true
+    window.addEventListener('scroll', scheduleSectionUpdate, { passive: true })
+    window.addEventListener('resize', scheduleSectionUpdate)
+  }
+  void nextTick(scheduleSectionUpdate)
+}
+
+function stopSectionTracking() {
+  trackingSections = false
+  window.removeEventListener('scroll', scheduleSectionUpdate)
+  window.removeEventListener('resize', scheduleSectionUpdate)
+  window.cancelAnimationFrame(sectionScrollFrame)
+  sectionScrollFrame = 0
 }
 
 // 仅管理员查询真实服务检测结果；失败或超时保持明确的错误状态，不推断服务正常。
@@ -231,42 +269,6 @@ function chooseTheme(value: ThemeMode) {
   }
 }
 
-async function loadCatalogs() {
-  if (catalogLoading.value) return
-  catalogController = new AbortController()
-  catalogLoading.value = true
-  const signal = catalogController.signal
-  await Promise.all(
-    [
-      ['regionId', getRegions, regions] as const,
-      ['broadcastTypeId', getBroadcastTypes, broadcastTypes] as const,
-    ].map(async ([key, load, options]) => {
-      catalogErrors[key] = ''
-      try {
-        options.value = await load(signal)
-        catalogLoaded[key] = true
-      } catch (error) {
-        if (!signal.aborted)
-          catalogErrors[key] = error instanceof Error ? error.message : '暂时无法读取，请重试。'
-      }
-    }),
-  )
-  catalogLoading.value = false
-}
-
-function catalogOptions(key: 'regionId' | 'broadcastTypeId') {
-  const options = key === 'regionId' ? regions.value : broadcastTypes.value
-  return draft[key] && !options.some((option) => String(option.id) === draft[key])
-    ? [
-        ...options,
-        {
-          id: Number(draft[key]),
-          name: catalogLoaded[key] ? '原选项已不可用，请重新选择' : '已保存的选项（待读取）',
-        },
-      ]
-    : options
-}
-
 function addSuggestion(key: SuggestionKey) {
   const value = suggestionInputs[key].trim()
   suggestionErrors[key] = !value
@@ -300,25 +302,13 @@ function undoChanges() {
   status.value = '已撤销本页未保存的修改；已生效的主题不变。'
 }
 
-// 校验建议项和目录引用后仅写入本地偏好，不更新作品资料或正在编辑的业务表单。
+// 校验建议项后仅写入本地偏好，不更新作品资料或正在编辑的业务表单。
 function save() {
   saveError.value = ''
   for (const { key } of suggestionGroups) {
     if (suggestionInputs[key].trim()) {
       saveError.value = '请先添加或清空尚未提交的建议项。'
       pageRoot.value?.querySelector<HTMLInputElement>(`#${key}Input`)?.focus()
-      return
-    }
-  }
-  for (const key of ['regionId', 'broadcastTypeId'] as const) {
-    const options = key === 'regionId' ? regions.value : broadcastTypes.value
-    if (
-      catalogLoaded[key] &&
-      draft[key] &&
-      !options.some((option) => String(option.id) === draft[key])
-    ) {
-      saveError.value = '原地区或放送类型已不可用，请重新选择或设为“不预设”。'
-      pageRoot.value?.querySelector<HTMLElement>(`#${key}`)?.focus()
       return
     }
   }
@@ -396,6 +386,7 @@ function confirmReset() {
           type="button"
           class="section-link"
           :class="{ active: activeSection === section.id }"
+          :aria-current="activeSection === section.id ? 'location' : undefined"
           @click="scrollToSection(section.id)"
         >
           <AdminIcon :name="section.icon" />{{ section.name
@@ -553,50 +544,6 @@ function confirmReset() {
             <span class="section-mark">02</span>
           </header>
           <div class="section-body">
-            <div class="content-grid">
-              <div
-                v-for="field in [
-                  { key: 'regionId' as const, label: '默认地区', path: '/admin/regions' },
-                  {
-                    key: 'broadcastTypeId' as const,
-                    label: '默认放送类型',
-                    path: '/admin/broadcast-types',
-                  },
-                ]"
-                :key="field.key"
-                class="field"
-              >
-                <label :for="field.key">{{ field.label }}</label
-                ><ArchiveSelect
-                  :id="field.key"
-                  v-model="draft[field.key]"
-                  :options="catalogOptions(field.key)"
-                  placeholder="不预设"
-                  :label="field.label"
-                />
-                <div class="catalog-note">
-                  <span :class="{ 'field-error': catalogErrors[field.key] }">{{
-                    catalogErrors[field.key] ||
-                    (catalogLoading ? '正在读取…' : `已读取 ${catalogOptions(field.key).length} 项`)
-                  }}</span
-                  ><RouterLink :to="field.path"
-                    >{{ field.key === 'regionId' ? '地区管理' : '放送类型管理' }} ↗</RouterLink
-                  >
-                </div>
-              </div>
-            </div>
-            <div class="catalog-refresh">
-              <p>选项来自现有资料目录，在原管理页面维护。</p>
-              <button
-                class="text-button"
-                type="button"
-                :disabled="catalogLoading"
-                @click="refreshCatalogs"
-              >
-                {{ catalogLoading ? '正在读取…' : '重新读取选项' }}
-              </button>
-            </div>
-            <div class="settings-divider"></div>
             <div class="entry-suggestion-grid">
               <section
                 v-for="section in suggestionSections"
@@ -692,7 +639,7 @@ function confirmReset() {
             <div class="reset-row">
               <div>
                 <h3>恢复全部个人偏好</h3>
-                <p>同时恢复浅色主题、内容录入默认值与列表偏好。确认前可查看完整范围。</p>
+                <p>同时恢复浅色主题、内容录入建议与列表偏好。确认前可查看完整范围。</p>
               </div>
               <button
                 id="resetAll"
@@ -1299,11 +1246,6 @@ h1 span {
 .compatibility tr:last-child td {
   border-bottom: 0;
 }
-.content-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-}
 .field {
   min-width: 0;
 }
@@ -1336,43 +1278,12 @@ h1 span {
   border-color: var(--accent);
   box-shadow: var(--focus);
 }
-.field :deep(.archive-select-trigger) {
-  height: 40px;
-  font-size: 12px;
-}
-.field :deep(.archive-select-option) {
-  font-size: 12px;
-}
-.catalog-note {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 9px;
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-.catalog-note a,
 .doc-link {
   color: var(--violet);
   text-underline-offset: 3px;
 }
-.catalog-note a:hover,
 .doc-link:hover {
   color: var(--accent-strong);
-}
-.catalog-refresh {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 15px;
-}
-.catalog-refresh p {
-  margin: 0;
-  color: var(--ink-faint);
-  font-size: 11px;
 }
 .text-button {
   min-height: 29px;
@@ -1857,10 +1768,6 @@ h1 span {
   .theme-caption {
     font-size: 11px;
   }
-  .content-grid {
-    grid-template-columns: 1fr;
-    gap: 17px;
-  }
   .entry-suggestion-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1874,9 +1781,6 @@ h1 span {
   }
   .system-info {
     grid-template-columns: 1fr;
-  }
-  .catalog-refresh {
-    align-items: flex-start;
   }
   .compatibility th,
   .compatibility td {

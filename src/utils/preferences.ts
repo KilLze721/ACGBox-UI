@@ -11,8 +11,9 @@ export interface PersonalPreferences {
   pageSize: number
   sortBy: AnimeSortField
   sortDirection: SortDirection
-  regionId: string
-  broadcastTypeId: string
+  // 兼容历史偏好数据与调用；读取偏好时不再返回这两项，新建表单也不再采用。
+  regionId?: string
+  broadcastTypeId?: string
   linkTitles: string[]
   companyRoles: string[]
   personRoles: string[]
@@ -33,8 +34,6 @@ export function defaultPreferences(): PersonalPreferences {
     pageSize: 20,
     sortBy: 'BROADCAST_DATE',
     sortDirection: 'DESC',
-    regionId: '',
-    broadcastTypeId: '',
     linkTitles: [...linkTitleSuggestions],
     companyRoles: [...companyRoles],
     personRoles: [...personRoles],
@@ -56,12 +55,6 @@ export function readPreferences(): PersonalPreferences {
       sortDirection: ['ASC', 'DESC'].includes(saved.sortDirection)
         ? saved.sortDirection
         : defaults.sortDirection,
-      regionId:
-        typeof saved.regionId === 'string' && /^\d+$/.test(saved.regionId) ? saved.regionId : '',
-      broadcastTypeId:
-        typeof saved.broadcastTypeId === 'string' && /^\d+$/.test(saved.broadcastTypeId)
-          ? saved.broadcastTypeId
-          : '',
       linkTitles: readSuggestions(saved.linkTitles, defaults.linkTitles),
       companyRoles: readSuggestions(saved.companyRoles, defaults.companyRoles),
       personRoles: readSuggestions(saved.personRoles, defaults.personRoles),
