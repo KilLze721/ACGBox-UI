@@ -49,9 +49,41 @@ const sortOptions = [
   { id: 'PERSONAL_RATING', name: '个人评分' },
 ] as const
 const suggestionGroups = [
-  { key: 'linkTitles', label: '常用外链标题', placeholder: '输入标题，按回车添加' },
-  { key: 'companyRoles', label: '常用制作公司职责', placeholder: '输入职责，按回车添加' },
-  { key: 'personRoles', label: '常用人物职责', placeholder: '输入职责，按回车添加' },
+  {
+    key: 'linkTitles',
+    scope: 'shared',
+    label: '常用外链标题',
+    placeholder: '输入标题，按回车添加',
+  },
+  {
+    key: 'companyRoles',
+    scope: 'anime',
+    label: '常用制作公司职责',
+    placeholder: '输入职责，按回车添加',
+  },
+  {
+    key: 'personRoles',
+    scope: 'anime',
+    label: '常用人物职责',
+    placeholder: '输入职责，按回车添加',
+  },
+  {
+    key: 'bookCompanyRoles',
+    scope: 'book',
+    label: '常用公司职责',
+    placeholder: '输入职责，按回车添加',
+  },
+  {
+    key: 'bookPersonRoles',
+    scope: 'book',
+    label: '常用人物职责',
+    placeholder: '输入职责，按回车添加',
+  },
+] as const
+const suggestionSections = [
+  { id: 'shared', title: '', description: '', icon: '' },
+  { id: 'anime', title: '动画职责', description: '动画专用，独立于书籍设置。', icon: 'anime' },
+  { id: 'book', title: '书籍职责', description: '漫画、小说等书籍共用。', icon: 'book' },
 ] as const
 type SuggestionKey = (typeof suggestionGroups)[number]['key']
 const draft = reactive(readPreferences())
@@ -61,12 +93,22 @@ const dirty = computed(
   () =>
     JSON.stringify(draft) !== saved.value ||
     pendingThemeReset.value ||
-    !!suggestionInputs.linkTitles ||
-    !!suggestionInputs.companyRoles ||
-    !!suggestionInputs.personRoles,
+    suggestionGroups.some(({ key }) => !!suggestionInputs[key]),
 )
-const suggestionInputs = reactive({ linkTitles: '', companyRoles: '', personRoles: '' })
-const suggestionErrors = reactive({ linkTitles: '', companyRoles: '', personRoles: '' })
+const suggestionInputs = reactive({
+  linkTitles: '',
+  companyRoles: '',
+  personRoles: '',
+  bookCompanyRoles: '',
+  bookPersonRoles: '',
+})
+const suggestionErrors = reactive({
+  linkTitles: '',
+  companyRoles: '',
+  personRoles: '',
+  bookCompanyRoles: '',
+  bookPersonRoles: '',
+})
 const activeSection = ref('appearance')
 const regions = ref<NamedOption[]>([])
 const broadcastTypes = ref<NamedOption[]>([])
@@ -119,8 +161,10 @@ const resetItems = computed(() => [
         '主题模式：浅色',
         '默认地区与放送类型：不预设',
         `外链标题建议：${defaultPreferences().linkTitles.join('、')}`,
-        `制作公司职责建议：${defaultPreferences().companyRoles.join('、')}`,
-        `人物职责建议：${defaultPreferences().personRoles.join('、')}`,
+        `动画制作公司职责建议：${defaultPreferences().companyRoles.join('、')}`,
+        `动画人物职责建议：${defaultPreferences().personRoles.join('、')}`,
+        `书籍公司职责建议：${defaultPreferences().bookCompanyRoles.join('、')}`,
+        `书籍人物职责建议：${defaultPreferences().bookPersonRoles.join('、')}`,
       ]
     : []),
 ])
@@ -227,8 +271,8 @@ function addSuggestion(key: SuggestionKey) {
   const value = suggestionInputs[key].trim()
   suggestionErrors[key] = !value
     ? '请输入建议项。'
-    : key === 'personRoles' && Array.from(value).length > 50
-      ? '人物职责不能超过 50 个字符。'
+    : key !== 'linkTitles' && Array.from(value).length > 50
+      ? '职责不能超过 50 个字符。'
       : draft[key].includes(value)
         ? '该建议项已经存在。'
         : ''
@@ -553,42 +597,66 @@ function confirmReset() {
               </button>
             </div>
             <div class="settings-divider"></div>
-            <div
-              v-for="group in suggestionGroups"
-              :key="group.key"
-              class="suggestion-section field"
-            >
-              <label :for="`${group.key}Input`">{{ group.label }}</label>
-              <div class="chip-list" :aria-label="group.label">
-                <span v-for="(text, index) in draft[group.key]" :key="text" class="suggestion-chip"
-                  ><span>{{ text }}</span
-                  ><button
-                    type="button"
-                    :aria-label="`移除${text}`"
-                    @click="draft[group.key].splice(index, 1)"
-                  >
-                    <AdminIcon name="close" /></button></span
-                ><span v-if="!draft[group.key].length" class="empty-suggestions"
-                  >暂无建议项，可在下方添加。</span
+            <div class="entry-suggestion-grid">
+              <section
+                v-for="section in suggestionSections"
+                :key="section.id"
+                class="entry-suggestion-section"
+                :class="{ 'shared-suggestions': section.id === 'shared' }"
+                :aria-label="section.title || '通用录入建议'"
+              >
+                <header v-if="section.title" class="entry-suggestion-heading">
+                  <span class="entry-suggestion-icon"><AdminIcon :name="section.icon" /></span>
+                  <div>
+                    <h3>{{ section.title }}</h3>
+                    <p>{{ section.description }}</p>
+                  </div>
+                </header>
+                <div
+                  v-for="group in suggestionGroups.filter((item) => item.scope === section.id)"
+                  :key="group.key"
+                  class="suggestion-section field"
                 >
-              </div>
-              <div class="add-row">
-                <input
-                  :id="`${group.key}Input`"
-                  v-model="suggestionInputs[group.key]"
-                  :placeholder="group.placeholder"
-                  autocomplete="off"
-                  :aria-invalid="!!suggestionErrors[group.key]"
-                  :aria-describedby="`${group.key}Error`"
-                  @input="suggestionErrors[group.key] = ''"
-                  @keydown.enter.prevent="addSuggestion(group.key)"
-                /><button class="secondary-button" type="button" @click="addSuggestion(group.key)">
-                  添加
-                </button>
-              </div>
-              <p :id="`${group.key}Error`" class="field-error" role="status">
-                {{ suggestionErrors[group.key] }}
-              </p>
+                  <label :for="`${group.key}Input`">{{ group.label }}</label>
+                  <div class="chip-list" :aria-label="group.label">
+                    <span
+                      v-for="(text, index) in draft[group.key]"
+                      :key="text"
+                      class="suggestion-chip"
+                      ><span>{{ text }}</span
+                      ><button
+                        type="button"
+                        :aria-label="`移除${text}`"
+                        @click="draft[group.key].splice(index, 1)"
+                      >
+                        <AdminIcon name="close" /></button></span
+                    ><span v-if="!draft[group.key].length" class="empty-suggestions"
+                      >暂无建议项，可在下方添加。</span
+                    >
+                  </div>
+                  <div class="add-row">
+                    <input
+                      :id="`${group.key}Input`"
+                      v-model="suggestionInputs[group.key]"
+                      :placeholder="group.placeholder"
+                      autocomplete="off"
+                      :aria-invalid="!!suggestionErrors[group.key]"
+                      :aria-describedby="`${group.key}Error`"
+                      @input="suggestionErrors[group.key] = ''"
+                      @keydown.enter.prevent="addSuggestion(group.key)"
+                    /><button
+                      class="secondary-button"
+                      type="button"
+                      @click="addSuggestion(group.key)"
+                    >
+                      添加
+                    </button>
+                  </div>
+                  <p :id="`${group.key}Error`" class="field-error" role="status">
+                    {{ suggestionErrors[group.key] }}
+                  </p>
+                </div>
+              </section>
             </div>
             <p class="field-hint">建议项用于输入联想，录入时仍可自行填写其他标题或职责。</p>
             <div class="notice">
@@ -1323,6 +1391,56 @@ h1 span {
 .suggestion-section + .suggestion-section {
   margin-top: 21px;
 }
+.entry-suggestion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.entry-suggestion-section {
+  min-width: 0;
+  padding: 16px;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.entry-suggestion-section.shared-suggestions {
+  grid-column: 1 / -1;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.entry-suggestion-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid var(--line);
+}
+.entry-suggestion-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--violet);
+  background: var(--violet-soft);
+  border-radius: 9px;
+}
+.entry-suggestion-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.entry-suggestion-heading h3 {
+  margin: 0;
+  color: var(--ink);
+  font: 650 14px/1.5 var(--font-display);
+}
+.entry-suggestion-heading p {
+  margin: 3px 0 0;
+  color: var(--ink-faint);
+  font-size: 10px;
+}
 .chip-list {
   display: flex;
   min-height: 31px;
@@ -1742,6 +1860,9 @@ h1 span {
   .content-grid {
     grid-template-columns: 1fr;
     gap: 17px;
+  }
+  .entry-suggestion-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
   .reset-row {
     align-items: flex-start;

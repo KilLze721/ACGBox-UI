@@ -1,6 +1,10 @@
 import { computed, ref } from 'vue'
 import type { AnimeSortField, SortDirection } from '@/types/api'
 import { companyRoles, linkTitleSuggestions, personRoles } from '@/config/animeFormOptions'
+import {
+  companyRoles as bookCompanyRoles,
+  personRoles as bookPersonRoles,
+} from '@/config/bookFormOptions'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export interface PersonalPreferences {
@@ -12,6 +16,8 @@ export interface PersonalPreferences {
   linkTitles: string[]
   companyRoles: string[]
   personRoles: string[]
+  bookCompanyRoles: string[]
+  bookPersonRoles: string[]
 }
 
 const preferencesKey = 'acgbox-preferences'
@@ -32,6 +38,8 @@ export function defaultPreferences(): PersonalPreferences {
     linkTitles: [...linkTitleSuggestions],
     companyRoles: [...companyRoles],
     personRoles: [...personRoles],
+    bookCompanyRoles: [...bookCompanyRoles],
+    bookPersonRoles: [...bookPersonRoles],
   }
 }
 
@@ -57,6 +65,9 @@ export function readPreferences(): PersonalPreferences {
       linkTitles: readSuggestions(saved.linkTitles, defaults.linkTitles),
       companyRoles: readSuggestions(saved.companyRoles, defaults.companyRoles),
       personRoles: readSuggestions(saved.personRoles, defaults.personRoles),
+      // 原有职责字段继续服务动画；旧偏好没有书籍项时沿用书籍自己的默认建议。
+      bookCompanyRoles: readSuggestions(saved.bookCompanyRoles, defaults.bookCompanyRoles),
+      bookPersonRoles: readSuggestions(saved.bookPersonRoles, defaults.bookPersonRoles),
     }
   } catch {
     return defaults

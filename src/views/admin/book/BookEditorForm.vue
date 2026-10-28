@@ -42,9 +42,9 @@ const props = defineProps<{
 
 // 每个新建表单只读取一次偏好，已打开的表单与修改已有作品不受后续设置影响。
 const entryPreferences = props.mode === 'create' ? readPreferences() : null
-const companyRoles = [...defaultCompanyRoles]
+const companyRoles = entryPreferences?.bookCompanyRoles ?? [...defaultCompanyRoles]
 const linkTitleSuggestions = entryPreferences?.linkTitles ?? [...defaultLinkTitles]
-const personRoles = [...defaultPersonRoles]
+const personRoles = entryPreferences?.bookPersonRoles ?? [...defaultPersonRoles]
 
 const route = useRoute()
 const router = useRouter()
