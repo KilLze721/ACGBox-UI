@@ -112,6 +112,14 @@ const loadError = ref('')
 const catalogWarning = ref('')
 const errorMessage = ref('')
 const errors = reactive<Record<string, string>>({})
+const ratingDataError = computed(() => {
+  const value = form.personalRatingScore
+  if (value === '') return ''
+  const score = Number(value)
+  return Number.isInteger(score) && score >= 0 && score <= 10 && /^\d{1,2}$/.test(value)
+    ? ''
+    : `评分数据异常：当前值为 ${value}，请重新选择 0 至 10 的整数或清除评分。`
+})
 let loadController: AbortController | undefined
 let typeController: AbortController | undefined
 let tagController: AbortController | undefined
@@ -186,7 +194,7 @@ function applyAnime(
     airDate: anime.airDate ?? '',
     episodeCount: anime.episodeCount === null ? '' : String(anime.episodeCount),
     personalRatingScore:
-      anime.personalRatingScore === null ? '' : String(Math.round(anime.personalRatingScore)),
+      anime.personalRatingScore === null ? '' : String(anime.personalRatingScore),
     coverImageUrl: anime.coverImageUrl ?? '',
     description: anime.description ?? '',
     aliasNames: [...(anime.aliasNames ?? [])],
@@ -500,17 +508,7 @@ function validateForm() {
   if (form.episodeCount && (!/^\d+$/.test(form.episodeCount) || Number(form.episodeCount) < 0)) {
     setError('episodeCount', '总集数请输入非负整数。')
   }
-  if (form.personalRatingScore) {
-    const score = Number(form.personalRatingScore)
-    if (
-      !Number.isFinite(score) ||
-      score < 0 ||
-      score > 10 ||
-      !/^\d{1,2}$/.test(form.personalRatingScore)
-    ) {
-      setError('personalRatingScore', '评分请输入 0 至 10 之间的整数。')
-    }
-  }
+  if (ratingDataError.value) setError('personalRatingScore', ratingDataError.value)
   if (form.coverImageUrl && !isHttpUrl(form.coverImageUrl)) {
     setError('coverImageUrl', '请输入有效的 HTTP 或 HTTPS 图片地址。')
   }
@@ -617,7 +615,7 @@ function buildPayload(): AnimePayload {
     seriesId: form.seriesId ? Number(form.seriesId) : null,
     seriesSortOrder: form.seriesId && form.seriesSortOrder ? Number(form.seriesSortOrder) : null,
     ...(props.mode === 'create' ? { autoCreateSeries: form.autoCreateSeries } : {}),
-    personalRatingScore: form.personalRatingScore ? Number(form.personalRatingScore) : null,
+    personalRatingScore: form.personalRatingScore === '' ? null : Number(form.personalRatingScore),
   }
 }
 
@@ -837,14 +835,17 @@ async function confirmAction() {
             </div>
             <small v-if="errors.episodeCount" class="field-error">{{ errors.episodeCount }}</small>
           </label>
-          <div class="field" :class="{ 'has-error': errors.personalRatingScore }">
+          <div
+            class="field"
+            :class="{ 'has-error': ratingDataError || errors.personalRatingScore }"
+          >
             <span>个人评分</span>
             <div class="anime-rating-control" role="radiogroup" aria-label="个人评分，1 至 10 分">
               <button
                 v-for="score in 10"
                 :key="score"
                 class="anime-rating-star"
-                :class="{ selected: Number(form.personalRatingScore) >= score }"
+                :class="{ selected: !ratingDataError && Number(form.personalRatingScore) >= score }"
                 type="button"
                 role="radio"
                 :aria-label="`${score} 分`"
@@ -858,7 +859,7 @@ async function confirmAction() {
                 10</span
               >
               <button
-                v-if="form.personalRatingScore"
+                v-if="form.personalRatingScore !== ''"
                 class="anime-rating-clear"
                 type="button"
                 @click="selectRating('')"
@@ -866,9 +867,12 @@ async function confirmAction() {
                 清除
               </button>
             </div>
-            <small v-if="errors.personalRatingScore" class="field-error">{{
-              errors.personalRatingScore
-            }}</small>
+            <small
+              v-if="ratingDataError || errors.personalRatingScore"
+              class="field-error"
+              role="alert"
+              >{{ ratingDataError || errors.personalRatingScore }}</small
+            >
           </div>
           <div class="field full" :class="{ 'has-error': errors.coverImageUrl }">
             <span>封面图片</span>
