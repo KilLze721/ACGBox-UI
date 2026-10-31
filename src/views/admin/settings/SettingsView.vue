@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 系统设置页面：维护当前浏览器的主题、列表偏好及之后新建作品的录入建议。
+ * 系统设置页面：维护当前浏览器的主题、列表偏好及之后打开作品表单时的录入建议。
  * 提供限定范围的偏好重置、真实构建信息和管理员可用的后端服务健康检测。
  */
 import {
@@ -318,7 +318,7 @@ function save() {
     saved.value = JSON.stringify(draft)
     pendingThemeReset.value = false
     clearSuggestionInputs()
-    status.value = '个人偏好已保存在当前浏览器，将用于之后打开的列表和新建作品。'
+    status.value = '个人偏好已保存在当前浏览器，将用于之后打开的列表及新增、修改作品表单。'
   } catch {
     saveError.value = '无法保存偏好，请检查浏览器是否允许本地存储。当前修改仍保留。'
   }
@@ -539,7 +539,7 @@ function confirmReset() {
             <span class="section-icon"><AdminIcon name="edit" /></span>
             <div>
               <h2 id="entryTitle">内容录入偏好</h2>
-              <p>减少新建作品时的重复填写。</p>
+              <p>统一新增与修改作品时的输入建议。</p>
             </div>
             <span class="section-mark">02</span>
           </header>
@@ -608,7 +608,9 @@ function confirmReset() {
             <p class="field-hint">建议项用于输入联想，录入时仍可自行填写其他标题或职责。</p>
             <div class="notice">
               <AdminIcon name="info" />
-              <p>仅用于之后新建作品，不修改已有作品，不覆盖已打开的新建或修改表单。</p>
+              <p>
+                建议项用于之后打开的新增、修改表单，不自动修改已有作品，不覆盖已打开表单的输入。
+              </p>
             </div>
           </div>
         </section>

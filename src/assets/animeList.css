@@ -2,6 +2,12 @@
 .primary-action[href] {
   text-decoration: none;
 }
+/* 两类作品列表共用实色卡片，避免长列表和多张统计卡叠加大面积背景模糊。 */
+.anime-management-page > .card,
+.anime-management-page > .stats-grid > .stat-card {
+  background: var(--surface-solid);
+  backdrop-filter: none;
+}
 .anime-management-page .work-title {
   width: fit-content;
   max-width: 100%;
