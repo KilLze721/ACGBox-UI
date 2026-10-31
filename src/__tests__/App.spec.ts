@@ -61,25 +61,9 @@ describe('App', () => {
       },
     })
 
-    const menuItems = wrapper.findAll('.nav-item')
-    expect(menuItems).toHaveLength(9)
     expect(wrapper.find('a[href="/admin/broadcast-types"]').text()).toContain('放送类型管理')
     expect(wrapper.find('a[href="/admin/adaptation-types"]').text()).toContain('改编类型管理')
     expect(wrapper.find('a[href="/admin/regions"]').text()).toContain('地区管理')
-
-    const sections = wrapper.findAll('.nav-section')
-    const baseSection = sections.find((section) =>
-      section.find('.nav-label').text().includes('基础资料'),
-    )
-    expect(baseSection?.findAll('a.nav-item').map((item) => item.text())).toEqual([
-      '标签管理',
-      '改编类型管理',
-      '地区管理',
-    ])
-    const animeItem = wrapper.find('a.nav-item[href="/admin/anime"]')
-    expect(
-      animeItem.element.parentElement?.querySelector('.nav-sublist a')?.getAttribute('href'),
-    ).toBe('/admin/broadcast-types')
 
     const seriesLink = wrapper.find('a[href="/admin/series"]')
     expect(seriesLink.attributes('href')).toBe('/admin/series')

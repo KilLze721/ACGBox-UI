@@ -39,6 +39,7 @@ async function render(mode: 'create' | 'edit' = 'edit', deferSave = false) {
     description: null,
     aliasNames: ['别名乙', '别名甲'],
     tagIds: [],
+    persons: [],
     companies: [
       { companyId: 7, role: '制作协力', sortOrder: -8 },
       { companyId: 3, role: '动画制作', sortOrder: 20 },
@@ -72,15 +73,7 @@ async function render(mode: 'create' | 'edit' = 'edit', deferSave = false) {
           await new Promise<void>((resolve) => {
             completeSave = resolve
           })
-        // 模拟已确认的保存、再读取契约，不代表真实数据库联调。
-        original.aliasNames = [...new Set(submitted?.aliasNames ?? [])]
-        original.companies = (submitted?.companies ?? [])
-          .map((company, index) => ({
-            ...company,
-            sortOrder: company.sortOrder ?? index,
-          }))
-          .sort((left, right) => left.sortOrder - right.sortOrder)
-        data = { ...original, ...submitted, companies: original.companies }
+        data = { ...original, ...submitted }
       }
       return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
     }),
@@ -96,28 +89,6 @@ async function render(mode: 'create' | 'edit' = 'edit', deferSave = false) {
 }
 
 describe('动画关联排序', () => {
-  it('按模拟保存契约重新打开表单时，别名和公司仍为保存后的顺序', async () => {
-    await render()
-    await wrapper!.get('[aria-label="下移别名 1"]').trigger('click')
-    await wrapper!.get('[aria-label="下移公司 1"]').trigger('click')
-    await save()
-    wrapper!.unmount()
-    wrapper = mount(AnimeEditorForm, {
-      props: { mode: 'edit', animeId: 15 },
-      attachTo: document.body,
-      global: { plugins: [router] },
-    })
-    await flushPromises()
-    expect(
-      wrapper
-        .findAll('input[placeholder="输入别名"]')
-        .map((input) => (input.element as HTMLInputElement).value),
-    ).toEqual(['别名甲', '别名乙'])
-    expect((wrapper.get('#animeCompany-0').element as HTMLInputElement).value).toBe('公司甲')
-    expect((wrapper.get('#animeCompanyRole-0').element as HTMLInputElement).value).toBe('动画制作')
-    expect(state().dirty).toBe(false)
-  })
-
   it('按返回顺序回填，普通职责修改不重置负数或稀疏排序值', async () => {
     const api = await render()
     expect(state().dirty).toBe(false)

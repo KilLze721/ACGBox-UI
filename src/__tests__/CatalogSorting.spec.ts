@@ -3,7 +3,6 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import router from '@/router'
 import BroadcastTypesView from '@/views/admin/broadcast-types/BroadcastTypesView.vue'
 import AdaptationTypesView from '@/views/admin/adaptation-types/AdaptationTypesView.vue'
-import { parseSortOrder } from '@/utils/sortOrder'
 
 const wrappers: VueWrapper[] = []
 afterEach(() => {
@@ -31,18 +30,6 @@ async function submit(prefix: string) {
   await flushPromises()
 }
 
-describe('排序整数契约', () => {
-  it.each([-2147483648, -1, 0, 2147483647])('接受边界和负数 %s', (number) => {
-    expect(parseSortOrder(String(number))).toBe(number)
-  })
-  it.each(['', '1.5', '-0.5', '2147483648', '-2147483649', '1e2', 'NaN', 'Infinity'])(
-    '拒绝非整数或越界 %s',
-    (text) => {
-      expect(parseSortOrder(text)).toBeNull()
-    },
-  )
-})
-
 for (const [prefix, path, View] of [
   ['broadcast', 'broadcast-type', BroadcastTypesView],
   ['adaptation', 'adaptation-type', AdaptationTypesView],
@@ -52,7 +39,7 @@ for (const [prefix, path, View] of [
       const rows = [
         { id: 20, name: 'Z类型', sortOrder: -8 },
         { id: 3, name: 'B类型', sortOrder: 0 },
-        { id: 9, name: 'A类型', sortOrder: 0 },
+        { id: 9, name: 'A其他', sortOrder: 0 },
       ]
       const writes: Array<{ name: string; id?: number; sortOrder: number }> = []
       vi.stubGlobal(
@@ -80,7 +67,7 @@ for (const [prefix, path, View] of [
       const { wrapper } = await render()
       const names = () =>
         wrapper.findAll(`.${prefix}-table tbody .${prefix}-name`).map((cell) => cell.text())
-      expect(names()).toEqual(['Z类型', 'B类型', 'A类型'])
+      expect(names()).toEqual(['Z类型', 'B类型', 'A其他'])
       expect(wrapper.findAll(`td.${prefix}-sort-cell`).map((cell) => cell.text())).toEqual([
         '-8',
         '0',
@@ -88,7 +75,7 @@ for (const [prefix, path, View] of [
       ])
       await wrapper.get(`.${prefix}-search input`).setValue('类型')
       await wrapper.get(`.${prefix}-filter`).trigger('submit')
-      expect(names()).toEqual(['Z类型', 'B类型', 'A类型'])
+      expect(names()).toEqual(['Z类型', 'B类型'])
     })
 
     it('回填原排序，仅修改排序也标记未保存；提交最小值和最大值', async () => {

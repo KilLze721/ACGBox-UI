@@ -10,7 +10,7 @@ afterEach(() => {
 })
 
 describe('动画放送日期选择器', () => {
-  it('按年份和月份两步选择，并以四列月份网格展示', async () => {
+  it('按年份和月份两步选择并回填日期', async () => {
     wrapper = mount(ArchiveDateInput, {
       attachTo: document.body,
       props: {

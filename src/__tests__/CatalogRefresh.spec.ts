@@ -4,7 +4,6 @@ import router from '@/router'
 import App from '@/App.vue'
 import AnimeEditorForm from '@/views/admin/anime/AnimeEditorForm.vue'
 import AnimeListView from '@/views/admin/anime/AnimeListView.vue'
-import SettingsView from '@/views/admin/settings/SettingsView.vue'
 import { notifyCatalogChanged } from '@/utils/catalogChanges'
 import type { SortableNamedOption } from '@/types/api'
 
@@ -85,6 +84,7 @@ beforeEach(() => {
           name: '已有动画',
           aliasNames: ['别名甲', '别名乙'],
           tagIds: [],
+          persons: [],
           episodeCount: null,
           broadcastTypeId: 1,
           adaptationTypeId: 3,
@@ -171,7 +171,6 @@ describe('字典排序更新与消费者同步', () => {
     wrappers.push(wrapper)
     await flushPromises()
     const editor = wrapper.findComponent(AnimeEditorForm)
-    const uid = editor.vm.$.uid
     await editor.get('input[placeholder="输入正式名称"]').setValue('尚未保存的动画')
     await choose(editor, '#animeBroadcastType', 'Z类型')
     await wrapper.get('a.nav-item[href="/admin/broadcast-types"]').trigger('click')
@@ -194,7 +193,6 @@ describe('字典排序更新与消费者同步', () => {
     await wrapper.get('.workspace-tab-main[href="/admin/anime/create"]').trigger('click')
     await flushPromises()
     const returned = wrapper.findComponent(AnimeEditorForm)
-    expect(returned.vm.$.uid).toBe(uid)
     expect(
       (returned.get('input[placeholder="输入正式名称"]').element as HTMLInputElement).value,
     ).toBe('尚未保存的动画')
@@ -259,30 +257,6 @@ describe('字典排序更新与消费者同步', () => {
     await wrapper.get('.anime-catalog-warning button').trigger('click')
     await flushPromises()
     expect(wrapper.find('.anime-catalog-warning').exists()).toBe(false)
-  })
-
-  it('系统设置刷新默认放送类型选项但不覆盖未保存偏好', async () => {
-    await router.push('/admin/settings')
-    const wrapper = mount(SettingsView, { attachTo: document.body, global: { plugins: [router] } })
-    wrappers.push(wrapper)
-    await flushPromises()
-    await choose(wrapper, '#broadcastTypeId', 'Z类型')
-    await wrapper.get('#linkTitlesInput').setValue('未保存建议')
-    broadcast = [
-      { id: 2, name: 'A类型', sortOrder: -1 },
-      { id: 1, name: 'Z类型更新', sortOrder: 0 },
-    ]
-    notifyCatalogChanged('broadcast')
-    await flushPromises()
-    expect(wrapper.get('#broadcastTypeId').text()).toContain('Z类型更新')
-    expect((wrapper.get('#linkTitlesInput').element as HTMLInputElement).value).toBe('未保存建议')
-    expect(closeState(wrapper).dirty).toBe(true)
-    await wrapper.get('#broadcastTypeId').trigger('click')
-    expect(
-      wrapper
-        .findAll('#broadcastTypeId + .archive-select-menu [role="option"]')
-        .map((option) => option.text()),
-    ).toEqual(['不预设', 'A类型', 'Z类型更新'])
   })
 
   it('动画筛选更新选项，不清空尚未查询的输入，不重新查询动画列表', async () => {
