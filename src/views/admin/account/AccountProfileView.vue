@@ -2054,7 +2054,6 @@ summary:focus-visible {
   position: fixed;
   inset: 0;
   background: rgba(21, 20, 35, 0.4);
-  backdrop-filter: blur(3px);
   overscroll-behavior: contain;
 }
 .account-flow-layer {

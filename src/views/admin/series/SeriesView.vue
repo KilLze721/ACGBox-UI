@@ -829,7 +829,6 @@ function openRelatedBook(book: BookPageItem) {
   display: flex;
   justify-content: flex-end;
   background: rgba(18, 17, 30, 0.42);
-  backdrop-filter: blur(2px);
   overscroll-behavior: contain;
   animation: series-drawer-fade 0.16s ease both;
 }
@@ -1160,7 +1159,6 @@ function openRelatedBook(book: BookPageItem) {
   place-items: center;
   padding: 20px;
   background: rgba(18, 17, 30, 0.48);
-  backdrop-filter: blur(4px);
   overscroll-behavior: contain;
 }
 .series-dialog {

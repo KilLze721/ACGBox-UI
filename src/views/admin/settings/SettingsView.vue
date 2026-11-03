@@ -1649,7 +1649,6 @@ h1 span {
 }
 .settings-reset-dialog::backdrop {
   background: rgba(21, 20, 35, 0.4);
-  backdrop-filter: blur(4px);
 }
 .dialog-mark {
   display: grid;

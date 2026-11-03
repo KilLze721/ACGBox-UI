@@ -660,7 +660,6 @@ async function confirmDelete() {
   inset: 0;
   z-index: 125;
   background: rgba(18, 17, 30, 0.43);
-  backdrop-filter: blur(3px);
 }
 .adaptation-drawer-layer {
   display: flex;

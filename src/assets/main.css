@@ -3403,7 +3403,6 @@ html:has(body[data-theme='dark'] .app-shell),
   place-items: center;
   opacity: 0;
   background: rgba(14, 13, 24, 0.52);
-  backdrop-filter: blur(7px);
   transition:
     opacity 170ms ease,
     visibility 170ms;

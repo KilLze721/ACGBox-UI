@@ -1047,7 +1047,6 @@ async function confirmDelete() {
   position: fixed;
   inset: 0;
   background: rgba(18, 17, 30, 0.42);
-  backdrop-filter: blur(2px);
   overscroll-behavior: contain;
   animation: persons-fade 0.16s ease both;
 }

@@ -1011,7 +1011,6 @@ async function confirmDelete() {
   display: flex;
   justify-content: flex-end;
   background: rgba(18, 17, 30, 0.42);
-  backdrop-filter: blur(2px);
   overscroll-behavior: contain;
   animation: companies-drawer-fade 0.16s ease both;
 }
@@ -1376,7 +1375,6 @@ async function confirmDelete() {
   place-items: center;
   padding: 20px;
   background: rgba(18, 17, 30, 0.48);
-  backdrop-filter: blur(4px);
   overscroll-behavior: contain;
 }
 .companies-dialog {

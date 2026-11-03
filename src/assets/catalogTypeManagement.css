@@ -98,7 +98,6 @@
   inset: 0;
   z-index: 1300;
   background: rgba(18, 17, 30, 0.42);
-  backdrop-filter: blur(2px);
 }
 .broadcast-drawer {
   position: absolute;
@@ -237,7 +236,6 @@
   place-items: center;
   padding: 16px;
   background: rgba(18, 17, 30, 0.48);
-  backdrop-filter: blur(3px);
 }
 .broadcast-dialog {
   width: min(440px, 100%);

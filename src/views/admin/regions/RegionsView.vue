@@ -603,7 +603,6 @@ async function confirmDelete() {
   inset: 0;
   z-index: 1300;
   background: rgba(18, 17, 30, 0.42);
-  backdrop-filter: blur(2px);
 }
 .regions-drawer {
   position: absolute;
@@ -742,7 +741,6 @@ async function confirmDelete() {
   place-items: center;
   padding: 16px;
   background: rgba(18, 17, 30, 0.48);
-  backdrop-filter: blur(3px);
 }
 .regions-dialog {
   width: min(440px, 100%);

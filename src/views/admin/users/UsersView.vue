@@ -1848,7 +1848,6 @@ async function submitAction() {
   inset: 0;
   z-index: 1300;
   background: rgba(20, 19, 33, 0.42);
-  backdrop-filter: blur(2px);
 }
 .drawer.show {
   animation: users-drawer-in 0.24s ease both;
@@ -1969,7 +1968,6 @@ async function submitAction() {
   place-items: center;
   padding: 20px;
   background: rgba(20, 19, 33, 0.48);
-  backdrop-filter: blur(3px);
   overscroll-behavior: contain;
 }
 .dialog {

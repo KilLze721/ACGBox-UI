@@ -472,7 +472,6 @@
   padding: 18px;
   overflow: hidden;
   background: rgba(18, 17, 30, 0.42);
-  backdrop-filter: blur(3px);
   overscroll-behavior: contain;
 }
 .anime-confirm-dialog {

@@ -5,7 +5,6 @@
   display: flex;
   justify-content: flex-end;
   background: rgba(18, 17, 30, 0.43);
-  backdrop-filter: blur(3px);
   animation: anime-crud-fade 0.16s ease both;
   overscroll-behavior: contain;
 }
