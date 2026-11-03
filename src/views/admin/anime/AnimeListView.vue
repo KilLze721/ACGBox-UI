@@ -17,6 +17,7 @@ import type {
   TagMatchMode,
 } from '@/types/api'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import WorkDataTransfer from '@/components/admin/WorkDataTransfer.vue'
 import WorkRelationsSummary from '@/components/admin/WorkRelationsSummary.vue'
 import ArchiveDateInput from '@/components/admin/ArchiveDateInput.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
@@ -139,6 +140,7 @@ const brokenCovers = ref(new Set<string>())
 const showTagDropdown = ref(false)
 const tagSearch = ref('')
 const dateRangeEnabled = ref(false)
+const appliedDateRangeEnabled = ref(false)
 const ratingRangeEnabled = ref(false)
 const appliedRatingRangeEnabled = ref(false)
 const deleteTarget = ref<AnimePageItem | null>(null)
@@ -148,8 +150,20 @@ const deleteConfirmationMessage = ref('')
 const drawerMode = ref<'detail' | 'edit' | null>(null)
 const crudDrawer = ref<InstanceType<typeof AnimeCrudDrawer> | null>(null)
 
+const transferPanel = ref<InstanceType<typeof WorkDataTransfer>>()
+const selectedIds = ref<number[]>([])
+function selectTransferPage() {
+  selectedIds.value = page.value.rows.every((row) => selectedIds.value.includes(row.id))
+    ? []
+    : page.value.rows.map((row) => row.id)
+}
 function getCloseState() {
-  return crudDrawer.value?.getCloseState() ?? { dirty: false, submitting: false }
+  const state = crudDrawer.value?.getCloseState() ?? { dirty: false, submitting: false }
+  const transfer = transferPanel.value?.getCloseState()
+  return {
+    dirty: state.dirty || !!transfer?.dirty,
+    submitting: state.submitting || !!transfer?.submitting,
+  }
 }
 
 defineExpose({ getCloseState })
@@ -263,9 +277,9 @@ const activeFilterChips = computed(() => {
   if (filters.broadcastStartDate)
     chips.push({
       key: 'broadcastStartDate',
-      label: `${dateRangeEnabled.value ? '始于' : '日期'}：${filters.broadcastStartDate}`,
+      label: `${appliedDateRangeEnabled.value ? '始于' : '日期'}：${filters.broadcastStartDate}`,
     })
-  if (dateRangeEnabled.value && filters.broadcastEndDate)
+  if (appliedDateRangeEnabled.value && filters.broadcastEndDate)
     chips.push({ key: 'broadcastEndDate', label: `止于：${filters.broadcastEndDate}` })
   if (filters.ratingMin)
     chips.push({
@@ -349,7 +363,8 @@ function createQuery(pageNum: number): AnimePageQuery {
     adaptationTypeId: optionalNumber(filters.adaptationTypeId),
     broadcastStartDate: filters.broadcastStartDate || undefined,
     broadcastEndDate:
-      (dateRangeEnabled.value ? filters.broadcastEndDate : filters.broadcastStartDate) || undefined,
+      (appliedDateRangeEnabled.value ? filters.broadcastEndDate : filters.broadcastStartDate) ||
+      undefined,
     status: optionalNumber(filters.status),
     regionId: optionalNumber(filters.regionId),
     companyId: optionalNumber(filters.companyId),
@@ -373,6 +388,7 @@ async function loadPage(pageNum: number) {
   try {
     const result = await getAnimePage(createQuery(pageNum), controller.signal)
     page.value = result
+    selectedIds.value = []
     jumpPage.value = result.pageNum
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') return
@@ -578,6 +594,7 @@ function submitQuery() {
     tagIds: [...form.tagIds],
   }
   appliedRatingRangeEnabled.value = ratingRangeEnabled.value
+  appliedDateRangeEnabled.value = dateRangeEnabled.value
   void loadPage(1)
 }
 
@@ -595,6 +612,7 @@ function resetFilters() {
   ratingErrors.ratingMin = ''
   ratingErrors.ratingMax = ''
   dateRangeEnabled.value = false
+  appliedDateRangeEnabled.value = false
   ratingRangeEnabled.value = false
   appliedRatingRangeEnabled.value = false
   showTagDropdown.value = false
@@ -704,9 +722,9 @@ function openCrudDrawer(mode: 'detail' | 'edit', anime: AnimePageItem) {
   drawerMode.value = mode
 }
 
-async function openLinkedDetail() {
+async function openLinkedDetail(selectedId?: number) {
   if (!route) return
-  const id = Number(route.query.detail)
+  const id = selectedId ?? Number(route.query.detail)
   if (!Number.isInteger(id) || id <= 0 || route.fullPath !== ownerFullPath) return
   try {
     const detail = await getAnimeDetail(id)
@@ -1239,6 +1257,16 @@ function markCoverBroken(url: string) {
           >
         </div>
         <div class="list-tools">
+          <WorkDataTransfer
+            ref="transferPanel"
+            target-type="ANIME"
+            :instance-key="ownerFullPath"
+            :filters="createQuery(page.pageNum)"
+            :selected-ids="selectedIds"
+            :summary="activeFilterChips.map((chip) => chip.label).join('；')"
+            @completed="refreshPage()"
+            @detail="openLinkedDetail($event)"
+          />
           <div class="sort-summary">
             <span>当前排序</span><strong>{{ sortSummary }}</strong
             ><span>／ID 倒序</span>
@@ -1277,6 +1305,17 @@ function markCoverBroken(url: string) {
           </caption>
           <thead>
             <tr>
+              <th class="transfer-selection">
+                <input
+                  type="checkbox"
+                  aria-label="勾选本页作品用于导出"
+                  :checked="
+                    page.rows.length > 0 && page.rows.every((row) => selectedIds.includes(row.id))
+                  "
+                  :indeterminate="selectedIds.length > 0 && selectedIds.length < page.rows.length"
+                  @change="selectTransferPage"
+                />
+              </th>
               <th class="cover-cell" scope="col">封面</th>
               <th class="work-cell" scope="col">动画 / 别名 / 系列</th>
               <th class="tag-cell" scope="col">标签</th>
@@ -1292,6 +1331,14 @@ function markCoverBroken(url: string) {
           </thead>
           <tbody>
             <tr v-for="anime in page.rows" :key="anime.id">
+              <td class="transfer-selection">
+                <input
+                  v-model="selectedIds"
+                  type="checkbox"
+                  :value="anime.id"
+                  :aria-label="'勾选导出 ' + anime.name"
+                />
+              </td>
               <td class="cover-cell">
                 <div
                   v-if="!anime.coverImageUrl"
@@ -1414,6 +1461,9 @@ function markCoverBroken(url: string) {
           class="anime-card-grid"
         >
           <article v-for="anime in page.rows" :key="anime.id" class="anime-work-card">
+            <label class="transfer-card-selection"
+              ><input v-model="selectedIds" type="checkbox" :value="anime.id" />勾选导出</label
+            >
             <div class="anime-card-heading">
               <div class="cover" :style="{ '--cover-gradient': getCoverGradient(anime.id) }">
                 <img

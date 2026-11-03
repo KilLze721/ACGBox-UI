@@ -2,6 +2,23 @@
 .primary-action[href] {
   text-decoration: none;
 }
+.anime-management-page .transfer-selection {
+  width: 34px;
+  padding-left: 12px;
+  padding-right: 4px;
+}
+.anime-management-page .transfer-selection input,
+.anime-management-page .transfer-card-selection input {
+  accent-color: var(--accent);
+}
+.anime-management-page .transfer-card-selection {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
 /* 两类作品列表共用实色卡片，避免长列表和多张统计卡叠加大面积背景模糊。 */
 .anime-management-page > .card,
 .anime-management-page > .stats-grid > .stat-card {

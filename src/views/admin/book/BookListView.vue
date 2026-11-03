@@ -15,6 +15,7 @@ import { deleteBooks, getBookPage, getBookTypes } from '@/api/book'
 import { getAdaptationTypes, getRegions, getTags } from '@/api/catalog'
 import { searchRelatedEntities } from '@/api/relatedEntities'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import WorkDataTransfer from '@/components/admin/WorkDataTransfer.vue'
 import WorkRelationsSummary from '@/components/admin/WorkRelationsSummary.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import AnimeEntitySelect from '@/components/admin/AnimeEntitySelect.vue'
@@ -146,9 +147,20 @@ let pageController: AbortController | undefined,
   toastTimer: number | undefined
 let activated = false
 const refreshCatalogs = useCatalogRefresh(['book', 'adaptation'], loadCatalogs)
+const transferPanel = ref<InstanceType<typeof WorkDataTransfer>>()
+const selectedIds = ref<number[]>([])
+function selectTransferPage() {
+  selectedIds.value = page.value.rows.every((row) => selectedIds.value.includes(row.id))
+    ? []
+    : page.value.rows.map((row) => row.id)
+}
 function getCloseState() {
   const state = drawer.value?.getCloseState() ?? { dirty: false, submitting: false }
-  return { dirty: state.dirty, submitting: state.submitting || deleting.value }
+  const transfer = transferPanel.value?.getCloseState()
+  return {
+    dirty: state.dirty || !!transfer?.dirty,
+    submitting: state.submitting || deleting.value || !!transfer?.submitting,
+  }
 }
 defineExpose({ getCloseState, openBookDetail: (id: number) => openDrawer('detail', id) })
 onMounted(() => {
@@ -421,6 +433,7 @@ async function loadPage(pageNum: number) {
       return
     }
     page.value = result
+    selectedIds.value = []
     jumpPage.value = String(result.pageNum)
   } catch (error) {
     if (!request.signal.aborted) errorMessage.value = messageOf(error, '书籍列表读取失败，请重试。')
@@ -968,6 +981,16 @@ function safeUrl(value: string | null) {
           >
         </div>
         <div class="list-tools">
+          <WorkDataTransfer
+            ref="transferPanel"
+            target-type="BOOK"
+            :instance-key="ownerFullPath"
+            :filters="buildQuery(page.pageNum)"
+            :selected-ids="selectedIds"
+            :summary="activeFilterChips.map((chip) => chip.label).join('；')"
+            @completed="refreshPage()"
+            @detail="openDrawer('detail', $event)"
+          />
           <div class="sort-summary">
             <span>当前排序</span><strong>{{ sortSummary }}</strong>
           </div>
@@ -1055,6 +1078,17 @@ function safeUrl(value: string | null) {
           </caption>
           <thead>
             <tr>
+              <th class="transfer-selection">
+                <input
+                  type="checkbox"
+                  aria-label="勾选本页作品用于导出"
+                  :checked="
+                    page.rows.length > 0 && page.rows.every((row) => selectedIds.includes(row.id))
+                  "
+                  :indeterminate="selectedIds.length > 0 && selectedIds.length < page.rows.length"
+                  @change="selectTransferPage"
+                />
+              </th>
               <th class="cover-cell" scope="col">封面</th>
               <th class="work-cell" scope="col">书籍 / 别名 / 系列</th>
               <th class="tag-cell" scope="col">标签</th>
@@ -1070,6 +1104,14 @@ function safeUrl(value: string | null) {
           </thead>
           <tbody>
             <tr v-for="book in page.rows" :key="book.id">
+              <td class="transfer-selection">
+                <input
+                  v-model="selectedIds"
+                  type="checkbox"
+                  :value="book.id"
+                  :aria-label="'勾选导出 ' + book.name"
+                />
+              </td>
               <td class="cover-cell">
                 <div class="cover" :style="{ '--cover-gradient': getCoverGradient(book.id) }">
                   <img
@@ -1196,6 +1238,9 @@ function safeUrl(value: string | null) {
         </table>
         <div v-else class="book-card-grid">
           <article v-for="book in page.rows" :key="book.id" class="book-work-card">
+            <label class="transfer-card-selection"
+              ><input v-model="selectedIds" type="checkbox" :value="book.id" />勾选导出</label
+            >
             <div class="book-card-heading">
               <div class="cover" :style="{ '--cover-gradient': getCoverGradient(book.id) }">
                 <img
