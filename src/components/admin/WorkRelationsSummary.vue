@@ -95,7 +95,8 @@ withDefaults(
 .relation-summary-icon {
   width: 12px;
   height: 12px;
-  margin-top: 3px;
+  display: block;
+  transform: translateY(3px);
   color: var(--violet);
 }
 .relation-summary-items {
@@ -114,6 +115,7 @@ withDefaults(
   min-width: 0;
   color: var(--ink);
   font-size: 10px;
+  line-height: 18px;
   font-weight: 650;
 }
 .relation-summary-name,

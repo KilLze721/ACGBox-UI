@@ -17,6 +17,12 @@ export interface TransferPreview {
   truncated: boolean
   rows: Array<{ rowKey: string; row: number; data: Record<string, unknown> }>
   referenceNames: Record<string, Record<string, string>>
+  pendingCatalogs?: Array<{
+    temporaryId: number
+    type: 'tag' | 'company' | 'person' | 'series'
+    name: string
+    rowKeys: string[]
+  }>
   errors: TransferIssue[]
   warnings: TransferIssue[]
   importToken?: string
@@ -58,10 +64,10 @@ export function previewImport(type: TransferType, file: File, signal: AbortSigna
     'Excel 文件不能超过 5 MiB，上传请求不能超过 6 MiB。',
   )
 }
-export const commitImport = (type: TransferType, importToken: string, signal: AbortSignal) =>
+export const commitImport = (type: TransferType, importToken: string, signal: AbortSignal, createMissingCatalogs = false) =>
   post<TransferBatch>(
     `${base(type)}/import/commit`,
-    { targetType: type, importToken, acknowledged: true },
+    { targetType: type, importToken, acknowledged: true, createMissingCatalogs },
     signal,
   )
 export const getImportBatch = (type: TransferType, token: string, signal?: AbortSignal) =>

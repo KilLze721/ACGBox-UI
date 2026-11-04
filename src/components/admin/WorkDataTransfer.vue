@@ -32,6 +32,12 @@ const opened = ref(false),
   discard = ref(false)
 const closeAfterDiscard = ref(false)
 const panel = useModalLayer(opened, requestClose)
+const discardPanel = useModalLayer(() => opened.value && discard.value, keepPreview)
+const acknowledgmentInput = ref<HTMLInputElement>()
+const acknowledgmentError = ref(false)
+function keepPreview() {
+  if (!busy.value) discard.value = false
+}
 onDeactivated(() => {
   opened.value = false
 })
@@ -44,7 +50,10 @@ const file = ref<File>(),
   batch = ref<TransferBatch>(),
   uncertain = ref(false),
   acknowledged = ref(false),
+  createMissingCatalogs = ref(false),
   previewPage = ref(1)
+const pendingCatalogs = computed(() => preview.value?.pendingCatalogs ?? [])
+const catalogLabels = { tag: '标签', company: '公司', person: '人物', series: '系列' }
 const clock = ref(Date.now())
 const attempted = ref(false)
 const label = computed(() => (props.targetType === 'ANIME' ? '动画' : '书籍'))
@@ -63,8 +72,7 @@ const canCommit = computed(
     !expired.value &&
     !terminal.value &&
     !successful.value &&
-    !uncertain.value &&
-    acknowledged.value,
+    !uncertain.value,
 )
 const visibleRows = computed(
   () => preview.value?.rows.slice((previewPage.value - 1) * 10, previewPage.value * 10) ?? [],
@@ -90,6 +98,7 @@ try {
   if (saved) {
     batch.value = JSON.parse(saved)
     attempted.value = !!JSON.parse(saved).attempted
+    createMissingCatalogs.value = JSON.parse(saved).createMissingCatalogs === true
     uncertain.value = true
   }
 } catch {
@@ -127,6 +136,7 @@ function remember() {
         status: batch.value?.status ?? 'READY',
         workCount: preview.value?.workCount ?? batch.value?.workCount,
         attempted: attempted.value,
+        createMissingCatalogs: attempted.value && createMissingCatalogs.value,
       }),
     )
 }
@@ -168,6 +178,7 @@ async function restoreBatch(key: string) {
   if (!saved) return
   batch.value = saved
   attempted.value = !!saved.attempted
+  createMissingCatalogs.value = saved.createMissingCatalogs === true
   uncertain.value = true
   await queryBatch()
 }
@@ -240,6 +251,7 @@ function selectFile(event: Event) {
   file.value = (event.target as HTMLInputElement).files?.[0]
   preview.value = undefined
   acknowledged.value = false
+  createMissingCatalogs.value = false
   previewPage.value = 1
   error.value = ''
   if (
@@ -260,17 +272,28 @@ async function upload() {
     attempted.value = false
     batch.value = undefined
     acknowledged.value = false
+    acknowledgmentError.value = false
+    createMissingCatalogs.value = false
     previewPage.value = 1
     remember()
   })
 }
 async function commit(retry = false) {
   if (!token.value || (!retry && !canCommit.value)) return
+  if (!retry && !acknowledged.value) {
+    acknowledgmentError.value = true
+    acknowledgmentInput.value?.focus()
+    acknowledgmentInput.value?.scrollIntoView({ block: 'center' })
+    return
+  }
+  if (!retry && pendingCatalogs.value.length && !createMissingCatalogs.value) return
   attempted.value = true
   remember()
   uncertain.value = true
   await run(async (signal) =>
-    acceptBatch(await commitImport(props.targetType, token.value!, signal)),
+    acceptBatch(
+      await commitImport(props.targetType, token.value!, signal, createMissingCatalogs.value),
+    ),
   )
 }
 async function queryBatch() {
@@ -313,6 +336,7 @@ function prepareNext() {
   preview.value = undefined
   file.value = undefined
   acknowledged.value = false
+  createMissingCatalogs.value = false
   attempted.value = false
   uncertain.value = false
   error.value = ''
@@ -361,7 +385,18 @@ function text(value: unknown, key: string): string {
     return Object.entries(value)
       .map(
         ([field, item]) =>
-          `${({ role: '职责', sortOrder: '排序', title: '标题', url: '链接', companyId: '公司', personId: '人物' } as Record<string, string>)[field] ?? field}：${text(item, field)}`,
+          `${
+            (
+              {
+                role: '职责',
+                sortOrder: '排序',
+                title: '标题',
+                url: '链接',
+                companyId: '公司',
+                personId: '人物',
+              } as Record<string, string>
+            )[field] ?? field
+          }：${text(item, field)}`,
       )
       .join(' · ')
   const names = preview.value?.referenceNames[referenceTables[key] ?? '']
@@ -478,12 +513,19 @@ function text(value: unknown, key: string): string {
                 @change="selectFile"
               /><small>{{ file?.name || '仅支持 .xlsx，不支持 .xls、宏或 CSV' }}</small></label
             >
-            <button v-if="file && !token" class="secondary-button" :disabled="busy" @click="upload">
-              {{ busy ? '正在处理…' : '上传并预览（不新增作品）' }}
-            </button>
-            <button v-if="busy && !uncertain" class="ghost-button" @click="controller?.abort()">
-              取消当前请求
-            </button>
+            <div class="transfer-upload-actions">
+              <button
+                v-if="file && !token"
+                class="secondary-button"
+                :disabled="busy"
+                @click="upload"
+              >
+                {{ busy ? '正在处理…' : '上传并预览' }}
+              </button>
+              <button v-if="busy && !uncertain" class="ghost-button" @click="controller?.abort()">
+                取消当前请求
+              </button>
+            </div>
             <template v-if="preview">
               <div class="transfer-counts">
                 <span
@@ -545,7 +587,10 @@ function text(value: unknown, key: string): string {
               {{
                 expired
                   ? '预览有效期已过，请先查询批次结果。'
-                  : `预览截止：${new Date(expiresAt).toLocaleString()}（剩余 ${Math.max(0, Math.ceil((Date.parse(expiresAt) - clock) / 60000))} 分钟）`
+                  : `预览截止：${new Date(expiresAt).toLocaleString()}（剩余 ${Math.max(
+                      0,
+                      Math.ceil((Date.parse(expiresAt) - clock) / 60000),
+                    )} 分钟）`
               }}
             </p>
             <p v-if="uncertain" class="transfer-notice" role="status">
@@ -568,32 +613,52 @@ function text(value: unknown, key: string): string {
                 ><button class="ghost-button" @click="openResult(id)">查看作品</button>
               </div>
             </section>
+            <details
+              v-if="pendingCatalogs.length && !successful && !terminal"
+              class="transfer-notice"
+            >
+              <summary>待创建资料（{{ pendingCatalogs.length }} 项）</summary>
+              <ul>
+                <li v-for="item in pendingCatalogs" :key="item.temporaryId">
+                  {{ catalogLabels[item.type] }}：{{ item.name }}（{{ item.rowKeys.join('、') }}）
+                </li>
+              </ul>
+            </details>
+            <label
+              v-if="pendingCatalogs.length && token && !successful && !terminal"
+              class="transfer-ack"
+            >
+              <input
+                v-model="createMissingCatalogs"
+                type="checkbox"
+                :disabled="busy || uncertain"
+              />
+              同意创建本批 {{ pendingCatalogs.length }} 项缺失资料
+            </label>
             <label
               v-if="preview && !preview.errorCount && token && !successful && !terminal"
               class="transfer-ack"
               ><input
+                ref="acknowledgmentInput"
                 v-model="acknowledged"
+                :aria-invalid="acknowledgmentError"
+                :aria-describedby="acknowledgmentError ? 'transfer-ack-error' : undefined"
+                @change="acknowledgmentError = false"
                 type="checkbox"
                 :disabled="busy || uncertain"
               />我已核对预览及所有提醒，将新增
               {{ preview.workCount }} 部作品，不修改已有作品。</label
             >
+            <p
+              v-if="acknowledgmentError && preview && !successful && !terminal"
+              id="transfer-ack-error"
+              class="transfer-error"
+              role="alert"
+            >
+              请先勾选确认框，再确认整批新增。
+            </p>
           </template>
           <p v-if="error" class="transfer-error" role="alert">{{ error }}</p>
-          <div v-if="discard" class="transfer-discard" role="alert">
-            <p>
-              {{
-                uncertain
-                  ? '关闭窗口会保留当前批次，重新打开后可查询结果，不会回滚已发出的提交。'
-                  : '放弃会取消未提交预览，已有作品不会改变。'
-              }}
-            </p>
-            <button class="secondary-button" :disabled="busy" @click="discard = false">
-              继续核对</button
-            ><button class="danger-button" :disabled="busy" @click="abandon">
-              {{ uncertain ? '保留批次并关闭' : '放弃预览' }}
-            </button>
-          </div>
         </div>
         <footer>
           <button class="secondary-button" :disabled="busy" @click="requestClose">关闭</button
@@ -606,24 +671,28 @@ function text(value: unknown, key: string): string {
               {{ busy ? '正在生成…' : '下载 Excel' }}
             </button></template
           ><template v-else
-            ><button v-if="token" class="secondary-button" :disabled="busy" @click="queryBatch">
-              查询批次结果</button
-            ><button
-              v-if="token && !successful && !terminal"
-              class="primary-button"
-              :disabled="
-                busy || (!uncertain && !canCommit) || (uncertain && batch?.status === 'PROCESSING')
-              "
-              @click="commit(uncertain)"
-            >
-              {{ busy ? '正在处理…' : uncertain ? '同批次重试确认' : '确认整批新增' }}</button
             ><button
               v-if="token && !successful && !uncertain"
               class="ghost-button"
               :disabled="busy"
               @click="changeFile"
             >
-              放弃／更换文件</button
+              更换文件</button
+            ><button v-if="token" class="secondary-button" :disabled="busy" @click="queryBatch">
+              查询批次结果</button
+            ><button
+              v-if="token && !successful && !terminal"
+              class="primary-button"
+              :disabled="
+                busy ||
+                (!uncertain &&
+                  (!canCommit ||
+                    (acknowledged && pendingCatalogs.length > 0 && !createMissingCatalogs))) ||
+                (uncertain && batch?.status === 'PROCESSING')
+              "
+              @click="commit(uncertain)"
+            >
+              {{ busy ? '正在处理…' : uncertain ? '同批次重试确认' : '确认整批新增' }}</button
             ><button
               v-if="successful || terminal"
               class="ghost-button"
@@ -634,6 +703,38 @@ function text(value: unknown, key: string): string {
             </button></template
           >
         </footer>
+      </section>
+    </div>
+    <div
+      v-if="opened && discard"
+      class="transfer-layer transfer-confirm-layer"
+      @click.self="keepPreview"
+    >
+      <section
+        ref="discardPanel"
+        class="transfer-dialog transfer-discard"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="transfer-discard-title"
+        tabindex="-1"
+      >
+        <h3 id="transfer-discard-title">
+          {{ uncertain ? '确认关闭导入？' : '确认放弃本次预览？' }}
+        </h3>
+        <p>
+          {{
+            uncertain
+              ? '关闭窗口会保留当前批次，重新打开后可查询结果，不会回滚已发出的提交。'
+              : '放弃会取消未提交预览，已有作品不会改变。'
+          }}
+        </p>
+        <p v-if="error" class="transfer-error" role="alert">{{ error }}</p>
+        <div class="transfer-upload-actions">
+          <button class="secondary-button" :disabled="busy" @click="keepPreview">继续核对</button
+          ><button class="danger-button" :disabled="busy" @click="abandon">
+            {{ uncertain ? '保留批次并关闭' : '放弃更改' }}
+          </button>
+        </div>
       </section>
     </div>
   </Teleport>
@@ -897,12 +998,24 @@ dd {
   gap: 10px;
 }
 .transfer-discard {
-  padding: 16px;
-  border: 1px solid var(--danger);
-  border-radius: 12px;
+  width: min(100%, 440px);
+  padding: 24px;
+  overflow: auto;
 }
-.transfer-discard button {
-  margin: 10px 8px 0 0;
+.transfer-discard h3 {
+  margin-top: 0;
+}
+.transfer-discard .transfer-upload-actions {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.transfer-confirm-layer {
+  z-index: 2201;
+}
+.transfer-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 footer {
   display: flex;
