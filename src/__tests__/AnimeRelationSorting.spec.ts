@@ -46,7 +46,6 @@ async function render(mode: 'create' | 'edit' = 'edit', deferSave = false) {
     ],
     externalLinks: [],
     seriesId: null,
-    seriesSortOrder: null,
   }
   let submitted: AnimePayload | undefined
   let completeSave: (() => void) | undefined

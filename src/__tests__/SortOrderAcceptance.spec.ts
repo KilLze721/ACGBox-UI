@@ -38,7 +38,7 @@ beforeEach(() => {
     coverImageUrl: null, description: '保留说明', aliasNames: ['别名Z', '别名A'], tagIds: [], persons: [],
     companies: [{ companyId: 20, role: '主制', sortOrder: -2 }, { companyId: 10, role: '协制', sortOrder: 2147483647 }],
     externalLinks: [{ title: '官网', url: 'https://example.test/anime', sortOrder: 9 }],
-    seriesId: null, seriesSortOrder: null,
+    seriesId: null,
   }
   // 所有请求均在内存中处理；保存模拟只用于比较前端载荷，不代表真实接口联调。
   vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request, init?: RequestInit) => {

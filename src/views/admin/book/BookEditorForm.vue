@@ -87,7 +87,6 @@ interface BookForm {
   externalLinks: Array<{ rowKey: number; title: string; url: string; sortOrder: string }>
   seriesId: string
   seriesName: string
-  seriesSortOrder: string
   autoCreateSeries: boolean
 }
 
@@ -144,7 +143,6 @@ function createDefaultForm(): BookForm {
     externalLinks: [],
     seriesId: '',
     seriesName: '',
-    seriesSortOrder: '',
     autoCreateSeries: false,
   }
 }
@@ -215,7 +213,6 @@ function applyBook(
     })),
     seriesId: book.seriesId === null ? '' : String(book.seriesId),
     seriesName: selectedSeries?.name ?? '',
-    seriesSortOrder: book.seriesSortOrder === null ? '' : String(book.seriesSortOrder),
   })
   personsLoaded.value = true
   initialFormState.value = getFormSnapshot()
@@ -580,12 +577,6 @@ function validateForm() {
   if (form.seriesName.trim() && !form.seriesId)
     setError('seriesId', '请从结果中选择已有系列，或清空名称。')
   if (form.seriesId && !isBookReference(form.seriesId)) setError('seriesId', '请选择有效系列。')
-  if (
-    form.seriesId &&
-    form.seriesSortOrder.trim() !== '' &&
-    parseBookInteger(form.seriesSortOrder, -2147483648) === null
-  )
-    setError('seriesSortOrder', '系列排序请输入有效整数。')
   if (form.tagIds.some((id) => !isBookReference(id))) setError('tags', '标签选项无效，请重新选择。')
   return Object.keys(errors).length === 0
 }
@@ -653,11 +644,6 @@ function buildPayload(): BookPayload {
       })),
     tagIds: [...new Set(form.tagIds)],
     seriesId: form.seriesId ? Number(form.seriesId) : null,
-    seriesSortOrder: form.seriesId
-      ? form.seriesSortOrder.trim() === ''
-        ? 0
-        : parseBookInteger(form.seriesSortOrder, -2147483648)
-      : null,
     ...(props.mode === 'create' ? { autoCreateSeries: form.autoCreateSeries } : {}),
     personalRatingScore:
       form.personalRatingScore.trim() === ''
@@ -1232,31 +1218,18 @@ async function confirmAction() {
           </div>
           <div class="field full">
             <span class="anime-field-label">所属系列</span>
-            <div class="anime-series-fields">
-              <AnimeEntitySelect
-                id="bookSeries"
-                v-model="form.seriesId"
-                v-model:selected-name="form.seriesName"
-                label="所属系列"
-                placeholder="暂不关联系列"
-                :error-message="errors.seriesId"
-                empty-option="暂不关联系列"
-                :search="searchSeries"
-                :require-explicit-selection="true"
-                :show-option-description="true"
-              />
-              <div class="anime-input-suffix">
-                <input
-                  v-model="form.seriesSortOrder"
-                  type="text"
-                  inputmode="numeric"
-                  placeholder="系列排序"
-                /><i>序号</i>
-              </div>
-            </div>
-            <small v-if="errors.seriesSortOrder" class="field-error">{{
-              errors.seriesSortOrder
-            }}</small>
+            <AnimeEntitySelect
+              id="bookSeries"
+              v-model="form.seriesId"
+              v-model:selected-name="form.seriesName"
+              label="所属系列"
+              placeholder="暂不关联系列"
+              :error-message="errors.seriesId"
+              empty-option="暂不关联系列"
+              :search="searchSeries"
+              :require-explicit-selection="true"
+              :show-option-description="true"
+            />
             <label v-if="mode === 'create'" class="anime-switch-row">
               <span><strong>无系列时自动创建</strong><small>使用书籍名称创建同名系列</small></span>
               <button

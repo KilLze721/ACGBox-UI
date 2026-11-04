@@ -361,7 +361,6 @@ const fieldLabels: Record<string, string> = {
   persons: '人物与职责',
   tagIds: '标签',
   seriesId: '系列',
-  seriesSortOrder: '系列排序',
   broadcastTypeId: '放送类型',
   bookTypeId: '书籍类型',
   adaptationTypeId: '改编类型',

@@ -365,11 +365,6 @@
   color: var(--ink-faint);
   font-size: var(--anime-form-text-size, 12px);
 }
-.anime-series-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.7fr);
-  gap: 10px;
-}
 .anime-switch-row {
   display: flex;
   align-items: center;
@@ -584,8 +579,5 @@
   }
   .anime-link-row > input {
     grid-column: 1;
-  }
-  .anime-series-fields {
-    grid-template-columns: 1fr;
   }
 }

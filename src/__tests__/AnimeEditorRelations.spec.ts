@@ -244,6 +244,6 @@ describe('新增和修改动画的关联资料', () => {
     await flushPromises()
 
     expect(submittedPayload?.seriesId).toBeNull()
-    expect(submittedPayload?.seriesSortOrder).toBeNull()
+    expect(submittedPayload).not.toHaveProperty('seriesSortOrder')
   })
 })

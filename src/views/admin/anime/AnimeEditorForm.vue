@@ -89,7 +89,6 @@ interface AnimeForm {
   externalLinks: Array<{ rowKey: number; title: string; url: string; sortOrder: string }>
   seriesId: string
   seriesName: string
-  seriesSortOrder: string
   autoCreateSeries: boolean
 }
 
@@ -154,7 +153,6 @@ function createDefaultForm(): AnimeForm {
     externalLinks: [],
     seriesId: '',
     seriesName: '',
-    seriesSortOrder: '',
     autoCreateSeries: false,
   }
 }
@@ -221,7 +219,6 @@ function applyAnime(
     })),
     seriesId: anime.seriesId === null ? '' : String(anime.seriesId),
     seriesName: selectedSeries?.name ?? '',
-    seriesSortOrder: anime.seriesSortOrder === null ? '' : String(anime.seriesSortOrder),
   })
   personsLoaded.value = true
   initialFormState.value = getFormSnapshot()
@@ -613,7 +610,6 @@ function buildPayload(): AnimePayload {
       })),
     tagIds: [...form.tagIds],
     seriesId: form.seriesId ? Number(form.seriesId) : null,
-    seriesSortOrder: form.seriesId && form.seriesSortOrder ? Number(form.seriesSortOrder) : null,
     ...(props.mode === 'create' ? { autoCreateSeries: form.autoCreateSeries } : {}),
     personalRatingScore: form.personalRatingScore === '' ? null : Number(form.personalRatingScore),
   }
@@ -1178,26 +1174,15 @@ async function confirmAction() {
           </div>
           <div class="field full">
             <span class="anime-field-label">所属系列</span>
-            <div class="anime-series-fields">
-              <AnimeEntitySelect
-                id="animeSeries"
-                v-model="form.seriesId"
-                v-model:selected-name="form.seriesName"
-                label="所属系列"
-                placeholder="暂不关联系列"
-                empty-option="暂不关联系列"
-                :search="searchSeries"
-              />
-              <div class="anime-input-suffix">
-                <input
-                  v-model="form.seriesSortOrder"
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="系列排序"
-                /><i>序号</i>
-              </div>
-            </div>
+            <AnimeEntitySelect
+              id="animeSeries"
+              v-model="form.seriesId"
+              v-model:selected-name="form.seriesName"
+              label="所属系列"
+              placeholder="暂不关联系列"
+              empty-option="暂不关联系列"
+              :search="searchSeries"
+            />
             <label v-if="mode === 'create'" class="anime-switch-row">
               <span><strong>无系列时自动创建</strong><small>使用动画名称创建同名系列</small></span>
               <button

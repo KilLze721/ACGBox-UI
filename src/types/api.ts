@@ -169,7 +169,6 @@ export interface AnimeDetail {
   externalLinks: ExternalLink[]
   tagIds: number[]
   seriesId: number | null
-  seriesSortOrder: number | null
   personalRatingScore: number | null
 }
 
@@ -190,7 +189,6 @@ export interface AnimePayload {
   externalLinks?: ExternalLink[]
   tagIds?: number[]
   seriesId?: number | null
-  seriesSortOrder?: number | null
   autoCreateSeries?: boolean
   personalRatingScore?: number | null
 }
