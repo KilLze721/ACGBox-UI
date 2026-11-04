@@ -25,6 +25,10 @@
   background: var(--surface-solid);
   backdrop-filter: none;
 }
+/* 筛选浮层应显示在固定表头上方。 */
+.anime-management-page > .filter-card {
+  z-index: 3;
+}
 .anime-management-page .work-title {
   width: fit-content;
   max-width: 100%;
