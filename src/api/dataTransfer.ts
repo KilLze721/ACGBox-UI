@@ -35,6 +35,7 @@ export interface TransferBatch {
   expiresAt: string
   workCount: number
   createdCount?: number
+  preview?: TransferPreview
   mappings?: Record<string, number>
   message?: string
   rowKey?: string

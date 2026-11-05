@@ -31,6 +31,7 @@ const opened = ref(false),
   error = ref(''),
   discard = ref(false)
 const closeAfterDiscard = ref(false)
+const retained = ref(false)
 const panel = useModalLayer(opened, requestClose)
 const discardPanel = useModalLayer(() => opened.value && discard.value, keepPreview)
 const acknowledgmentInput = ref<HTMLInputElement>()
@@ -56,6 +57,10 @@ const pendingCatalogs = computed(() => preview.value?.pendingCatalogs ?? [])
 const catalogLabels = { tag: '标签', company: '公司', person: '人物', series: '系列' }
 const clock = ref(Date.now())
 const attempted = ref(false)
+const canRetry = computed(
+  () =>
+    attempted.value && uncertain.value && !expired.value && batch.value?.status !== 'PROCESSING',
+)
 const label = computed(() => (props.targetType === 'ANIME' ? '动画' : '书籍'))
 const token = computed(() => batch.value?.importToken || preview.value?.importToken)
 const expiresAt = computed(() => batch.value?.expiresAt || preview.value?.expiresAt)
@@ -96,9 +101,11 @@ const timer = window.setInterval(() => {
 try {
   const saved = sessionStorage.getItem(storageKey)
   if (saved) {
-    batch.value = JSON.parse(saved)
-    attempted.value = !!JSON.parse(saved).attempted
-    createMissingCatalogs.value = JSON.parse(saved).createMissingCatalogs === true
+    const stored = JSON.parse(saved)
+    batch.value = stored
+    retained.value = stored.retained === true
+    attempted.value = !!stored.attempted
+    createMissingCatalogs.value = stored.createMissingCatalogs === true
     uncertain.value = true
   }
 } catch {
@@ -108,7 +115,7 @@ onBeforeUnmount(() => {
   controller?.abort()
   window.clearInterval(timer)
   // 工作区确认放弃后销毁组件时释放未提交预览；结果待确认的批次保留供恢复查询。
-  if (token.value && !uncertain.value && !successful.value && !terminal.value) {
+  if (token.value && !retained.value && !uncertain.value && !successful.value && !terminal.value) {
     void cancelImport(props.targetType, token.value)
       .then((result) => {
         if (result.status === 'CANCELLED') sessionStorage.removeItem(selectedStorageKey)
@@ -120,7 +127,7 @@ onBeforeUnmount(() => {
 })
 defineExpose({
   getCloseState: () => ({
-    dirty: !!token.value && !successful.value && !terminal.value,
+    dirty: !!token.value && !retained.value && !successful.value && !terminal.value,
     submitting: busy.value,
   }),
 })
@@ -135,6 +142,7 @@ function remember() {
         expiresAt: expiresAt.value,
         status: batch.value?.status ?? 'READY',
         workCount: preview.value?.workCount ?? batch.value?.workCount,
+        retained: retained.value,
         attempted: attempted.value,
         createMissingCatalogs: attempted.value && createMissingCatalogs.value,
       }),
@@ -177,6 +185,7 @@ async function restoreBatch(key: string) {
   const saved = JSON.parse(sessionStorage.getItem(key) ?? 'null')
   if (!saved) return
   batch.value = saved
+  retained.value = saved.retained === true
   attempted.value = !!saved.attempted
   createMissingCatalogs.value = saved.createMissingCatalogs === true
   uncertain.value = true
@@ -184,7 +193,12 @@ async function restoreBatch(key: string) {
 }
 function requestClose() {
   if (busy.value) return
-  if (mode.value === 'import' && token.value && !successful.value && !terminal.value) {
+  if (
+    mode.value === 'import' &&
+    (token.value || preview.value) &&
+    !successful.value &&
+    !terminal.value
+  ) {
     closeAfterDiscard.value = true
     discard.value = true
   } else opened.value = false
@@ -218,6 +232,12 @@ async function run(action: (signal: AbortSignal) => Promise<void>) {
 }
 function acceptBatch(value: TransferBatch) {
   batch.value = value
+  if (value.status === 'READY' && value.preview && !preview.value) {
+    preview.value = value.preview
+    previewPage.value = 1
+    acknowledged.value = false
+    acknowledgmentError.value = false
+  }
   uncertain.value = value.status === 'PROCESSING' || (value.status === 'READY' && attempted.value)
   remember()
   if (value.status === 'SUCCEEDED' || ['INVALID', 'EXPIRED', 'CANCELLED'].includes(value.status))
@@ -269,6 +289,7 @@ async function upload() {
     const result = await previewImport(props.targetType, selected, signal)
     if (signal.aborted) return
     preview.value = result
+    retained.value = false
     attempted.value = false
     batch.value = undefined
     acknowledged.value = false
@@ -279,7 +300,7 @@ async function upload() {
   })
 }
 async function commit(retry = false) {
-  if (!token.value || (!retry && !canCommit.value)) return
+  if (!token.value || (retry ? !canRetry.value : !canCommit.value)) return
   if (!retry && !acknowledged.value) {
     acknowledgmentError.value = true
     acknowledgmentInput.value?.focus()
@@ -302,13 +323,14 @@ async function queryBatch() {
     acceptBatch(await getImportBatch(props.targetType, token.value!, signal)),
   )
 }
+function retainAndClose() {
+  retained.value = true
+  remember()
+  discard.value = false
+  opened.value = false
+}
 async function abandon() {
-  if (uncertain.value) {
-    remember()
-    discard.value = false
-    opened.value = false
-    return
-  }
+  if (uncertain.value) return
   await run(async (signal) => {
     if (token.value) {
       const result = await cancelImport(props.targetType, token.value, signal)
@@ -318,6 +340,7 @@ async function abandon() {
     preview.value = undefined
     batch.value = undefined
     file.value = undefined
+    retained.value = false
     uncertain.value = false
     attempted.value = false
     discard.value = false
@@ -335,6 +358,7 @@ function prepareNext() {
   batch.value = undefined
   preview.value = undefined
   file.value = undefined
+  retained.value = false
   acknowledged.value = false
   createMissingCatalogs.value = false
   attempted.value = false
@@ -600,7 +624,7 @@ function text(value: unknown, key: string): string {
             </p>
             <p v-if="batch?.rowKey" class="transfer-error">问题作品：{{ batch.rowKey }}</p>
             <p v-if="batch?.status === 'READY' && !preview && !attempted" class="transfer-notice">
-              已恢复未提交批次，原预览明细未在本页保留。请先放弃该预览，再重新上传文件核对。
+              服务端未返回预览明细。可重新查询批次，或更换文件后重新核对。
             </p>
             <section v-if="successful" class="transfer-success">
               <h3>已新增 {{ batch?.createdCount }} 部{{ label }}</h3>
@@ -687,7 +711,7 @@ function text(value: unknown, key: string): string {
                 (!uncertain &&
                   (!canCommit ||
                     (acknowledged && pendingCatalogs.length > 0 && !createMissingCatalogs))) ||
-                (uncertain && batch?.status === 'PROCESSING')
+                (uncertain && !canRetry)
               "
               @click="commit(uncertain)"
             >
@@ -718,20 +742,32 @@ function text(value: unknown, key: string): string {
         tabindex="-1"
       >
         <h3 id="transfer-discard-title">
-          {{ uncertain ? '确认关闭导入？' : '确认放弃本次预览？' }}
+          {{ closeAfterDiscard ? '确认关闭导入？' : '确认更换文件？' }}
         </h3>
         <p>
           {{
             uncertain
-              ? '关闭窗口会保留当前批次，重新打开后可查询结果，不会回滚已发出的提交。'
-              : '放弃会取消未提交预览，已有作品不会改变。'
+              ? '关闭窗口会保留当前批次，重新打开后可查询状态。'
+              : !token
+                ? '本次预览没有生成可恢复的批次，取消后需要重新上传文件。'
+                : closeAfterDiscard
+                  ? '可以保留预览以便在有效期内继续核对，也可以取消本次预览。'
+                  : '更换文件会取消当前预览，需要重新上传并核对。'
           }}
         </p>
         <p v-if="error" class="transfer-error" role="alert">{{ error }}</p>
         <div class="transfer-upload-actions">
-          <button class="secondary-button" :disabled="busy" @click="keepPreview">继续核对</button
-          ><button class="danger-button" :disabled="busy" @click="abandon">
-            {{ uncertain ? '保留批次并关闭' : '放弃更改' }}
+          <button class="secondary-button" :disabled="busy" @click="keepPreview">继续核对</button>
+          <button
+            v-if="closeAfterDiscard && token"
+            class="secondary-button"
+            :disabled="busy"
+            @click="retainAndClose"
+          >
+            {{ uncertain ? '保留批次并关闭' : '保留预览并关闭' }}
+          </button>
+          <button v-if="!uncertain" class="danger-button" :disabled="busy" @click="abandon">
+            {{ closeAfterDiscard ? '取消预览并关闭' : '取消预览并更换文件' }}
           </button>
         </div>
       </section>
