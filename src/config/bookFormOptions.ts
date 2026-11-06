@@ -1,6 +1,6 @@
 // 书籍原作层面的职责建议，均允许自由输入，不会作为关联行的默认职责。
 export const companyRoles = ['出版', '连载', '发行']
-export const personRoles = ['作者', '原作', '作画', '插画', '编剧', '监修']
+export const personRoles = ['原作', '作画', '插画', '编剧', '监修']
 export { linkTitleSuggestions } from './animeFormOptions'
 
 export const bookStatusNames: Record<number, string> = {
