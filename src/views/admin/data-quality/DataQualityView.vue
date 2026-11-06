@@ -17,6 +17,9 @@ const rules: Array<{ code: DataQualityRule; label: string }> = [
   { code: 'MISSING_COVER', label: '缺封面' },
   { code: 'MISSING_DESCRIPTION', label: '缺简介' },
   { code: 'MISSING_PERSON', label: '缺创作人员' },
+  { code: 'MISSING_COMPANY', label: '缺公司' },
+  { code: 'MISSING_TAG', label: '缺标签' },
+  { code: 'MISSING_DATE', label: '缺日期' },
   { code: 'SAME_NAME_REVIEW', label: '同名待核对' },
 ]
 const pageSizes = pageSizeValues.map((id) => ({ id, name: `${id} 条` }))
@@ -24,7 +27,7 @@ function defaults(targetType: DataQualityTarget): DataQualityQuery {
   return {
     targetType,
     keyword: '',
-    ruleCodes: ['MISSING_COVER', 'MISSING_DESCRIPTION', 'MISSING_PERSON'],
+    ruleCodes: rules.map(({ code }) => code).filter((code) => code !== 'SAME_NAME_REVIEW'),
     matchMode: 'ANY',
     pageNum: 1,
     pageSize: resolvePageSize(pageSizeValues, 20),
@@ -217,7 +220,7 @@ onDeactivated(() => request?.abort())
         <h2>分项命中 <small>同一作品可命中多项</small></h2>
         <dl v-for="rule in rules" :key="rule.code">
           <dt>{{ rule.label }}</dt>
-          <dd>{{ result.summary.ruleCounts[rule.code] }}</dd>
+          <dd>{{ result.summary.ruleCounts[rule.code] ?? '—' }}</dd>
         </dl>
       </div>
     </section>
@@ -548,8 +551,8 @@ onDeactivated(() => request?.abort())
 }
 .quality-counts {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 76px), 1fr));
+  gap: 8px 10px;
 }
 .quality-counts h2 {
   grid-column: 1 / -1;

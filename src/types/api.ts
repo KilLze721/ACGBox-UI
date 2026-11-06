@@ -100,6 +100,9 @@ export type DataQualityRule =
   | 'MISSING_COVER'
   | 'MISSING_DESCRIPTION'
   | 'MISSING_PERSON'
+  | 'MISSING_COMPANY'
+  | 'MISSING_TAG'
+  | 'MISSING_DATE'
   | 'SAME_NAME_REVIEW'
 
 export interface DataQualityQuery {
