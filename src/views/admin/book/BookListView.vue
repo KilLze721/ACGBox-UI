@@ -176,7 +176,11 @@ onMounted(() => {
 })
 onActivated(() => {
   active.value = true
-  if (activated) void loadPage(page.value.pageNum)
+  if (activated) {
+    void loadPage(page.value.pageNum)
+    if (route.query.from === 'data-quality' && !drawerMode.value)
+      openDrawer('detail', Number(route.query.detail))
+  }
   activated = true
 })
 onDeactivated(() => {

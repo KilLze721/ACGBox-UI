@@ -629,12 +629,16 @@ function text(value: unknown, key: string): string {
             <section v-if="successful" class="transfer-success">
               <h3>已新增 {{ batch?.createdCount }} 部{{ label }}</h3>
               <p>这是服务端返回的实际导入结果。再次提交不会重复创建。</p>
-              <div v-for="(id, rowKey) in batch?.mappings" :key="rowKey">
-                <span>{{
-                  preview?.rows.find((row) => row.rowKey === rowKey)?.data.name || rowKey
-                }}</span
-                ><button class="ghost-button" @click="openResult(id)">查看作品</button>
-              </div>
+              <ul v-if="batch?.mappings" class="transfer-success-list">
+                <li v-for="(id, rowKey) in batch.mappings" :key="rowKey">
+                  <span>{{
+                    preview?.rows.find((row) => row.rowKey === rowKey)?.data.name || rowKey
+                  }}</span>
+                  <button type="button" class="ghost-button" @click="openResult(id)">
+                    查看作品
+                  </button>
+                </li>
+              </ul>
             </section>
             <details
               v-if="pendingCatalogs.length && !successful && !terminal"
@@ -1026,11 +1030,30 @@ dd {
   color: var(--success);
   border-radius: 12px;
 }
-.transfer-success > div {
+.transfer-success-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.transfer-success-list li {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  padding: 6px 8px 6px 12px;
+  color: var(--ink);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.transfer-success-list span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.transfer-success-list button {
+  flex-shrink: 0;
 }
 .transfer-discard {
   width: min(100%, 440px);

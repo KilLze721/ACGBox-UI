@@ -95,6 +95,39 @@ export interface NamedOption {
   name: string
 }
 
+export type DataQualityTarget = 'ANIME' | 'BOOK'
+export type DataQualityRule =
+  | 'MISSING_COVER'
+  | 'MISSING_DESCRIPTION'
+  | 'MISSING_PERSON'
+  | 'SAME_NAME_REVIEW'
+
+export interface DataQualityQuery {
+  targetType: DataQualityTarget
+  keyword?: string
+  ruleCodes: DataQualityRule[]
+  matchMode: 'ANY' | 'ALL'
+  pageNum: number
+  pageSize: number
+}
+
+export interface DataQualityRow {
+  targetType: DataQualityTarget
+  targetId: number
+  name: string
+  coverImageUrl: string | null
+  contentType: NamedOption | null
+  region: NamedOption | null
+  updatedAt: string | null
+  issues: Array<{ code: DataQualityRule; message: string }>
+  duplicateCount: number | null
+}
+
+export interface DataQualityPage extends PageResult<DataQualityRow> {
+  checkedAt: string
+  summary: { scopeTotal: number; ruleCounts: Record<DataQualityRule, number> }
+}
+
 export interface SortableNamedOption extends NamedOption {
   sortOrder: number
 }

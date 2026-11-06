@@ -337,6 +337,7 @@ onActivated(() => {
     return
   }
   void loadPage(page.value.pageNum)
+  if (route?.query.from === 'data-quality' && !drawerMode.value) void openLinkedDetail()
 })
 
 onBeforeUnmount(() => {
@@ -764,7 +765,8 @@ async function openLinkedDetail(selectedId?: number) {
             : { id: detail.seriesId, name: `#${detail.seriesId}`, description: null },
       }
     }
-    if (route.fullPath === ownerFullPath) openCrudDrawer('detail', anime)
+    if (route.fullPath === ownerFullPath && (route.query.from !== 'data-quality' || !drawerMode.value))
+      openCrudDrawer('detail', anime)
   } catch (error) {
     if (route.fullPath === ownerFullPath)
       showToast('详情读取失败', error instanceof Error ? error.message : '请稍后重试。', 'error')

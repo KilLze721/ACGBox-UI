@@ -119,6 +119,20 @@ const router = createRouter({
           meta: { title: '书籍类型管理', menuName: '书籍类型管理', icon: 'book', order: 26, section: '书籍管理', menuParent: '/admin/book', showInMenu: true, roles: ['ADMIN', 'EDITOR'] },
         },
         {
+          path: 'data-quality',
+          name: 'admin-data-quality',
+          component: () => import('@/views/admin/data-quality/DataQualityView.vue'),
+          meta: {
+            title: '数据质量检查',
+            menuName: '数据质量检查',
+            icon: 'check',
+            order: 56,
+            section: '内容管理',
+            showInMenu: true,
+            roles: ['ADMIN', 'EDITOR'],
+          },
+        },
+        {
           path: 'series',
           name: 'admin-series',
           component: () => import('@/views/admin/series/SeriesView.vue'),
