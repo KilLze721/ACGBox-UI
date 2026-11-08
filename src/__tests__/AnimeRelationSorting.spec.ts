@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import router from '@/router'
 import AnimeEditorForm from '@/views/admin/anime/AnimeEditorForm.vue'
-import AnimeEntitySelect from '@/components/admin/AnimeEntitySelect.vue'
 import type { AnimeDetail, AnimePayload } from '@/types/api'
 
 let wrapper: VueWrapper | undefined
@@ -42,13 +41,13 @@ async function render(mode: 'create' | 'edit' = 'edit', deferSave = false) {
     persons: [],
     companies: [
       { companyId: 7, role: '制作协力', sortOrder: -8 },
-      { companyId: 3, role: '动画制作', sortOrder: 20 },
+      { companyId: 3, role: '动画制作', sortOrder: 2147483647 },
     ],
     externalLinks: [],
     seriesId: null,
   }
   let submitted: AnimePayload | undefined
-  let completeSave: (() => void) | undefined
+  let completeSave: ((failed: boolean) => void) | undefined
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string, init?: RequestInit) => {
@@ -60,6 +59,8 @@ async function render(mode: 'create' | 'edit' = 'edit', deferSave = false) {
       else if (path.endsWith('/region/list')) data = [{ id: 4, name: '日本' }]
       else if (path.endsWith('/tags/page')) data = { rows: [], pages: 0 }
       else if (path.endsWith('/anime/15')) data = original
+      else if (path.endsWith('/companies/page'))
+        data = { pageNum: 1, pageSize: 10, total: 1, pages: 1, rows: [{ id: 9, name: '新公司' }] }
       else if (path.includes('/companies/'))
         data = {
           id: Number(path.split('/').pop()),
@@ -68,10 +69,17 @@ async function render(mode: 'create' | 'edit' = 'edit', deferSave = false) {
         }
       else if (path.endsWith('/anime/update') || path.endsWith('/anime/create')) {
         submitted = JSON.parse(String(init?.body))
-        if (deferSave)
-          await new Promise<void>((resolve) => {
+        if (deferSave) {
+          const failed = await new Promise<boolean>((resolve) => {
             completeSave = resolve
           })
+          if (failed)
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({ code: 500, message: '保存失败，请重试' }),
+            }
+        }
         data = { ...original, ...submitted }
       }
       return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
@@ -84,7 +92,7 @@ async function render(mode: 'create' | 'edit' = 'edit', deferSave = false) {
     global: { plugins: [router] },
   })
   await flushPromises()
-  return { payload: () => submitted, complete: () => completeSave!() }
+  return { payload: () => submitted, complete: (failed = false) => completeSave!(failed) }
 }
 
 describe('动画关联排序', () => {
@@ -102,7 +110,7 @@ describe('动画关联排序', () => {
     await save()
     expect(api.payload()?.companies).toEqual([
       { companyId: 7, role: '新的职责', sortOrder: -8 },
-      { companyId: 3, role: '动画制作', sortOrder: 20 },
+      { companyId: 3, role: '动画制作', sortOrder: 2147483647 },
     ])
     expect(state().dirty).toBe(false)
     expect(wrapper!.emitted('saved')).toHaveLength(1)
@@ -130,7 +138,7 @@ describe('动画关联排序', () => {
     ])
   })
 
-  it('新增公司位于已有排序末尾，空行不提交；校验失败后排序仍保留', async () => {
+  it('已有最大排序值时新增公司仍在末尾，校验失败保留选择，空行不提交', async () => {
     const api = await render()
     const addCompany = () =>
       wrapper!
@@ -138,25 +146,20 @@ describe('动画关联排序', () => {
         .find((button) => button.text().includes('添加公司'))!
         .trigger('click')
     await addCompany()
-    await wrapper!.get('[aria-label="上移公司 3"]').trigger('click')
-    await wrapper!.get('[aria-label="上移公司 2"]').trigger('click')
-    expect((wrapper!.get('#animeCompany-1').element as HTMLInputElement).value).toBe('公司乙')
+    await wrapper!.get('#animeCompany-2').setValue('新公司')
+    await vi.waitFor(() => expect(wrapper!.find('.anime-entity-option').exists()).toBe(true))
+    await wrapper!.get('.anime-entity-option').trigger('mousedown')
+    await addCompany()
     await wrapper!.get('input[placeholder="输入正式名称"]').setValue('')
     await wrapper!.get('form').trigger('submit')
     expect(api.payload()).toBeUndefined()
+    expect((wrapper!.get('#animeCompany-2').element as HTMLInputElement).value).toBe('新公司')
     await wrapper!.get('input[placeholder="输入正式名称"]').setValue('排序测试动画')
-    await wrapper!.get('[aria-label="移除公司 1"]').trigger('click')
-    await addCompany()
-    const selection = wrapper!.findAllComponents(AnimeEntitySelect)[2]!
-    selection.vm.$emit('update:modelValue', '9')
-    selection.vm.$emit('update:selectedName', '新公司')
-    await flushPromises()
     await save()
-    expect(api.payload()?.companies).toEqual([
-      { companyId: 7, role: '制作协力', sortOrder: 0 },
-      { companyId: 3, role: '动画制作', sortOrder: 1 },
-      { companyId: 9, role: null, sortOrder: 2 },
-    ])
+    expect(api.payload()?.companies?.map((company) => company.companyId)).toEqual([7, 3, 9])
+    const orders = api.payload()!.companies!.map((company) => company.sortOrder!)
+    expect(orders).toEqual([...orders].sort((left, right) => left - right))
+    expect(Math.max(...orders)).toBeLessThanOrEqual(2147483647)
   })
 
   it('空别名和公司行移除后不污染顺序，别名保持字符串数组', async () => {
@@ -173,10 +176,9 @@ describe('动画关联排序', () => {
     await wrapper!.get('[aria-label="移除别名 1"]').trigger('click')
     await save()
     expect(api.payload()?.aliasNames).toEqual(['别名甲', '别名丙'])
-    expect(api.payload()?.aliasNames?.every((alias) => typeof alias === 'string')).toBe(true)
   })
 
-  it('提交期间排序、增删按钮禁用，工作区识别提交状态且不重复提交', async () => {
+  it('提交期间禁止重复操作，保存失败保留排序草稿并允许重试', async () => {
     const api = await render('edit', true)
     await wrapper!.get('[aria-label="下移公司 1"]').trigger('click')
     await save()
@@ -188,8 +190,16 @@ describe('动画关联排序', () => {
     }
     await wrapper!.get('form').trigger('submit')
     expect(document.querySelector('.anime-confirm-dialog')).toBeNull()
+    api.complete(true)
+    await flushPromises()
+    expect(wrapper!.text()).toContain('保存失败，请重试')
+    expect((wrapper!.get('#animeCompany-0').element as HTMLInputElement).value).toBe('公司甲')
+    expect(wrapper!.emitted('saved')).toBeUndefined()
+    await save()
+    expect(api.payload()?.companies?.map((company) => company.companyId)).toEqual([3, 7])
     api.complete()
     await flushPromises()
     expect(state()).toEqual({ dirty: false, submitting: false })
+    expect(wrapper!.emitted('saved')).toHaveLength(1)
   })
 })

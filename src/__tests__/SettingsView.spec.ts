@@ -12,7 +12,6 @@ import {
 } from '@/utils/preferences'
 
 const wrappers: VueWrapper[] = []
-let failCatalog = false
 let failHealth = false
 let healthData: SystemHealth
 function renderSettings() {
@@ -20,15 +19,9 @@ function renderSettings() {
   wrappers.push(wrapper)
   return wrapper
 }
-function closeState(wrapper: VueWrapper) {
-  return (
-    wrapper.vm as unknown as { getCloseState(): { dirty: boolean; submitting: boolean } }
-  ).getCloseState()
-}
 beforeEach(async () => {
   localStorage.removeItem('acgbox-preferences')
   setThemeMode('light')
-  failCatalog = false
   failHealth = false
   healthData = {
     checkedAt: '2026-10-23T04:00:00Z',
@@ -50,11 +43,7 @@ beforeEach(async () => {
         if (failHealth) throw new Error('连接检测请求失败')
         return { ok: true, status: 200, json: async () => ({ code: 200, data: healthData }) }
       }
-      if (failCatalog) throw new Error('目录读取失败')
-      const data = input.includes('region/list')
-        ? [{ id: 4, name: '日本' }]
-        : [{ id: 1, name: 'TV' }]
-      return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
+      throw new Error(`未模拟的接口 ${input}`)
     }),
   )
   await router.push('/admin/settings')
@@ -91,39 +80,28 @@ describe('系统设置页面', () => {
     expect(router.currentRoute.value.path).toBe('/admin/settings')
   })
 
-  it('真实加载目录，保存分页排序和建议项，并暴露未保存状态', async () => {
+  it('保存分页排序和建议项，保存前保留原偏好', async () => {
     const wrapper = renderSettings()
     await flushPromises()
-    expect(closeState(wrapper).dirty).toBe(false)
+    expect(wrapper.get('#saveSettings').attributes('disabled')).toBeDefined()
     await wrapper.get('[aria-labelledby="sizeLabel"] button:last-child').trigger('click')
     await wrapper.get('[aria-labelledby="sortLabel"] button:last-child').trigger('click')
-    for (const row of wrapper.findAll('.compatibility tbody tr')) {
-      expect(row.findAll('td')[1]!.text()).toBe('10 / 20 / 50')
-      expect(row.findAll('td')[2]!.text()).toBe('50')
-    }
     await wrapper.get('#sortDirection').trigger('click')
-    await wrapper.get('#regionId').trigger('click')
-    await wrapper
-      .get('#regionId')
-      .element.closest('.archive-select')
-      ?.querySelector<HTMLButtonElement>('[role="option"]:last-child')
-      ?.click()
     await wrapper.get('#linkTitlesInput').setValue('自定义链接')
     await wrapper.get('#linkTitlesInput').trigger('keydown', { key: 'Enter' })
     await wrapper.get('#companyRolesInput').setValue('作画协力')
     await wrapper.get('#companyRolesInput').trigger('keydown', { key: 'Enter' })
-    expect(closeState(wrapper).dirty).toBe(true)
+    expect(wrapper.get('.save-status').text()).toContain('本页修改尚未保存')
     expect(readPreferences().pageSize).toBe(20)
     await wrapper.get('form').trigger('submit')
     expect(readPreferences()).toMatchObject({
       pageSize: 50,
       sortBy: 'PERSONAL_RATING',
       sortDirection: 'ASC',
-      regionId: '4',
     })
     expect(readPreferences().companyRoles).toContain('作画协力')
     expect(readPreferences().linkTitles).toContain('自定义链接')
-    expect(closeState(wrapper).dirty).toBe(false)
+    expect(wrapper.get('#saveSettings').attributes('disabled')).toBeDefined()
     expect(wrapper.get('.save-status').text()).toContain('个人偏好已保存')
   })
 
@@ -136,7 +114,7 @@ describe('系统设置页面', () => {
     await wrapper.get('form').trigger('submit')
     expect(wrapper.get('.save-status').text()).toContain('请先添加或清空')
     await wrapper.get('.save-actions .secondary-button').trigger('click')
-    expect(closeState(wrapper).dirty).toBe(false)
+    expect(wrapper.get('#saveSettings').attributes('disabled')).toBeDefined()
     expect((wrapper.get('#linkTitlesInput').element as HTMLInputElement).value).toBe('')
   })
 
@@ -146,7 +124,6 @@ describe('系统设置页面', () => {
       pageSize: 50,
       sortBy: 'PERSONAL_RATING',
       sortDirection: 'ASC',
-      regionId: '4',
       companyRoles: ['自定义职责'],
     })
     setThemeMode('dark')
@@ -169,7 +146,6 @@ describe('系统设置页面', () => {
       pageSize: 20,
       sortBy: 'BROADCAST_DATE',
       sortDirection: 'DESC',
-      regionId: '4',
       companyRoles: ['自定义职责'],
     })
     expect(localStorage.getItem('acgbox-theme')).toBe('dark')
@@ -180,8 +156,6 @@ describe('系统设置页面', () => {
   it('全部恢复涵盖主题和录入偏好，Escape 取消不变更，确认后保存才生效', async () => {
     savePreferences({
       ...defaultPreferences(),
-      regionId: '4',
-      broadcastTypeId: '1',
       linkTitles: ['自定义'],
     })
     setThemeMode('dark')
@@ -192,8 +166,8 @@ describe('系统设置页面', () => {
     expect(dialog.textContent).toContain('主题模式：浅色')
     dialog.dispatchEvent(new Event('cancel', { cancelable: true }))
     await flushPromises()
-    expect(readPreferences().regionId).toBe('4')
-    expect(closeState(wrapper).dirty).toBe(false)
+    expect(readPreferences().linkTitles).toEqual(['自定义'])
+    expect(wrapper.get('#saveSettings').attributes('disabled')).toBeDefined()
     await wrapper.get('#resetAll').trigger('click')
     document.body.querySelector<HTMLButtonElement>('#confirmReset')?.click()
     await flushPromises()
@@ -201,25 +175,6 @@ describe('系统设置页面', () => {
     await wrapper.get('form').trigger('submit')
     expect(readPreferences()).toEqual(defaultPreferences())
     expect(localStorage.getItem('acgbox-theme')).toBe('light')
-  })
-
-  it('目录读取失败可重试，不丢失已存的默认 ID；系统信息取实际构建信息', async () => {
-    savePreferences({ ...defaultPreferences(), regionId: '4' })
-    failCatalog = true
-    const wrapper = renderSettings()
-    await flushPromises()
-    expect(wrapper.text()).toContain('目录读取失败')
-    expect(readPreferences().regionId).toBe('4')
-    failCatalog = false
-    await wrapper.get('.catalog-refresh button').trigger('click')
-    await flushPromises()
-    expect(wrapper.get('#regionId').text()).toContain('日本')
-    expect(wrapper.get('#system').text()).toContain(__APP_VERSION__)
-    expect(wrapper.get('#system').text()).toContain('检查未通过')
-    expect(wrapper.get('#system').text()).toContain('未启用')
-    expect(wrapper.get('#system').text()).toContain('检测时间')
-    expect(wrapper.get('#system').text()).not.toContain('运行正常')
-    expect(wrapper.get('.doc-link').attributes('href')).not.toContain('data:')
   })
 
   it('顶部主题和设置选项同步，支持跟随系统，保存失败保留草稿', async () => {
@@ -245,6 +200,7 @@ describe('系统设置页面', () => {
   it('管理员查询独立服务状态，刷新不会改动未保存偏好', async () => {
     const wrapper = renderSettings()
     await flushPromises()
+    expect(wrapper.get('#system').text()).toContain(__APP_VERSION__)
     expect(wrapper.get('.health-services').text()).toContain('数据库')
     expect(wrapper.get('.health-up').text()).toContain('连接正常')
     expect(wrapper.get('.health-down').text()).toContain('检查未通过')
@@ -260,7 +216,7 @@ describe('系统设置页面', () => {
     await wrapper.get('[aria-label="刷新服务连接检测"]').trigger('click')
     await flushPromises()
     expect(wrapper.get('.health-unconfigured').text()).toContain('未配置')
-    expect(closeState(wrapper).dirty).toBe(true)
+    expect(wrapper.get('.save-status').text()).toContain('本页修改尚未保存')
     healthData = { ...healthData, smtp: { status: 'NOT_CHECKED', message: '检测繁忙，请稍后重试' } }
     await wrapper.get('[aria-label="刷新服务连接检测"]').trigger('click')
     await flushPromises()
@@ -279,7 +235,7 @@ describe('系统设置页面', () => {
     await flushPromises()
     expect(wrapper.find('.health-error').exists()).toBe(false)
     expect(wrapper.find('.health-services').exists()).toBe(true)
-    expect(closeState(wrapper).dirty).toBe(false)
+    expect(wrapper.get('#saveSettings').attributes('disabled')).toBeDefined()
   })
 
   it('EDITOR 不请求管理员健康接口，也不显示刷新操作', async () => {

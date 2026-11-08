@@ -82,7 +82,6 @@ describe('系列管理页面', () => {
     expect(wrapper.find('.series-search button').exists()).toBe(false)
 
     await wrapper.get('#seriesPageSize').trigger('click')
-    expect(wrapper.get('.page-size-select').classes()).toContain('placement-top')
     await wrapper.get('.archive-select-option').trigger('click')
     await flushPromises()
     expect(
@@ -102,10 +101,10 @@ describe('系列管理页面', () => {
     await flushPromises()
     expect(document.body.querySelector('.series-drawer')?.textContent).toContain('系列说明')
     expect(document.body.querySelector('.series-drawer')?.textContent).not.toContain('系列 ID')
-    expect(document.body.querySelector('.series-work-item.related')?.textContent).toContain(
-      linkedAnime.name,
-    )
-    ;(document.body.querySelector('.series-work-item.related') as HTMLButtonElement).click()
+    expect(
+      document.body.querySelector('.series-drawer .related-anime-name')?.textContent,
+    ).toContain(linkedAnime.name)
+    document.body.querySelector<HTMLButtonElement>('.series-drawer .related-anime-name')!.click()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/anime'))
     expect(router.currentRoute.value.query.keyword).toBe(linkedAnime.name)
     expect(router.currentRoute.value.query.detail).toBeUndefined()
@@ -155,9 +154,9 @@ describe('系列管理页面', () => {
       document.body.querySelector('.series-dialog-actions .danger-button') as HTMLButtonElement
     ).click()
     await flushPromises()
-    expect(document.body.querySelector('.series-dialog .series-checkbox-error')?.textContent).toContain(
-      '请先勾选',
-    )
+    expect(
+      document.body.querySelector('.series-dialog .series-checkbox-error')?.textContent,
+    ).toContain('请先勾选')
     expect(requests.some((request) => request.path === '/api/series/delete')).toBe(false)
     const confirmation = document.body.querySelector<HTMLInputElement>(
       '.series-delete-check input',

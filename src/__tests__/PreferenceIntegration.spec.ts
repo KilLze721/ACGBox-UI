@@ -8,7 +8,6 @@ import SeriesView from '@/views/admin/series/SeriesView.vue'
 import CompaniesView from '@/views/admin/companies/CompaniesView.vue'
 import UsersView from '@/views/admin/users/UsersView.vue'
 import AnimeEditorForm from '@/views/admin/anime/AnimeEditorForm.vue'
-import AnimeSuggestionInput from '@/components/admin/AnimeSuggestionInput.vue'
 import { defaultPreferences, savePreferences } from '@/utils/preferences'
 
 const wrappers: VueWrapper[] = []
@@ -82,10 +81,10 @@ beforeEach(() => {
           description: '',
           aliasNames: [],
           tagIds: [],
+          persons: [],
           companies: [],
           externalLinks: [],
           seriesId: null,
-          seriesSortOrder: null,
         }
       return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
     }),
@@ -106,7 +105,6 @@ describe('偏好在实际页面的应用', () => {
     wrappers.push(wrapper)
     await wrapper.get('a.nav-item[href="/admin/anime"]').trigger('click')
     await flushPromises()
-    const uid = wrapper.findComponent(AnimeListView).vm.$.uid
     await wrapper.get('#pageSize').trigger('click')
     await wrapper
       .findAll('.archive-select-option')
@@ -122,7 +120,6 @@ describe('偏好在实际页面的应用', () => {
     await wrapper.get('form.settings-form').trigger('submit')
     await wrapper.get('.workspace-tab-main[href="/admin/anime"]').trigger('click')
     await flushPromises()
-    expect(wrapper.findComponent(AnimeListView).vm.$.uid).toBe(uid)
     expect(wrapper.get('#pageSize').text()).toContain('10 条')
     const lastQuery = requests.filter((url) => url.pathname === '/api/anime/page').slice(-1)[0]!
     expect(lastQuery.searchParams.get('pageSize')).toBe('10')
@@ -130,7 +127,6 @@ describe('偏好在实际页面的应用', () => {
     expect(lastQuery.searchParams.get('sortDirection')).toBe('ASC')
     await wrapper.get('a.nav-item[href="/admin/anime"]').trigger('click')
     await flushPromises()
-    expect(wrapper.findComponent(AnimeListView).vm.$.uid).not.toBe(uid)
     expect(wrapper.get('#pageSize').text()).toContain('50 条')
     expect(wrapper.get('.sort-summary').text()).toContain('开始放送日期')
   })
@@ -197,7 +193,11 @@ describe('偏好在实际页面的应用', () => {
         expect(listRequests().slice(-1)[0]?.searchParams.get('sortDirection')).toBe('ASC')
       }
       await wrapper.get(sizeId).trigger('click')
-      expect(wrapper.findAll('.archive-select-option').map((option) => option.text())).toEqual(['10 条', '20 条', '50 条'])
+      expect(wrapper.findAll('.archive-select-option').map((option) => option.text())).toEqual([
+        '10 条',
+        '20 条',
+        '50 条',
+      ])
       await wrapper
         .findAll('.archive-select-option')
         .find((option) => option.text() === '10 条')!
@@ -228,7 +228,7 @@ describe('偏好在实际页面的应用', () => {
     },
   )
 
-  it('新建表单使用默认地区、类型及建议快照，已打开表单不被覆盖', async () => {
+  it('新建表单忽略旧版默认关联，已选地区和职责建议不被后续偏好修改覆盖', async () => {
     savePreferences({
       ...defaultPreferences(),
       regionId: '4',
@@ -244,11 +244,10 @@ describe('偏好在实际页面的应用', () => {
     })
     wrappers.push(wrapper)
     await flushPromises()
-    expect(wrapper.get('#animeRegion').text()).toContain('日本')
-    expect(wrapper.get('#animeBroadcastType').text()).toContain('TV')
-    expect(
-      (wrapper.vm as unknown as { getCloseState(): { dirty: boolean } }).getCloseState().dirty,
-    ).toBe(false)
+    expect(wrapper.get('#animeRegion').text()).toContain('请选择地区')
+    expect(wrapper.get('#animeBroadcastType').text()).toContain('请选择放送类型')
+    await wrapper.get('#animeRegion').trigger('click')
+    await wrapper.get('[role="option"]').trigger('click')
     await wrapper.get('input[placeholder="输入正式名称"]').setValue('未提交动画')
     savePreferences(defaultPreferences())
     expect(wrapper.get('#animeRegion').text()).toContain('日本')
@@ -259,7 +258,12 @@ describe('偏好在实际页面的应用', () => {
       .findAll('button')
       .find((button) => button.text().includes('添加公司'))!
       .trigger('click')
-    expect(wrapper.findComponent(AnimeSuggestionInput).props('suggestions')).toEqual(['自定义职责'])
+    await wrapper.get('#animeCompanyRole-0').trigger('focus')
+    expect(wrapper.get('#animeCompanyRole-0-suggestions').text()).toBe('自定义职责')
+    await wrapper.get('#animeCompanyRole-0-suggestions [role="option"]').trigger('mousedown')
+    expect((wrapper.get('#animeCompanyRole-0').element as HTMLInputElement).value).toBe(
+      '自定义职责',
+    )
     const next = mount(AnimeEditorForm, {
       props: { mode: 'create' },
       global: { plugins: [router] },
@@ -269,22 +273,11 @@ describe('偏好在实际页面的应用', () => {
     expect(next.get('#animeRegion').text()).toContain('请选择地区')
   })
 
-  it('修改已有作品不使用新建偏好，失效默认值不作为新表单的有效关联', async () => {
+  it('编辑时回填已有地区和类型，并可使用个人职责建议', async () => {
     savePreferences({
       ...defaultPreferences(),
-      regionId: '99',
-      broadcastTypeId: '99',
-      companyRoles: ['不应覆盖'],
+      companyRoles: ['自定义职责'],
     })
-    await router.push('/admin/anime/create')
-    const fresh = mount(AnimeEditorForm, {
-      props: { mode: 'create' },
-      global: { plugins: [router] },
-    })
-    wrappers.push(fresh)
-    await flushPromises()
-    expect(fresh.get('#animeRegion').text()).toContain('请选择地区')
-    expect(fresh.get('#animeBroadcastType').text()).toContain('请选择放送类型')
     await router.push('/admin/anime')
     const edit = mount(AnimeEditorForm, {
       props: { mode: 'edit', animeId: 15 },
@@ -298,10 +291,11 @@ describe('偏好在实际页面的应用', () => {
       .findAll('button')
       .find((button) => button.text().includes('添加公司'))!
       .trigger('click')
-    expect(edit.findComponent(AnimeSuggestionInput).props('suggestions')).toEqual([
-      '动画制作',
-      '制作协力',
-      '3DCG',
-    ])
+    await edit.get('#animeCompanyRole-0').trigger('focus')
+    expect(edit.get('#animeCompanyRole-0-suggestions').text()).toBe('自定义职责')
+    const option = edit.get('#animeCompanyRole-0-suggestions [role="option"]')
+    const role = option.text()
+    await option.trigger('mousedown')
+    expect((edit.get('#animeCompanyRole-0').element as HTMLInputElement).value).toBe(role)
   })
 })

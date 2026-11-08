@@ -12,6 +12,8 @@ let broadcast: SortableNamedOption[]
 let adaptation: SortableNamedOption[]
 let failCatalog: boolean
 let withAnime: boolean
+let holdCatalog: Promise<void> | undefined
+let releaseCatalog: (() => void) | undefined
 const requests: string[] = []
 beforeEach(() => {
   broadcast = [
@@ -21,6 +23,8 @@ beforeEach(() => {
   adaptation = [{ id: 3, name: '原创', sortOrder: 0 }]
   failCatalog = false
   withAnime = false
+  holdCatalog = undefined
+  releaseCatalog = undefined
   requests.length = 0
   localStorage.removeItem('acgbox-preferences')
   sessionStorage.setItem('acgbox-user', JSON.stringify({ id: 1, username: 'admin', role: 'ADMIN' }))
@@ -31,6 +35,7 @@ beforeEach(() => {
       requests.push(path)
       let data: unknown = []
       if (path.endsWith('/broadcast-type/list')) {
+        await holdCatalog
         if (failCatalog) throw new Error('字典暂不可用')
         data = [...broadcast]
       } else if (path.endsWith('/adaptation-type/list')) data = [...adaptation]
@@ -111,6 +116,7 @@ beforeEach(() => {
   )
 })
 afterEach(() => {
+  releaseCatalog?.()
   wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
   vi.unstubAllGlobals()
   localStorage.removeItem('acgbox-preferences')
@@ -132,6 +138,36 @@ async function choose(wrapper: VueWrapper, id: string, label: string) {
 }
 
 describe('字典排序更新与消费者同步', () => {
+  it('连续更新字典时最终显示最新选项，并保留尚未提交的表单输入', async () => {
+    await router.push('/admin/anime/create')
+    const wrapper = mount(AnimeEditorForm, {
+      props: { mode: 'create' },
+      attachTo: document.body,
+      global: { plugins: [router] },
+    })
+    wrappers.push(wrapper)
+    await flushPromises()
+    await wrapper.get('input[placeholder="输入正式名称"]').setValue('保留草稿')
+    holdCatalog = new Promise<void>((resolve) => {
+      releaseCatalog = resolve
+    })
+    notifyCatalogChanged('broadcast')
+    await flushPromises()
+    broadcast = [{ id: 1, name: '最新放送类型', sortOrder: 0 }]
+    adaptation = [{ id: 3, name: '最新改编类型', sortOrder: 0 }]
+    notifyCatalogChanged('broadcast')
+    notifyCatalogChanged('adaptation')
+    releaseCatalog!()
+    await flushPromises()
+    await choose(wrapper, '#animeBroadcastType', '最新放送类型')
+    await choose(wrapper, '#animeAdaptationType', '最新改编类型')
+    expect(wrapper.get('#animeBroadcastType').text()).toContain('最新放送类型')
+    expect(wrapper.get('#animeAdaptationType').text()).toContain('最新改编类型')
+    expect(
+      (wrapper.get('input[placeholder="输入正式名称"]').element as HTMLInputElement).value,
+    ).toBe('保留草稿')
+  })
+
   it.each(['别名', '公司'])(
     '仅调整%s顺序也触发关闭和退出登录保护，取消后保留排序',
     async (kind) => {

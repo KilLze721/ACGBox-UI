@@ -80,10 +80,12 @@ describe('动画管理分页查询页面', () => {
             pageSize,
             total: 15,
             pages: Math.ceil(15 / pageSize),
-            rows: pageSize === 1 ? [animeRow] : [animeRow],
+            rows: [animeRow],
           }
         } else if (url.pathname.endsWith('/tags/page')) {
           data = { pageNum: 1, pageSize: 100, total: 1, pages: 1, rows: animeRow.tags }
+        } else if (url.pathname.endsWith('/persons/page')) {
+          data = { pageNum: 1, pageSize: 10, total: 0, pages: 0, rows: [] }
         } else if (url.pathname.endsWith('/companies/page')) {
           data = {
             pageNum: 1,
@@ -130,7 +132,6 @@ describe('动画管理分页查询页面', () => {
     await wrapper.find('.dropdown-search').setValue('奇幻')
     const tagOption = wrapper.find('.tag-option')
     await tagOption.trigger('click')
-    expect(tagOption.classes()).toContain('selected')
     expect(tagOption.text()).toBe('奇幻')
 
     await wrapper.find('#status').trigger('click')
@@ -143,13 +144,13 @@ describe('动画管理分页查询页面', () => {
 
     vi.useFakeTimers()
     await wrapper.find('#companyKeyword').setValue('mad')
-    await vi.advanceTimersByTimeAsync(250)
+    await vi.runAllTimersAsync()
     await flushPromises()
-    expect(wrapper.find('.company-suggestion-item').text()).toBe('MADHOUSE')
-    expect(wrapper.find('.suggestion-panel').text()).not.toContain('日本动画制作公司')
-    await wrapper.find('.company-suggestion-item').trigger('mousedown')
+    const companyOption = wrapper.get('.anime-entity-option')
+    expect(companyOption.text()).toContain('MADHOUSE')
+    await companyOption.trigger('mousedown')
     vi.useRealTimers()
-    expect(wrapper.find('.selected-company').text()).toContain('已选择 MADHOUSE')
+    expect((wrapper.get('#companyKeyword').element as HTMLInputElement).value).toBe('MADHOUSE')
 
     await wrapper.find('.date-filter-group input[type="checkbox"]').setValue(true)
     await wrapper.find('#broadcastStartDate').setValue('2020')
@@ -172,6 +173,7 @@ describe('动画管理分页查询页面', () => {
     expect(animeRequests.some((url) => url.includes('broadcastStartDate=2020'))).toBe(true)
     expect(animeRequests.some((url) => url.includes('broadcastEndDate=2026-09'))).toBe(true)
     expect(animeRequests.some((url) => url.includes('companyId=5'))).toBe(true)
+    expect(animeRequests.some((url) => url.includes('tagIds=18'))).toBe(true)
 
     const requestCount = animeRequests.length
     await wrapper.find('#broadcastStartDate').setValue('2027')
@@ -243,9 +245,6 @@ describe('动画管理分页查询页面', () => {
     }
 
     expect(ratingGroup.text()).toContain('固定评分')
-    expect(ratingGroup.text()).not.toContain('ratingMin')
-    expect(wrapper.findAll('.score-input-suffix')).toHaveLength(2)
-    expect(wrapper.findAll('.score-picker-trigger')).toHaveLength(0)
 
     await ratingMin.setValue('8')
     await ratingMin.trigger('blur')

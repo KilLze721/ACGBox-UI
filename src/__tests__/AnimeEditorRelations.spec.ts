@@ -57,10 +57,10 @@ function stubRequests() {
           description: null,
           aliasNames: [],
           tagIds: [],
+          persons: [],
           companies: [{ companyId: 3, role: '动画制作', sortOrder: 0 }],
           externalLinks: [{ title: '官网', url: 'https://example.com', sortOrder: 0 }],
           seriesId: 5,
-          seriesSortOrder: 1,
         }
       } else if (url.pathname.endsWith('/anime/create')) {
         submittedPayload = JSON.parse(String(init?.body)) as Record<string, unknown>

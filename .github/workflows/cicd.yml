@@ -1,0 +1,78 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: 安装依赖
+        run: npm ci
+      - name: 运行现有测试
+        run: npm run test:unit -- --run
+      - name: 类型检查并构建
+        run: npm run build
+      - name: 发布到服务器
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '阶段 1/4：检查 main 的最新提交。'
+          latest=$(timeout 30s gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if [[ "$latest" != "$GITHUB_SHA" ]]; then
+            echo 'main 已有新提交，本次旧版本不发布。'
+            exit 0
+          fi
+          : "${DEPLOY_HOST:?请配置 DEPLOY_HOST}"
+          : "${DEPLOY_USER:?请配置 DEPLOY_USER}"
+          : "${DEPLOY_SSH_KEY:?请配置 DEPLOY_SSH_KEY}"
+          : "${DEPLOY_KNOWN_HOSTS:?请配置 DEPLOY_KNOWN_HOSTS}"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/deploy_key' EXIT
+          port=${DEPLOY_PORT:-22}
+          remote="$DEPLOY_USER@$DEPLOY_HOST"
+          dest="/var/lib/acgbox-deploy/incoming/frontend/$GITHUB_SHA"
+          opts=(-i ~/.ssh/deploy_key -p "$port" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ConnectionAttempts=1 -o ServerAliveInterval=15 -o ServerAliveCountMax=3)
+          echo '阶段 2/4：验证 SSH 连接并创建上传目录。'
+          timeout 30s ssh "${opts[@]}" "$remote" "mkdir -p '$dest'"
+          echo '确认部署账号可读取现有首页，供静态资源复用。'
+          timeout 30s ssh "${opts[@]}" "$remote" 'test -r /www/wwwroot/acgbox/index.html'
+          echo '阶段 3/4：复用现有静态资源并上传变化内容，保留中断进度，最长等待 10 分钟。'
+          timeout 600s rsync -az --checksum --no-whole-file \
+            --copy-dest=/www/wwwroot/acgbox --partial-dir=.rsync-partial \
+            --info=progress2,stats2 --timeout=60 \
+            -e "ssh -i $HOME/.ssh/deploy_key -p $port -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 -o ConnectionAttempts=1 -o ServerAliveInterval=15 -o ServerAliveCountMax=3" \
+            dist/ "$remote:$dest/"
+          echo '阶段 4/4：执行服务器发布和页面探测。'
+          ssh "${opts[@]}" "$remote" "sudo -n /usr/local/sbin/acgbox-deploy frontend '$GITHUB_SHA'"
+          echo '前端发布命令已成功完成。'

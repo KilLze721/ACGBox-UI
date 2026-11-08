@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import App from '@/App.vue'
 import router from '@/router'
-import AnimeListView from '@/views/admin/anime/AnimeListView.vue'
 
 afterEach(() => vi.unstubAllGlobals())
+
+async function openAnimeList(wrapper: VueWrapper) {
+  await wrapper.get('a.nav-item[href="/admin/anime"]').trigger('click')
+  await vi.waitFor(() =>
+    expect(wrapper.find('input[placeholder="输入动画名称、别名或系列"]').exists()).toBe(true),
+  )
+  await flushPromises()
+}
 
 const animeRow = {
   id: 15,
@@ -36,7 +43,10 @@ function stubCatalogRequests(withAnime = false, withSeries = false, withCompany 
           ? { ...animeRow, series: { id: 7, name: '测试动画系列', description: null } }
           : animeRow
         const row = withCompany
-          ? { ...seriesRow, companies: [{ companyId: 5, companyName: '测试公司', role: '动画制作' }] }
+          ? {
+              ...seriesRow,
+              companies: [{ companyId: 5, companyName: '测试公司', role: '动画制作' }],
+            }
           : seriesRow
         const keyword = url.searchParams.get('keyword')
         const matches =
@@ -52,7 +62,8 @@ function stubCatalogRequests(withAnime = false, withSeries = false, withCompany 
       } else if (withCompany && path.endsWith('/companies/5')) {
         data = { id: 5, name: '测试公司', description: '公司简介' }
       } else if (withCompany && path.endsWith('/companies/page')) {
-        const matches = !url.searchParams.get('name') || '测试公司'.includes(url.searchParams.get('name')!)
+        const matches =
+          !url.searchParams.get('name') || '测试公司'.includes(url.searchParams.get('name')!)
         data = {
           pageNum: 1,
           pageSize: Number(url.searchParams.get('pageSize')),
@@ -90,8 +101,8 @@ function stubCatalogRequests(withAnime = false, withSeries = false, withCompany 
           companies: withCompany ? [{ companyId: 5, role: '动画制作' }] : [],
           externalLinks: [],
           tagIds: [],
+          persons: [],
           seriesId: withSeries ? 7 : null,
-          seriesSortOrder: null,
           personalRatingScore: null,
         }
       }
@@ -109,8 +120,7 @@ describe('工作台页面标签', () => {
     stubCatalogRequests(true)
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
+    await openAnimeList(wrapper)
 
     const tabCount = wrapper.findAll('.workspace-tab').length
     await wrapper.find('.anime-table .work-title').trigger('click')
@@ -127,8 +137,7 @@ describe('工作台页面标签', () => {
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
 
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
+    await openAnimeList(wrapper)
     const workspaceTab = wrapper.find('.workspace-tab.active').element
     await wrapper.find('button[aria-label="查看 测试动画"]').trigger('click')
     await flushPromises()
@@ -159,7 +168,7 @@ describe('工作台页面标签', () => {
 
     await wrapper.find('.series-row-name').trigger('click')
     await flushPromises()
-    document.querySelector<HTMLButtonElement>('.series-work-item.related')?.click()
+    document.querySelector<HTMLButtonElement>('.series-drawer .related-anime-name')!.click()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/anime'))
     await flushPromises()
 
@@ -190,8 +199,7 @@ describe('工作台页面标签', () => {
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
 
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
+    await openAnimeList(wrapper)
     const workspaceTab = wrapper.find('.workspace-tab.active').element
     await wrapper.find('button[aria-label="查看 测试动画"]').trigger('click')
     await flushPromises()
@@ -202,27 +210,46 @@ describe('工作台页面标签', () => {
     expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
     expect(wrapper.find('.workspace-tab.active').element).toBe(workspaceTab)
     expect(router.currentRoute.value.query.name).toBe('测试公司')
-    expect((wrapper.find('.companies-search input').element as HTMLInputElement).value).toBe('测试公司')
+    expect((wrapper.find('.companies-search input').element as HTMLInputElement).value).toBe(
+      '测试公司',
+    )
     const fetchMock = vi.mocked(fetch)
-    expect(fetchMock.mock.calls.some(([input]) => {
-      const url = new URL(String(input), 'http://localhost')
-      return url.pathname.endsWith('/companies/page') && url.searchParams.get('name') === '测试公司' && url.searchParams.get('pageNum') === '1'
-    })).toBe(true)
+    expect(
+      fetchMock.mock.calls.some(([input]) => {
+        const url = new URL(String(input), 'http://localhost')
+        return (
+          url.pathname.endsWith('/companies/page') &&
+          url.searchParams.get('name') === '测试公司' &&
+          url.searchParams.get('pageNum') === '1'
+        )
+      }),
+    ).toBe(true)
 
     await wrapper.find('.companies-row-name').trigger('click')
     await flushPromises()
-    document.querySelector<HTMLButtonElement>('.companies-association-anime')?.click()
+    document
+      .querySelector<HTMLButtonElement>('.companies-association-anime .related-anime-name')!
+      .click()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/anime'))
     await flushPromises()
 
     expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
     expect(wrapper.find('.workspace-tab.active').element).toBe(workspaceTab)
     expect(router.currentRoute.value.query.keyword).toBe('测试动画')
-    expect((wrapper.find('input[placeholder="输入动画名称、别名或系列"]').element as HTMLInputElement).value).toBe('测试动画')
-    expect(fetchMock.mock.calls.some(([input]) => {
-      const url = new URL(String(input), 'http://localhost')
-      return url.pathname.endsWith('/anime/page') && url.searchParams.get('keyword') === '测试动画' && url.searchParams.get('pageNum') === '1'
-    })).toBe(true)
+    expect(
+      (wrapper.find('input[placeholder="输入动画名称、别名或系列"]').element as HTMLInputElement)
+        .value,
+    ).toBe('测试动画')
+    expect(
+      fetchMock.mock.calls.some(([input]) => {
+        const url = new URL(String(input), 'http://localhost')
+        return (
+          url.pathname.endsWith('/anime/page') &&
+          url.searchParams.get('keyword') === '测试动画' &&
+          url.searchParams.get('pageNum') === '1'
+        )
+      }),
+    ).toBe(true)
     wrapper.unmount()
   })
 
@@ -231,30 +258,27 @@ describe('工作台页面标签', () => {
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
 
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
-    const pageUid = wrapper.findComponent(AnimeListView).vm.$.uid
+    await openAnimeList(wrapper)
     const fetchMock = vi.mocked(fetch)
     const countRequests = (suffix: string) =>
       fetchMock.mock.calls.filter(([input]) =>
         new URL(String(input), 'http://localhost').pathname.endsWith(suffix),
       ).length
-    expect(countRequests('/anime/page')).toBe(5)
+    const listCount = countRequests('/anime/page')
     const catalogCount = countRequests('/broadcast-type/list')
     await wrapper.find('input[placeholder="输入动画名称、别名或系列"]').setValue('保留的筛选输入')
 
     await wrapper.find('.workspace-tab-main[href="/admin/dashboard"]').trigger('click')
     await flushPromises()
-    expect(countRequests('/anime/page')).toBe(5)
+    expect(countRequests('/anime/page')).toBe(listCount)
     await wrapper.find('.workspace-tab-main[href="/admin/anime"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.findComponent(AnimeListView).vm.$.uid).toBe(pageUid)
     expect(
       (wrapper.find('input[placeholder="输入动画名称、别名或系列"]').element as HTMLInputElement)
         .value,
     ).toBe('保留的筛选输入')
-    expect(countRequests('/anime/page')).toBe(6)
+    expect(countRequests('/anime/page')).toBe(listCount + 1)
     expect(countRequests('/broadcast-type/list')).toBe(catalogCount)
     wrapper.unmount()
   })
@@ -264,13 +288,10 @@ describe('工作台页面标签', () => {
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
 
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
-    const firstPageUid = wrapper.findComponent(AnimeListView).vm.$.uid
+    await openAnimeList(wrapper)
     await wrapper.find('input[placeholder="输入动画名称、别名或系列"]').setValue('第一标签')
 
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
+    await openAnimeList(wrapper)
     expect(wrapper.findAll('.workspace-tab')).toHaveLength(3)
     expect(wrapper.find('.workspace-tab.active').text()).toContain('动画管理(2)')
     expect(
@@ -284,7 +305,6 @@ describe('工作台页面标签', () => {
       .find((tab) => tab.find('.workspace-tab-main').text() === '动画管理')
     await firstTab?.find('.workspace-tab-main').trigger('click')
     await flushPromises()
-    expect(wrapper.findComponent(AnimeListView).vm.$.uid).toBe(firstPageUid)
     expect(
       (wrapper.find('input[placeholder="输入动画名称、别名或系列"]').element as HTMLInputElement)
         .value,
@@ -292,8 +312,7 @@ describe('工作台页面标签', () => {
 
     await wrapper.find('button[aria-label="关闭 动画管理(2)"]').trigger('click')
     await flushPromises()
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
+    await openAnimeList(wrapper)
     expect(
       (wrapper.find('input[placeholder="输入动画名称、别名或系列"]').element as HTMLInputElement)
         .value,
@@ -350,8 +369,7 @@ describe('工作台页面标签', () => {
     stubCatalogRequests(true)
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
+    await openAnimeList(wrapper)
     await wrapper.find('button[aria-label="编辑 测试动画"]').trigger('click')
     await flushPromises()
 
@@ -435,8 +453,7 @@ describe('工作台页面标签', () => {
     stubCatalogRequests(true)
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
+    await openAnimeList(wrapper)
     await wrapper.find('button[aria-label="编辑 测试动画"]').trigger('click')
     await flushPromises()
 
@@ -452,12 +469,10 @@ describe('工作台页面标签', () => {
     stubCatalogRequests()
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
-    await wrapper.find('a.nav-item[href="/admin/anime"]').trigger('click')
-    await flushPromises()
+    await openAnimeList(wrapper)
+    await openAnimeList(wrapper)
     const animeTabPath = router.currentRoute.value.fullPath
-    const animePageUid = wrapper.findComponent(AnimeListView).vm.$.uid
+    await wrapper.get('input[placeholder="输入动画名称、别名或系列"]').setValue('保留的筛选输入')
     await router.push('/admin/anime/create')
     await flushPromises()
     await wrapper.find('input[placeholder="输入正式名称"]').setValue('未保存的动画')
@@ -469,7 +484,10 @@ describe('工作台页面标签', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe(animeTabPath)
-    expect(wrapper.findComponent(AnimeListView).vm.$.uid).toBe(animePageUid)
+    expect(
+      (wrapper.get('input[placeholder="输入动画名称、别名或系列"]').element as HTMLInputElement)
+        .value,
+    ).toBe('保留的筛选输入')
     expect(wrapper.findAll('.workspace-tab')).toHaveLength(3)
     expect(wrapper.find('button[aria-label="关闭 新增动画"]').exists()).toBe(false)
     expect(
@@ -526,7 +544,7 @@ describe('工作台页面标签', () => {
     await router.push('/admin/anime')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
     await flushPromises()
-    const animePageUid = wrapper.findComponent(AnimeListView).vm.$.uid
+    await wrapper.get('input[placeholder="输入动画名称、别名或系列"]').setValue('保留的筛选输入')
     await router.push('/admin/anime/create')
     await flushPromises()
     await wrapper.find('input[placeholder="输入正式名称"]').setValue('准备保存的动画')
@@ -563,7 +581,10 @@ describe('工作台页面标签', () => {
     expect(router.currentRoute.value.path).toBe('/admin/anime')
     expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
     expect(wrapper.find('button[aria-label="关闭 新增动画"]').exists()).toBe(false)
-    expect(wrapper.findComponent(AnimeListView).vm.$.uid).toBe(animePageUid)
+    expect(
+      (wrapper.get('input[placeholder="输入动画名称、别名或系列"]').element as HTMLInputElement)
+        .value,
+    ).toBe('保留的筛选输入')
     wrapper.unmount()
   })
 })
