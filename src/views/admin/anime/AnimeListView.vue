@@ -3,7 +3,16 @@
  * 动画管理列表页面：组织资料统计、多条件筛选、排序、分页和删除确认。
  * 负责打开新增页、详情或修改抽屉，并在保存或工作区重新激活时刷新对应列表。
  */
-import { computed, inject, onActivated, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import {
+  computed,
+  inject,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  reactive,
+  ref,
+} from 'vue'
 import { routeLocationKey } from 'vue-router'
 import { deleteAnime, getAnimeDetail, getAnimePage } from '@/api/anime'
 import { getAdaptationTypes, getBroadcastTypes, getRegions, getTags } from '@/api/catalog'
@@ -138,6 +147,10 @@ const showAdvancedFilters = ref(false)
 const viewMode = ref<'table' | 'cards'>('table')
 const brokenCovers = ref(new Set<string>())
 const showTagDropdown = ref(false)
+const tagDropdownRef = ref<HTMLElement>()
+function closeTagDropdown(event: PointerEvent) {
+  if (!tagDropdownRef.value?.contains(event.target as Node)) showTagDropdown.value = false
+}
 const tagSearch = ref('')
 const dateRangeEnabled = ref(false)
 const appliedDateRangeEnabled = ref(false)
@@ -325,6 +338,7 @@ const sortSummary = computed(() => {
 
 const refreshCatalogs = useCatalogRefresh(['broadcast', 'adaptation'], loadCatalogs)
 onMounted(() => {
+  document.addEventListener('pointerdown', closeTagDropdown, true)
   void refreshCatalogs()
   void loadStats()
   void loadPage(1)
@@ -340,7 +354,12 @@ onActivated(() => {
   if (route?.query.from === 'data-quality' && !drawerMode.value) void openLinkedDetail()
 })
 
+onDeactivated(() => {
+  showTagDropdown.value = false
+})
+
 onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', closeTagDropdown, true)
   pageController?.abort()
   catalogController?.abort()
   statsController?.abort()
@@ -916,7 +935,7 @@ function markCoverBroken(url: string) {
             </div>
           </div>
 
-          <div class="field">
+          <div ref="tagDropdownRef" class="field" @keydown.esc.stop="showTagDropdown = false">
             <div class="tag-field-head">
               <span class="field-label">标签</span>
               <div class="tag-match-control" role="group" aria-label="标签匹配方式">

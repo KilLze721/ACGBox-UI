@@ -164,7 +164,7 @@ function getCloseState() {
 }
 defineExpose({ getCloseState, openBookDetail: (id: number) => openDrawer('detail', id) })
 onMounted(() => {
-  document.addEventListener('pointerdown', closeTagDropdown)
+  document.addEventListener('pointerdown', closeTagDropdown, true)
   void refreshCatalogs()
   void loadStats()
   void loadPage(1)
@@ -185,9 +185,10 @@ onActivated(() => {
 })
 onDeactivated(() => {
   active.value = false
+  showTags.value = false
 })
 onBeforeUnmount(() => {
-  document.removeEventListener('pointerdown', closeTagDropdown)
+  document.removeEventListener('pointerdown', closeTagDropdown, true)
   pageController?.abort()
   catalogController?.abort()
   statsController?.abort()
