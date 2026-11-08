@@ -7,6 +7,9 @@ afterEach(() => vi.unstubAllGlobals())
 
 async function openAnimeList(wrapper: VueWrapper) {
   await wrapper.get('a.nav-item[href="/admin/anime"]').trigger('click')
+  // 首次进入列表会懒加载路由组件，等待导入和页面更新完成后再检查可见内容。
+  await vi.dynamicImportSettled()
+  await flushPromises()
   await vi.waitFor(() =>
     expect(wrapper.find('input[placeholder="输入动画名称、别名或系列"]').exists()).toBe(true),
   )
