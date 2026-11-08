@@ -283,7 +283,7 @@ onDeactivated(() => request?.abort())
                       <strong>{{ row.name }}</strong>
                       <small class="quality-id"
                         >{{ row.contentType?.name ?? '类型未录入' }} ·
-                        {{ row.region?.name ?? '地区未录入' }} · ID {{ row.targetId }}</small
+                        {{ row.region?.name ?? '地区未录入' }}</small
                       >
                     </div>
                   </div>
