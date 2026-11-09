@@ -23,7 +23,7 @@ describe('App', () => {
     expect(items.map((item) => item.text())).toEqual(['账号编辑', '退出登录'])
     expect(items[0]!.attributes('disabled')).toBeUndefined()
     expect(items[1]!.attributes('disabled')).toBeUndefined()
-    expect(sessionStorage.getItem('acgbox-token')).toBe(token)
+    expect(localStorage.getItem('acgbox-token')).toBe(token)
     expect(router.currentRoute.value.path).toBe('/admin/dashboard')
 
     await userCard.trigger('keydown', { key: 'Escape' })

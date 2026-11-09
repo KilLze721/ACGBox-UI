@@ -202,7 +202,7 @@ async function performLogout() {
   const token = getToken()
   try {
     await logout()
-    if (token !== sessionStorage.getItem('acgbox-token')) return
+    if (token !== getToken()) return
     clearLogin()
     await router.replace({ name: 'login' })
   } catch (error) {

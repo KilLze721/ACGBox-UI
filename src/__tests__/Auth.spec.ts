@@ -29,10 +29,10 @@ describe('管理端认证接入', () => {
         headers: { Accept: 'application/json', Authorization: 'Bearer test-admin-token' },
       }),
     )
-    sessionStorage.setItem('acgbox-token-expires-at', String(Date.now() - 1))
+    localStorage.setItem('acgbox-token-expires-at', String(Date.now() - 1))
     await router.push('/admin/regions')
     expect(router.currentRoute.value.path).toBe('/login')
-    expect(sessionStorage.getItem('acgbox-token')).toBeNull()
+    expect(localStorage.getItem('acgbox-token')).toBeNull()
   })
 
   it('空响应的 HTTP 401 清理认证状态并转到登录页，403保留登录态并提示权限错误', async () => {
@@ -46,15 +46,15 @@ describe('管理端认证接入', () => {
     await flushPromises()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/login'))
     expect(router.currentRoute.value.query.reason).toBe('expired')
-    expect(sessionStorage.getItem('acgbox-token')).toBeNull()
+    expect(localStorage.getItem('acgbox-token')).toBeNull()
     expect(json).not.toHaveBeenCalled()
-    sessionStorage.setItem('acgbox-token', 'valid-token')
+    localStorage.setItem('acgbox-token', 'valid-token')
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({ ok: false, status: 403, json })),
     )
     await expect(get('/region/list')).rejects.toThrow('无管理端访问权限')
-    expect(sessionStorage.getItem('acgbox-token')).toBe('valid-token')
+    expect(localStorage.getItem('acgbox-token')).toBe('valid-token')
   })
 
   it('旧请求的401不清理新登录的令牌', async () => {
@@ -69,9 +69,9 @@ describe('管理端认证接入', () => {
       ),
     )
     const pending = get('/region/list')
-    sessionStorage.setItem('acgbox-token', 'new-login-token')
+    localStorage.setItem('acgbox-token', 'new-login-token')
     resolveRequest({ ok: false, status: 401 } as Response)
     await expect(pending).rejects.toThrow('登录已失效')
-    expect(sessionStorage.getItem('acgbox-token')).toBe('new-login-token')
+    expect(localStorage.getItem('acgbox-token')).toBe('new-login-token')
   })
 })

@@ -136,7 +136,7 @@ describe('登录页面', () => {
       }),
     )
     expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty('Authorization')
-    expect(sessionStorage.getItem('acgbox-token')).toBe(loginResult.token)
+    expect(localStorage.getItem('acgbox-token')).toBe(loginResult.token)
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/dashboard'))
   })
 
@@ -224,7 +224,7 @@ describe('登录页面', () => {
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain(message)
     expect(wrapper.get('.send-code').attributes('disabled')).toBeDefined()
-    expect(sessionStorage.getItem('acgbox-token')).toBeNull()
+    expect(localStorage.getItem('acgbox-token')).toBeNull()
   })
 
   it('验证码错误不产生登录状态，并允许重试', async () => {
@@ -238,7 +238,7 @@ describe('登录页面', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('验证码错误或已过期')
-    expect(sessionStorage.getItem('acgbox-token')).toBeNull()
+    expect(localStorage.getItem('acgbox-token')).toBeNull()
     expect(wrapper.get('.submit-button').attributes('disabled')).toBeUndefined()
   })
 
@@ -281,13 +281,13 @@ describe('登录页面', () => {
       }),
     )
     expect(fetchMock.mock.calls[0]?.[1]?.headers).not.toHaveProperty('Authorization')
-    expect(sessionStorage.getItem('acgbox-token')).toBe(loginResult.token)
-    expect(JSON.parse(sessionStorage.getItem('acgbox-user')!)).toEqual({
+    expect(localStorage.getItem('acgbox-token')).toBe(loginResult.token)
+    expect(JSON.parse(localStorage.getItem('acgbox-user')!)).toEqual({
       id: 1,
       username: 'admin',
       role: 'ADMIN',
     })
-    expect(Number(sessionStorage.getItem('acgbox-token-expires-at'))).toBeGreaterThan(Date.now())
+    expect(Number(localStorage.getItem('acgbox-token-expires-at'))).toBeGreaterThan(Date.now())
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/dashboard'))
   })
 
@@ -333,7 +333,7 @@ describe('登录页面', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('此账号已被禁用')
-    expect(sessionStorage.getItem('acgbox-token')).toBeNull()
+    expect(localStorage.getItem('acgbox-token')).toBeNull()
     expect(wrapper.get('.submit-button').attributes('disabled')).toBeUndefined()
     expect(router.currentRoute.value.path).toBe('/login')
   })

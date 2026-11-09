@@ -22,7 +22,7 @@ async function parseResult<T>(
 ): Promise<T> {
   if (response.status === 401) {
     // 只清理本次请求使用的登录状态，避免旧请求影响刚完成的新登录。
-    if (!loginRequest && requestToken === sessionStorage.getItem('acgbox-token')) {
+    if (!loginRequest && requestToken === getToken()) {
       clearLogin()
       window.dispatchEvent(new Event(authExpiredEvent))
     }
