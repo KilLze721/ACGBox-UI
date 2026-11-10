@@ -4,6 +4,7 @@ import UsersView from '@/views/admin/users/UsersView.vue'
 import App from '@/App.vue'
 import router from '@/router'
 import type { UserAccount, UserAccountDTO } from '@/types/api'
+import { saveLogin } from '@/utils/auth'
 
 const account: UserAccount = {
   id: 987654321,
@@ -393,10 +394,13 @@ describe('用户管理', () => {
 
   it('用户管理路由与侧栏仅对管理员开放，编辑账号不能直接进入', async () => {
     mockApi()
-    sessionStorage.setItem(
-      'acgbox-user',
-      JSON.stringify({ id: 1, username: 'Admin', role: 'ADMIN' }),
-    )
+    saveLogin({
+      token: 'test-admin-token',
+      expiresIn: 3600,
+      id: 1,
+      username: 'Admin',
+      role: 'ADMIN',
+    })
     await router.push('/admin/users')
     const wrapper = mount(App, { global: { plugins: [router] } })
     wrappers.push(wrapper)
@@ -405,10 +409,13 @@ describe('用户管理', () => {
     expect(wrapper.find('a[href="/admin/users"]').exists()).toBe(true)
     wrapper.unmount()
     wrappers.pop()
-    sessionStorage.setItem(
-      'acgbox-user',
-      JSON.stringify({ id: 2, username: 'Editor', role: 'EDITOR' }),
-    )
+    saveLogin({
+      token: 'test-editor-token',
+      expiresIn: 3600,
+      id: 2,
+      username: 'Editor',
+      role: 'EDITOR',
+    })
     await router.push('/admin/dashboard')
     await router.push('/admin/users')
     expect(router.currentRoute.value.path).toBe('/admin/dashboard')

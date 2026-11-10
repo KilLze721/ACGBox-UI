@@ -4,6 +4,7 @@ import router from '@/router'
 import App from '@/App.vue'
 import SettingsView from '@/views/admin/settings/SettingsView.vue'
 import type { SystemHealth } from '@/types/api'
+import { getToken, saveLogin } from '@/utils/auth'
 import {
   defaultPreferences,
   readPreferences,
@@ -35,7 +36,7 @@ beforeEach(async () => {
   HTMLDialogElement.prototype.close = function () {
     this.removeAttribute('open')
   }
-  sessionStorage.setItem('acgbox-user', JSON.stringify({ id: 1, username: 'admin', role: 'ADMIN' }))
+  saveLogin({ token: 'test-admin-token', expiresIn: 3600, id: 1, username: 'admin', role: 'ADMIN' })
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string) => {
@@ -128,7 +129,7 @@ describe('系统设置页面', () => {
     })
     setThemeMode('dark')
     localStorage.setItem('unrelated-data', 'keep')
-    const token = sessionStorage.getItem('acgbox-token')
+    const token = getToken()
     const wrapper = renderSettings()
     await flushPromises()
     await wrapper.get('#resetLists').trigger('click')
@@ -150,7 +151,7 @@ describe('系统设置页面', () => {
     })
     expect(localStorage.getItem('acgbox-theme')).toBe('dark')
     expect(localStorage.getItem('unrelated-data')).toBe('keep')
-    expect(sessionStorage.getItem('acgbox-token')).toBe(token)
+    expect(getToken()).toBe(token)
   })
 
   it('全部恢复涵盖主题和录入偏好，Escape 取消不变更，确认后保存才生效', async () => {
@@ -239,10 +240,13 @@ describe('系统设置页面', () => {
   })
 
   it('EDITOR 不请求管理员健康接口，也不显示刷新操作', async () => {
-    sessionStorage.setItem(
-      'acgbox-user',
-      JSON.stringify({ id: 2, username: 'editor', role: 'EDITOR' }),
-    )
+    saveLogin({
+      token: 'test-editor-token',
+      expiresIn: 3600,
+      id: 2,
+      username: 'editor',
+      role: 'EDITOR',
+    })
     const wrapper = renderSettings()
     await flushPromises()
     expect(wrapper.get('#system').text()).toContain('仅管理员可查看')
