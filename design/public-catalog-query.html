@@ -3,8 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
   <title>动画查询 · ACGBox</title>
+  <script>
+    const themeKey = 'acgbox-public-catalog-theme';
+    try {
+      if (localStorage.getItem(themeKey) === 'day') document.documentElement.dataset.theme = 'day';
+    } catch {
+      // 浏览器禁用本地存储时，仍可在本次访问中切换主题。
+    }
+  </script>
   <style>
     :root {
       color-scheme:dark;
@@ -36,6 +44,10 @@
     .site-nav a:hover,.site-nav a[aria-current] { color:var(--ink); background:#c4a9ff30 }
     .site-nav a[aria-current] { box-shadow:inset 0 0 0 1px #d0b6ff4d; color:var(--lilac) }
     .sample { margin-left:auto; color:var(--lilac); white-space:nowrap; font-size:12px }
+    .theme-toggle { flex:none; display:grid; place-items:center; width:40px; height:40px; margin-left:-15px; border:1px solid var(--line); border-radius:12px; background:#b7a9f111; color:var(--lilac) }
+    .theme-toggle:hover { background:#d0b7ff2b; border-color:var(--lilac) }
+    .theme-toggle .sun,[data-theme=day] .theme-toggle .moon { display:none }
+    [data-theme=day] .theme-toggle .sun { display:block }
     h1,h2,h3,p { margin:0 }
     .intro { position:relative; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:13px 24px; padding:27px 0 19px }
     h1 { font:800 clamp(28px,4vw,42px)/1.17 var(--serif); text-shadow:0 2px 16px #100c2e }
@@ -101,6 +113,37 @@
     .mascot { position:absolute; top:15px; right:18px; width:106px; height:150px; filter:drop-shadow(0 4px 12px #15122c); pointer-events:none }
     .mascot img { width:100%; height:100%; object-fit:contain; mask-image:radial-gradient(ellipse 43% 56%,#000 65%,transparent 100%) }
     .foot { display:flex; justify-content:space-between; flex-wrap:wrap; gap:5px 12px; margin-top:14px; padding:12px 0 19px; border-top:1px solid var(--line); color:var(--muted); font-size:12px }
+    [data-theme=day] {
+      color-scheme:light;
+      --night:#f6eff8; --ink:#2e2142; --muted:#5f526d;
+      --lilac:#574082; --pink:#a13968; --line:#6747853a;
+      --day-fill:#fffaf4ed; --day-hover:#eadcf6; --day-active:#664493; --day-active-ink:#fff;
+    }
+    [data-theme=day] .sky { background:#eadbf3 }
+    [data-theme=day] .sky::before { opacity:.56; filter:blur(7px) brightness(1.28) saturate(.8) }
+    [data-theme=day] .sky::after { background:radial-gradient(circle at 89% 20%,#fff9d4 0 2px,#fff8d480 4px,transparent 10px),linear-gradient(180deg,#fff8f4a8,#f2e6f78c 55%,#f8edf4d8) }
+    [data-theme=day] .glass { background:var(--day-fill); box-shadow:0 12px 32px #51386e20 }
+    [data-theme=day] .site-head { background:#fffaf2da }
+    [data-theme=day] .query { background:#fffafaec }
+    [data-theme=day] .brand-mark,[data-theme=day] .theme-toggle { background:#f1e6fb; border-color:var(--line) }
+    [data-theme=day] .site-nav a:is(:hover,[aria-current]),[data-theme=day] .theme-toggle:hover { background:var(--day-hover); color:var(--lilac) }
+    [data-theme=day] .site-nav a[aria-current] { box-shadow:inset 0 0 0 1px var(--line) }
+    [data-theme=day] :is(h1,.search-help) { color:var(--ink); text-shadow:0 1px 8px #fff9 }
+    [data-theme=day] .query:focus-within { border-color:var(--lilac) }
+    [data-theme=day] .search-box input::placeholder { color:var(--muted) }
+    [data-theme=day] :is(.quiet,.page-button,.option) { color:var(--ink); background:#f3e9fa }
+    [data-theme=day] :is(.quiet,.page-button:not(:disabled),.option):hover { background:var(--day-hover); border-color:#9674b6 }
+    [data-theme=day] :is(.primary,.option[aria-pressed=true],.page-button[aria-current=page]) { background:var(--day-active); color:var(--day-active-ink); border-color:var(--day-active) }
+    [data-theme=day] :is(.primary,.option[aria-pressed=true],.page-button[aria-current=page]):hover { background:#56367e; color:var(--day-active-ink); border-color:#56367e }
+    [data-theme=day] :is(.calendar,.work:nth-child(even),.chip) { background:#f0e4f45e }
+    [data-theme=day] .chip,[data-theme=day] .row-tags span { border-color:var(--line); color:var(--lilac) }
+    [data-theme=day] .chip:hover { border-color:var(--pink) }
+    [data-theme=day] .cover { border-color:var(--line); box-shadow:0 3px 9px #442a6238 }
+    [data-theme=day] .work h3 { color:#4a3269 }
+    [data-theme=day] .status { background:#ede1f5; color:#53366e }
+    [data-theme=day] .status.ongoing { background:#e1f1e8; color:#245542 }
+    [data-theme=day] .status.pending { background:#f8e4ef; color:#813659 }
+    [data-theme=day] .mascot { filter:drop-shadow(0 4px 12px #69448855) }
     @media (max-width:900px) { .mascot { display:none } }
     @media (max-width:720px) {
       .wrap { width:calc(100% - 26px) }
@@ -118,12 +161,17 @@
       .site-nav { gap:2px }
       .site-nav a { padding:5px 8px }
       .sample { font-size:11px }
+      .theme-toggle { margin-left:0 }
       .intro { padding:21px 0 13px; gap:9px }
       .primary { padding-inline:12px }
       .search-help { margin-top:-3px }
       .result-head,.applied { padding-inline:10px }
       .work { grid-template-columns:62px minmax(0,1fr); padding:9px 10px; gap:9px }
       .work h3 { font-size:16px }
+    }
+    @media (max-width:350px) {
+      .masthead .sample { display:none }
+      .theme-toggle { margin-left:auto }
     }
   </style>
 </head>
@@ -137,6 +185,10 @@
         <a href="#book" data-view="book">书籍</a>
       </nav>
       <span class="sample">演示资料库</span>
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="白天主题" aria-pressed="false" title="当前为夜晚，切换到白天">
+        <svg class="moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 15.2a8.8 8.8 0 0 1-11.8-11.8A8.8 8.8 0 1 0 20.6 15.2Z"/><path d="M17.5 3v5m-2.5-2.5h5"/></svg>
+        <svg class="sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+      </button>
     </div>
   </header>
   <main class="wrap">
@@ -181,6 +233,23 @@
   </main>
   <script>
     const $ = id => document.getElementById(id);
+    const themeToggle = $('theme-toggle');
+    function syncThemeToggle() {
+      const isDay = document.documentElement.dataset.theme === 'day';
+      themeToggle.setAttribute('aria-pressed', String(isDay));
+      themeToggle.title = isDay ? '当前为白天，切换到夜晚' : '当前为夜晚，切换到白天';
+    }
+    syncThemeToggle();
+    themeToggle.addEventListener('click', () => {
+      const theme = document.documentElement.dataset.theme === 'day' ? 'night' : 'day';
+      document.documentElement.dataset.theme = theme;
+      syncThemeToggle();
+      try {
+        localStorage.setItem(themeKey, theme);
+      } catch {
+        // 不支持本地存储时，只保留当前页面的主题。
+      }
+    });
     // 每条资料依次为名称、别名、系列、日期、类型、状态、标签、改编类型、人物与公司。
     const entries = {
       anime: [
