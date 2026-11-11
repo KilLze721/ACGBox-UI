@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>动画查询 · ACGBox</title>
+  <style>
+    :root {
+      --paper:#f8f7f3; --card:#fffefa; --ink:#292d29; --muted:#5d665f; --line:#dedfd5;
+      --green:#31594d; --green-dark:#244438; --wash:#e9f0e9; --rose:#91485b;
+      --serif:"Noto Serif SC","Source Han Serif SC","Songti SC","SimSun",serif;
+      --sans:"IBM Plex Sans","PingFang SC","Microsoft YaHei",sans-serif;
+    }
+    * { box-sizing:border-box }
+    body { margin:0; background:radial-gradient(ellipse 65% 390px at 100% 0%,#e7eee5,transparent),var(--paper); color:var(--ink); font:14px/1.55 var(--sans) }
+    a { color:inherit; text-decoration:none }
+    button,input,select { font:inherit; color:inherit }
+    button,select { cursor:pointer }
+    :focus-visible { outline:2px solid #316953; outline-offset:3px }
+    [hidden] { display:none !important }
+    .wrap { width:min(1144px,calc(100% - 64px)); margin-inline:auto }
+    .site-head { background:#fffefaad; border-bottom:1px solid var(--line); backdrop-filter:blur(14px) }
+    .masthead { display:flex; align-items:center; gap:44px; min-height:65px }
+    .brand { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:750; letter-spacing:-.06em; white-space:nowrap }
+    .brand-mark { display:grid; place-items:center; width:33px; height:33px; border-radius:9px; background:var(--green); color:#fff }
+    .site-nav { display:flex; align-self:stretch; gap:23px }
+    .site-nav a { position:relative; display:grid; place-items:center; padding:0 6px; font-weight:650; white-space:nowrap; color:var(--muted) }
+    .site-nav a:hover,.site-nav a[aria-current] { color:var(--green-dark) }
+    .site-nav a[aria-current]::after { content:""; position:absolute; bottom:0; inset-inline:3px; height:3px; background:var(--green); border-radius:3px 3px 0 0 }
+    .sample { margin-left:auto; color:var(--rose); white-space:nowrap; font-size:12px; font-weight:650 }
+    .intro { position:relative; display:flex; justify-content:space-between; align-items:flex-end; gap:20px; padding:28px 0 22px }
+    .eyebrow,.folio,.card-index { font:600 11px/1.4 ui-monospace,Consolas,monospace; letter-spacing:.16em }
+    .eyebrow { display:flex; align-items:center; gap:10px; color:var(--green); margin:0 0 7px }
+    .eyebrow::before { content:""; width:18px; border-top:2px solid var(--rose) }
+    h1,h2,h3,p { margin:0 }
+    h1 { font:800 clamp(34px,4.5vw,54px)/1.14 var(--serif); letter-spacing:.045em }
+    .lede { color:var(--muted); margin-top:7px }
+    .folio { display:flex; align-items:center; gap:10px; color:var(--green); padding-bottom:4px; white-space:nowrap }
+    .folio svg { width:54px; height:38px }
+    .query { border:1px solid var(--line); border-radius:16px; background:#fffefac9; backdrop-filter:blur(12px); padding:15px 17px 13px; box-shadow:0 4px 13px #34463808 }
+    .search-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:9px }
+    .search-box { min-width:0; display:flex; align-items:center; gap:9px; border:1px solid #cdd3c8; border-radius:9px; padding:0 11px; background:#f9faf6 }
+    .search-box:focus-within { outline:2px solid #316953; outline-offset:1px }
+    .search-box svg { flex:none; color:var(--green) }
+    .search-box input { width:100%; min-width:0; min-height:43px; border:0; outline:none; background:transparent }
+    .search-box input::placeholder { color:#626d63 }
+    .primary,.quiet,.page-button { border:1px solid var(--line); border-radius:8px; background:var(--card); min-height:40px; padding:0 13px; font-weight:650 }
+    .primary { color:white; background:var(--green); border-color:var(--green); padding-inline:25px }
+    .primary:hover { background:var(--green-dark) }
+    .quiet:hover,.page-button:not(:disabled):hover { background:var(--wash); color:var(--green-dark); border-color:#9bb0a2 }
+    .filters { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto auto; align-items:end; gap:9px; margin-top:11px }
+    .field { min-width:0; display:grid; gap:4px }
+    .field > span { color:var(--muted); font-size:12px; font-weight:650 }
+    select { width:100%; min-width:0; height:40px; appearance:none; border:1px solid var(--line); border-radius:8px; padding:0 28px 0 10px; background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23505f55' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") right 9px center / 15px no-repeat }
+    select:hover { border-color:#9bb0a2 }
+    .more { display:inline-flex; gap:6px; align-items:center; justify-content:center }
+    .more[aria-expanded=true] { background:var(--wash); color:var(--green-dark) }
+    .more[aria-expanded=true] svg { transform:rotate(180deg) }
+    .extra { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; border-top:1px solid var(--line); margin-top:12px; padding-top:10px }
+    .results { padding-top:22px }
+    .result-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:11px }
+    .result-heading { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px }
+    h2 { font:800 24px/1.3 var(--serif) }
+    .result-count { color:var(--muted); font-size:13px }
+    .sort { display:flex; align-items:center; gap:6px; color:var(--muted); white-space:nowrap; font-size:12px }
+    .sort select { width:auto; font-size:13px; color:var(--ink); height:36px }
+    .applied { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:10px }
+    .chip { border:1px solid #cfded1; background:var(--wash); color:var(--green-dark); border-radius:20px; padding:3px 10px; overflow-wrap:anywhere; max-width:100%; text-align:left }
+    .chip:hover { border-color:var(--green) }
+    .cards { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px }
+    .work { min-width:0; overflow:hidden; border:1px solid var(--line); background:var(--card); border-radius:12px; box-shadow:0 4px 12px #34463808 }
+    .cover { position:relative; display:block; overflow:hidden; aspect-ratio:1.72; background:var(--wash) }
+    .cover svg { display:block; width:100%; height:100% }
+    .card-index { position:absolute; left:9px; bottom:8px; color:#fff; background:#202721e0; border-radius:4px; padding:4px 6px }
+    .work-info { padding:11px 12px 12px }
+    h3 { font:800 18px/1.35 var(--serif); overflow-wrap:anywhere }
+    .alias { margin-top:2px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; min-height:19px }
+    .meta { display:flex; align-items:center; flex-wrap:wrap; gap:4px 7px; color:var(--muted); margin-top:10px; font-size:12px }
+    .meta time { font-variant-numeric:tabular-nums }
+    .meta .dot::before { content:"·"; margin-right:7px }
+    .status { border-radius:20px; padding:2px 7px; margin-left:auto; white-space:nowrap; background:#eeeee8; color:#50574e; font-weight:650 }
+    .status.ongoing { background:#e5efe5; color:#305c45 }
+    .status.pending { background:#fae9ee; color:#853b50 }
+    .empty { text-align:center; border:1px dashed #c5cdbf; border-radius:12px; background:var(--card); padding:36px 16px }
+    .empty p { margin:7px 0 13px; color:var(--muted) }
+    .paging { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:6px; padding:22px 0 30px }
+    .page-button { min-width:39px; padding-inline:9px }
+    .page-button[aria-current=page] { background:var(--green); border-color:var(--green); color:white }
+    .page-button[aria-current=page]:hover { background:var(--green-dark); color:white }
+    .page-button:disabled { cursor:default; color:#72776f; background:#f1f1eb }
+    .foot { display:flex; justify-content:space-between; flex-wrap:wrap; gap:5px 12px; margin-top:8px; padding:15px 0 21px; border-top:1px solid var(--line); color:var(--muted); font-size:12px }
+    @media (max-width:900px) { .cards { grid-template-columns:repeat(3,minmax(0,1fr)) } }
+    @media (max-width:650px) {
+      .wrap { width:calc(100% - 28px) }
+      .masthead { gap:15px; min-height:57px }
+      .site-nav { gap:9px }
+      .site-nav a { padding-inline:2px }
+      .brand { gap:6px; font-size:19px }
+      .brand-mark { width:28px; height:28px }
+      .sample { font-size:11px }
+      .intro { padding:23px 0 16px }
+      .folio { display:none }
+      .query { padding:11px }
+      .primary { padding-inline:15px }
+      .filters,.extra { grid-template-columns:repeat(2,minmax(0,1fr)) }
+      .filters .field:nth-child(3) { grid-column:1/-1 }
+      .cards { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px }
+      .work-info { padding:9px }
+      h3 { font-size:16px }
+      .meta { gap:3px 5px }
+      .status { margin-left:0 }
+    }
+    @media (max-width:350px) {
+      .masthead { gap:9px }
+      .site-nav { gap:7px }
+      .site-nav a { font-size:13px }
+      .sort > span { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%) }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-head">
+    <div class="wrap masthead">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9M8 5.2l8 4.5"/></svg></span>ACGBox</div>
+      <nav class="site-nav" aria-label="资料库分类">
+        <a href="#anime" data-view="anime" aria-current="page">动画</a>
+        <a href="#book" data-view="book">书籍</a>
+      </nav>
+      <span class="sample">演示资料库</span>
+    </div>
+  </header>
+  <main class="wrap">
+    <div class="intro">
+      <div><p class="eyebrow" id="section-code">CATALOG / ANIMATION</p><h1 id="page-title">动画查询</h1><p class="lede" id="lede">按放送年份、类型与状态查找动画作品。</p></div>
+      <div class="folio" aria-hidden="true"><svg viewBox="0 0 58 40" fill="none" stroke="currentColor"><rect x="4" y="6" width="44" height="29" rx="3" transform="rotate(-7 26 21)"/><rect x="10" y="5" width="44" height="29" rx="3"/><path d="M16 12h32v15H16zM23 12v15m18-15v15m-13-3 7-8m-5 8 7-8"/></svg><span id="folio-text">01 / SCREEN INDEX</span></div>
+    </div>
+    <form class="query" id="query" aria-label="作品搜索与筛选">
+      <div class="search-row">
+        <label class="search-box">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5" stroke-linecap="round"/></svg>
+          <input id="keyword" type="search" aria-label="搜索作品名称、别名或系列名" placeholder="搜索作品名称、别名或系列名" autocomplete="off">
+        </label>
+        <button class="primary" type="submit">搜索</button>
+      </div>
+      <div class="filters">
+        <label class="field"><span id="year-label">放送年份</span><select id="year"></select></label>
+        <label class="field"><span id="type-label">放送类型</span><select id="type"></select></label>
+        <label class="field"><span id="status-label">放送状态</span><select id="status"></select></label>
+        <button class="quiet more" id="more" type="button" aria-controls="extra" aria-expanded="false">更多筛选<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="quiet" id="clear" type="button">清空条件</button>
+      </div>
+      <div class="extra" id="extra" hidden>
+        <label class="field"><span>地区</span><select id="region"></select></label>
+        <label class="field"><span>标签</span><select id="tag"></select></label>
+      </div>
+    </form>
+    <section class="results" aria-labelledby="results-title">
+      <div class="result-head">
+        <div class="result-heading"><h2 id="results-title" tabindex="-1">作品目录</h2><p class="result-count" id="count" role="status" aria-atomic="true"></p></div>
+        <label class="sort"><span>排序</span><select id="sort" aria-label="结果排序"><option value="new">日期从新到旧</option><option value="old">日期从旧到新</option><option value="name">按名称</option></select></label>
+      </div>
+      <div class="applied" id="applied" aria-label="已选条件" hidden></div>
+      <div class="cards" id="cards"></div>
+      <div class="empty" id="empty" hidden>
+        <h3>没有找到符合条件的作品</h3><p>试试更短的关键词，或清空筛选后重新查找。</p>
+        <button class="quiet" type="button" id="empty-clear">清空条件</button>
+      </div>
+      <nav class="paging" id="paging" aria-label="结果分页" hidden></nav>
+    </section>
+    <noscript>请启用 JavaScript 后使用作品查询。</noscript>
+    <footer class="foot"><span>ACGBox / 公开资料库</span><span>作品与封面均为原型演示素材</span></footer>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    // 每条资料依次为名称、别名、系列、日期、类型、状态、地区与标签。
+    const entries = {
+      anime: [
+        ['云下邮局','Postcards Below the Clouds','云下邮局','2026-10-04','TV','放送中','日本','治愈/奇幻'],
+        ['逆潮信号','Undertow Signal','潮汐档案','2026-08-15','剧场版','已完结','中国大陆','科幻/冒险'],
+        ['玻璃街的星期五','Friday on Glass Street','玻璃街','2026-07-10','TV','已完结','日本','日常/治愈'],
+        ['白纸行星','Paper Planet','纸上宇宙','2026-05-02','网络动画','已完结','中国大陆','科幻/奇幻'],
+        ['风的第七页','The Seventh Page','风的笔记','2026-04-06','TV','已完结','日本','奇幻/冒险'],
+        ['南窗小夜曲','South Window Serenade','南窗日记','2026-01-18','OVA','已完结','日本','日常/治愈'],
+        ['轨道尽头的花园','Garden at the Terminus','纸上宇宙','2025-11-23','剧场版','已完结','日本','科幻/治愈'],
+        ['停靠在十二月','Platform for December','玻璃街','2025-09-12','网络动画','已完结','中国大陆','日常'],
+        ['月面电台：试播档案','Lunar Frequency: Pilot','潮汐档案','2025-08-12','OVA','已完结','日本','科幻'],
+        ['月面电台','Lunar Frequency','潮汐档案','2025-07-01','TV','已完结','日本','科幻/冒险'],
+        ['猫与山间列车','A Cat on the Mountain Line','南窗日记','2025-04-25','剧场版','已完结','中国大陆','日常/治愈'],
+        ['雨季采集簿','Field Notes from the Rain','风的笔记','2024-10-13','TV','已完结','日本','奇幻/日常'],
+        ['云下邮局：慢递篇','Postcards: The Slow Route','云下邮局','2024-06-01','OVA','已完结','日本','治愈'],
+        ['沉睡灯塔','Dormant Lighthouse','潮汐档案','','TV','未放送','中国大陆','科幻/冒险']
+      ],
+      book: [
+        ['灯塔以北','North of the Beacon','潮汐档案','2026-09-01','小说','连载中','中国大陆','科幻/冒险'],
+        ['灯塔以北','North of the Beacon','潮汐档案','2026-08-16','漫画','连载中','日本','冒险/奇幻'],
+        ['砂糖钟表店','The Sugar Clock Shop','玻璃街','2026-06-08','漫画','连载中','日本','治愈/日常'],
+        ['和潮汐一起回家','Going Home with the Tide','潮汐档案','2026-04-14','小说','已完结','中国大陆','日常/治愈'],
+        ['未寄出的星图','Atlas Unsent','纸上宇宙','2026-02-22','轻小说','已完结','日本','科幻/冒险'],
+        ['四月的长椅','A Bench in April','南窗日记','2025-10-02','漫画','已完结','日本','日常/治愈'],
+        ['暮色折页','Twilight Foldout','风的笔记','2025-06-25','小说','连载中','中国大陆','奇幻'],
+        ['纸卫星','Paper Satellite','纸上宇宙','2025-01-17','轻小说','已完结','日本','科幻'],
+        ['海图的背面','Back of the Sea Chart','潮汐档案','2024-11-09','漫画','已完结','日本','冒险'],
+        ['远山便利店','Mountain Corner Store','南窗日记','2024-05-20','小说','已完结','中国大陆','日常/治愈'],
+        ['零号花园','Garden Zero','纸上宇宙','','漫画','未连载','日本','奇幻/科幻']
+      ]
+    };
+    const rows = Object.fromEntries(Object.entries(entries).map(([view, items]) => [view, items.map(
+      ([name, alias, series, date, type, status, region, tags], i) =>
+        ({ id: i + 1, name, alias, series, date, year: date.slice(0, 4) || '未知', type, status, region, tags: tags.split('/') })
+    )]));
+    const views = {
+      anime: { title:'动画查询', code:'CATALOG / ANIMATION', folio:'01 / SCREEN INDEX', year:'放送年份', type:'放送类型', status:'放送状态', lede:'按放送年份、类型与状态查找动画作品。', prefix:'ANI' },
+      book: { title:'书籍查询', code:'CATALOG / BOOKS', folio:'02 / PRINT INDEX', year:'首次发表年份', type:'书籍类型', status:'连载状态', lede:'按书籍类型、首次发表年份与连载状态查找作品。', prefix:'BOK' }
+    };
+    const facets = ['year','type','status','region','tag'];
+    const keys = ['q',...facets,'sort','page'];
+    const pageSize = 8;
+    let state;
+    let shownView;
+    let opened = false;
+    const normalize = text => text.trim().normalize('NFKC').toLocaleLowerCase();
+    const collator = new Intl.Collator('zh-CN');
+
+    // 以网址片段保存当前分类与查询，支持独立打开和浏览器前进、后退。
+    function readHash() {
+      const [path, query] = location.hash.slice(1).split('?');
+      const view = path === 'book' ? 'book' : 'anime';
+      const params = new URLSearchParams(query);
+      const next = { view, q: (params.get('q') || '').trim(), sort: 'new', page: Math.max(1, parseInt(params.get('page'), 10) || 1) };
+      if (['old','name'].includes(params.get('sort'))) next.sort = params.get('sort');
+      for (const key of facets) {
+        const value = params.get(key);
+        next[key] = choices(view, key).includes(value) ? value : '';
+      }
+      return next;
+    }
+
+    function choices(view, key) {
+      const values = [...new Set(rows[view].flatMap(row => key === 'tag' ? row.tags : row[key]))];
+      if (key === 'year') return values.sort((a,b) => a === '未知' ? 1 : b === '未知' ? -1 : Number(b) - Number(a));
+      return values;
+    }
+
+    function hashFor(next) {
+      const params = new URLSearchParams();
+      for (const key of keys) {
+        const value = next[key];
+        if (value && !(key === 'page' && value === 1) && !(key === 'sort' && value === 'new')) params.set(key, value);
+      }
+      return '#' + next.view + (params.size ? '?' + params : '');
+    }
+
+    function commit(next) {
+      state = next;
+      draw();
+      const hash = hashFor(state);
+      if (location.hash !== hash) history.pushState(null, '', hash);
+    }
+
+    function results() {
+      const term = normalize(state.q);
+      const exact = row => term && [row.name,row.alias].some(value => normalize(value) === term);
+      return rows[state.view].filter(row =>
+        (!term || [row.name,row.alias,row.series].some(value => normalize(value).includes(term))) &&
+        facets.every(key => !state[key] || (key === 'tag' ? row.tags.includes(state[key]) : row[key] === state[key]))
+      ).sort((a,b) => {
+        if (state.sort === 'name') return collator.compare(a.name,b.name) || a.id - b.id;
+        if (!a.date || !b.date) return Number(Boolean(b.date)) - Number(Boolean(a.date)) || a.id - b.id;
+        if (state.sort === 'new' && Boolean(exact(a)) !== Boolean(exact(b))) return exact(a) ? -1 : 1;
+        return (state.sort === 'old' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date)) || a.id - b.id;
+      });
+    }
+
+    const palettes = [
+      ['#253f44','#71968e','#ebcf95'],['#303b61','#787ba5','#f0a597'],
+      ['#542f44','#b46975','#f2c88f'],['#36483b','#8ba06c','#f4ddb0'],
+      ['#314859','#6d8ba3','#f6bb8a'],['#493b52','#9c819b','#edd3b0'],
+      ['#294a47','#4e8885','#e4c981'],['#553c32','#b57a59','#f3d5a5']
+    ];
+    // 原创几何封面以胶片与纸页两种构图区分媒体类别。
+    function artwork(row) {
+      const [base, middle, light] = palettes[(row.id + (state.view === 'book' ? 2 : 0) - 1) % palettes.length];
+      const id = views[state.view].prefix + row.id;
+      const x = 74 + (row.id * 29) % 160;
+      const y = 42 + (row.id * 13) % 38;
+      const shapes = state.view === 'anime'
+        ? `<circle cx="${x}" cy="${y}" r="${25 + row.id % 4 * 5}" fill="${light}" opacity=".87"/><path d="M0 116Q66 ${53 + row.id % 3 * 11} 135 103T320 85V186H0Z" fill="${middle}"/><path d="M0 150Q80 166 158 127T320 120V186H0Z" fill="${base}"/><path d="M0 140Q82 156 158 117T320 110" fill="none" stroke="${light}" opacity=".65"/><path d="M267 31h14m-7-7v14M44 55h8m-4-4v8" stroke="${light}" opacity=".75"/>`
+        : `<rect x="${x - 39}" y="22" width="78" height="127" rx="6" fill="${light}" opacity=".85" transform="rotate(-12 ${x} 86)"/><rect x="${x - 23}" y="30" width="82" height="127" rx="6" fill="${middle}" stroke="${light}" transform="rotate(12 ${x} 86)"/><circle cx="${x + 21}" cy="${y + 12}" r="29" fill="none" stroke="${light}"/><path d="M${x - 1} 111h42m-38 8h32m-27 8h22M33 37h12m-6-6v12m225 89h14m-7-7v14" stroke="${light}" opacity=".8"/>`;
+      return `<svg viewBox="0 0 320 186" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><defs><linearGradient id="${id}" x2="1" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="${base}"/><stop offset="1" stop-color="${middle}"/></linearGradient></defs><rect width="320" height="186" fill="url(#${id})"/><g fill="none" stroke="${light}" opacity=".16"><path d="M0 34h320M0 68h320M0 102h320M0 136h320M40 0v186m40-186v186m40-186v186m40-186v186m40-186v186m40-186v186m40-186v186"/></g>${shapes}<rect x="9" y="9" width="302" height="168" rx="3" fill="none" stroke="${light}" opacity=".42"/></svg>`;
+    }
+
+    function card(row) {
+      const badge = ['放送中','连载中'].includes(row.status) ? 'ongoing' : ['未放送','未连载'].includes(row.status) ? 'pending' : '';
+      const year = row.date ? `<time datetime="${row.date}">${row.year}</time>` : '<span>年份未知</span>';
+      return `<article class="work"><div class="cover" aria-hidden="true">${artwork(row)}<span class="card-index">${views[state.view].prefix} / ${String(row.id).padStart(2,'0')}</span></div><div class="work-info"><h3>${row.name}</h3><p class="alias" lang="en">${row.alias}</p><div class="meta">${year}<span class="dot">${row.type}</span><span class="status ${badge}">${row.status}</span></div></div></article>`;
+    }
+
+    function draw() {
+      const view = views[state.view];
+      if (shownView !== state.view) {
+        shownView = state.view;
+        document.title = view.title + ' · ACGBox';
+        $('page-title').textContent = view.title;
+        $('section-code').textContent = view.code;
+        $('folio-text').textContent = view.folio;
+        $('lede').textContent = view.lede;
+        for (const key of ['year','type','status']) $(key + '-label').textContent = view[key];
+        for (const key of facets) {
+          const caption = {year:'年份',type:'类型',status:'状态',region:'地区',tag:'标签'}[key];
+          $(key).replaceChildren(new Option('不限' + caption, ''), ...choices(state.view, key).map(value => new Option(value, value)));
+        }
+        document.querySelectorAll('[data-view]').forEach(link => {
+          if (link.dataset.view === state.view) link.setAttribute('aria-current','page');
+          else link.removeAttribute('aria-current');
+        });
+      }
+      $('keyword').value = state.q;
+      for (const key of [...facets,'sort']) $(key).value = state[key];
+      showExtra();
+
+      const matched = results();
+      const pages = Math.max(1,Math.ceil(matched.length / pageSize));
+      state.page = Math.min(state.page,pages);
+      const start = (state.page - 1) * pageSize;
+      $('count').textContent = matched.length ? `共 ${matched.length} 部 · 第 ${state.page} / ${pages} 页` : '共 0 部';
+      $('cards').innerHTML = matched.slice(start,start + pageSize).map(card).join('');
+      $('cards').hidden = !matched.length;
+      $('empty').hidden = Boolean(matched.length);
+      $('paging').hidden = pages === 1;
+      $('paging').innerHTML = pages > 1 ? [
+        `<button class="page-button" type="button" data-page="${state.page - 1}" ${state.page === 1 ? 'disabled' : ''}>上一页</button>`,
+        ...Array.from({length:pages}, (_,i) => `<button class="page-button" type="button" data-page="${i + 1}" aria-label="第 ${i + 1} 页" ${state.page === i + 1 ? 'aria-current="page"' : ''}>${i + 1}</button>`),
+        `<button class="page-button" type="button" data-page="${state.page + 1}" ${state.page === pages ? 'disabled' : ''}>下一页</button>`
+      ].join('') : '';
+      const active = ['q',...facets].filter(key => state[key]);
+      $('applied').hidden = !active.length;
+      $('applied').replaceChildren(...active.map(key => {
+        const label = (key === 'q' ? '关键词' : key === 'tag' ? '标签' : key === 'region' ? '地区' : view[key]) + '：' + state[key];
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'chip';
+        button.dataset.clear = key;
+        button.setAttribute('aria-label','移除条件：' + label);
+        button.textContent = label + ' ×';
+        return button;
+      }));
+    }
+
+    function showExtra() {
+      $('more').setAttribute('aria-expanded',String(opened));
+      $('extra').hidden = !opened;
+    }
+
+    function clear() {
+      opened = false;
+      commit({view:state.view, q:'', year:'', type:'', status:'', region:'', tag:'', sort:'new', page:1});
+      $('keyword').focus();
+    }
+
+    function restore() {
+      state = readHash();
+      if (shownView !== state.view || state.region || state.tag) opened = Boolean(state.region || state.tag);
+      draw();
+    }
+
+    $('query').addEventListener('submit', event => {
+      event.preventDefault();
+      commit({...state,q:$('keyword').value.trim(),page:1});
+    });
+    for (const key of [...facets,'sort']) $(key).addEventListener('change', event => {
+      commit({...state,q:$('keyword').value.trim(),[key]:event.target.value,page:1});
+    });
+    $('more').addEventListener('click', () => { opened = !opened; showExtra(); });
+    $('clear').addEventListener('click', clear);
+    $('empty-clear').addEventListener('click', clear);
+    $('applied').addEventListener('click', event => {
+      const key = event.target.closest('[data-clear]')?.dataset.clear;
+      if (!key) return;
+      commit({...state,[key]:'',page:1});
+      $(key === 'q' ? 'keyword' : ((key === 'region' || key === 'tag') && !opened ? 'more' : key)).focus();
+    });
+    $('paging').addEventListener('click', event => {
+      const button = event.target.closest('button');
+      if (!button || button.disabled) return;
+      commit({...state,page:Number(button.dataset.page)});
+      $('results-title').focus({preventScroll:true});
+      $('results-title').scrollIntoView({block:'start'});
+    });
+    document.querySelector('.site-nav').addEventListener('click', event => {
+      const link = event.target.closest('[data-view]');
+      if (link?.dataset.view === state.view && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) event.preventDefault();
+    });
+    window.addEventListener('hashchange',restore);
+    restore();
+  </script>
+</body>
+</html>
