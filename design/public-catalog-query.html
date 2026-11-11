@@ -18,6 +18,7 @@
       color-scheme:dark;
       --night:#111329; --ink:#faf5ff; --muted:#c1bed8; --soft:#aaa7c7;
       --lilac:#d4c2ff; --pink:#ffc1df; --line:#d2c4ff30;
+      --content-width:1080px;
       --serif:"Noto Serif SC","Source Han Serif SC","Songti SC","SimSun",serif;
       --sans:"IBM Plex Sans","PingFang SC","Microsoft YaHei",sans-serif;
     }
@@ -28,7 +29,28 @@
     button { cursor:pointer }
     :focus-visible { outline:2px solid var(--pink); outline-offset:3px }
     [hidden] { display:none !important }
-    .wrap { width:min(1080px,calc(100% - 52px)); margin-inline:auto }
+    .wrap { width:min(var(--content-width),calc(100% - 52px)); margin-inline:auto }
+    @media (min-width:1240px) {
+      /* 纹样限于正文外侧，靠近内容边缘逐渐淡出。 */
+      main.wrap::before,main.wrap::after {
+        content:"";
+        position:fixed;
+        top:80px;
+        bottom:0;
+        width:calc((100% - var(--content-width)) / 2 - 18px);
+        pointer-events:none;
+        background:
+          radial-gradient(circle at 22px 25px,#c9b7f150 0 1.1px,transparent 1.8px) 0 0 / 93px 117px,
+          radial-gradient(circle at 56px 66px,#b7a4e33d 0 .8px,transparent 1.5px) 9px 17px / 109px 139px,
+          radial-gradient(circle at 12px 45px,#d9c6ff28 0 .6px,transparent 1.3px) 31px 11px / 71px 87px;
+      }
+      main.wrap::before { left:0; mask-image:linear-gradient(to right,#000 18%,transparent 100%) }
+      main.wrap::after { right:0; background-position:32px 27px,64px 8px,5px 39px; mask-image:linear-gradient(to left,#000 18%,transparent 100%) }
+      [data-theme=day] main.wrap::before,[data-theme=day] main.wrap::after {
+        background:radial-gradient(circle at center,#a481c63e 0 1px,transparent 1.7px) 0 0 / 24px 24px;
+      }
+      [data-theme=day] main.wrap::after { background-position:12px 12px }
+    }
     .glass { border:1px solid var(--line); background:#1c1c36d9; backdrop-filter:blur(17px); box-shadow:0 12px 32px #100e2845 }
     .site-head { border-width:0 0 1px; background:#1e1f39bd }
     .masthead { display:flex; align-items:center; gap:29px; min-height:60px }
