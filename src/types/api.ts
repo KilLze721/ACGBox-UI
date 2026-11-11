@@ -95,7 +95,7 @@ export interface NamedOption {
   name: string
 }
 
-export type DataQualityTarget = 'ANIME' | 'BOOK' | 'PERSON'
+export type DataQualityTarget = 'ANIME' | 'BOOK' | 'PERSON' | 'COMPANY' | 'SERIES'
 export type DataQualityRule =
   | 'MISSING_COVER'
   | 'MISSING_DESCRIPTION'

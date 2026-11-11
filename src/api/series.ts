@@ -6,8 +6,14 @@ export interface SeriesPayload {
   description: string | null
 }
 
-export function getSeriesPage(pageNum = 1, pageSize = 100, signal?: AbortSignal, name = '') {
-  return get<PageResult<SeriesSummary>>('/series/page', { pageNum, pageSize, name }, signal)
+export function getSeriesPage(
+  pageNum = 1,
+  pageSize = 100,
+  signal?: AbortSignal,
+  name = '',
+  sortBy?: 'NAME_INITIAL',
+) {
+  return get<PageResult<SeriesSummary>>('/series/page', { pageNum, pageSize, name, sortBy }, signal)
 }
 
 export function getSeriesById(id: number, signal?: AbortSignal) {

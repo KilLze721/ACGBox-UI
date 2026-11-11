@@ -56,6 +56,7 @@ const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
   name: `${value} 条`,
 }))
 const route = useRoute()
+const ownerFullPath = route.fullPath
 const router = useRouter()
 const navigateLinkedContent =
   inject<
@@ -162,12 +163,12 @@ defineExpose({
 onMounted(() => {
   void loadPage(1)
   void loadTotal()
-  const id = Number(route.query.detail)
-  if (Number.isInteger(id) && id > 0) void openDrawer('detail', id)
+  openLinkedDetail()
 })
 onActivated(() => {
   tabActive.value = true
   if (drawerMode.value || deleteTargets.value.length) lockScroll()
+  if (route.query.from === 'data-quality' && !drawerMode.value) openLinkedDetail()
 })
 onDeactivated(() => {
   tabActive.value = false
@@ -225,7 +226,13 @@ async function loadPage(pageNum: number) {
   listLoading.value = true
   listError.value = ''
   try {
-    const result = await getCompanies(appliedName.value, pageSize.value, controller.signal, pageNum)
+    const result = await getCompanies(
+      appliedName.value,
+      pageSize.value,
+      controller.signal,
+      pageNum,
+      'NAME_INITIAL',
+    )
     if (pageController !== controller) return
     page.value = result
     jumpPage.value = String(result.pageNum)
@@ -291,6 +298,11 @@ function closeDrawer() {
   drawerMode.value = null
   currentCompany.value = null
   drawerError.value = ''
+}
+function openLinkedDetail() {
+  const id = Number(route.query.detail)
+  if (route.fullPath === ownerFullPath && Number.isInteger(id) && id > 0)
+    void openDrawer('detail', id)
 }
 async function openDrawer(mode: DrawerMode, row?: CompanyOption | number) {
   drawerController?.abort()
@@ -498,7 +510,7 @@ async function confirmDelete() {
       <header class="companies-list-header management-list-header">
         <div>
           <h2 id="companiesListTitle">制作公司档案</h2>
-          <p>按最近更新排序 · 公司简介为可选信息</p>
+          <p>按名称首字母排序 · 公司简介为可选信息</p>
         </div>
         <div class="companies-header-actions management-list-actions">
           <span class="management-list-meta"

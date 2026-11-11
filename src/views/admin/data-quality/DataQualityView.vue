@@ -25,19 +25,47 @@ const rules: Array<{ code: DataQualityRule; label: string }> = [
   sameNameRule,
 ]
 const targets = {
-  ANIME: { label: '动画', icon: 'anime', path: '/admin/anime', unit: '部' },
-  BOOK: { label: '书籍', icon: 'book', path: '/admin/book', unit: '部' },
-  PERSON: { label: '人物', icon: 'user', path: '/admin/persons', unit: '位' },
+  ANIME: {
+    label: '动画',
+    icon: 'anime',
+    path: '/admin/anime',
+    unit: '部',
+    searchLabel: '作品名称',
+  },
+  BOOK: { label: '书籍', icon: 'book', path: '/admin/book', unit: '部', searchLabel: '作品名称' },
+  PERSON: {
+    label: '人物',
+    icon: 'user',
+    path: '/admin/persons',
+    unit: '位',
+    searchLabel: '人物姓名',
+  },
+  COMPANY: {
+    label: '公司',
+    icon: 'companies',
+    path: '/admin/companies',
+    unit: '家',
+    searchLabel: '公司名称',
+  },
+  SERIES: {
+    label: '系列',
+    icon: 'series',
+    path: '/admin/series',
+    unit: '个',
+    searchLabel: '系列名称',
+  },
+}
+function isWorkTarget(targetType: DataQualityTarget) {
+  return targetType === 'ANIME' || targetType === 'BOOK'
 }
 const pageSizes = pageSizeValues.map((id) => ({ id, name: `${id} 条` }))
 function defaults(targetType: DataQualityTarget): DataQualityQuery {
   return {
     targetType,
     keyword: '',
-    ruleCodes:
-      targetType === 'PERSON'
-        ? [sameNameRule.code]
-        : rules.map(({ code }) => code).filter((code) => code !== sameNameRule.code),
+    ruleCodes: isWorkTarget(targetType)
+      ? rules.map(({ code }) => code).filter((code) => code !== sameNameRule.code)
+      : [sameNameRule.code],
     matchMode: 'ANY',
     pageNum: 1,
     pageSize: resolvePageSize(pageSizeValues, 20),
@@ -46,11 +74,23 @@ function defaults(targetType: DataQualityTarget): DataQualityQuery {
 
 const workDraft = ref(defaults('ANIME'))
 const personDraft = ref(defaults('PERSON'))
+const nameDrafts = {
+  PERSON: personDraft,
+  COMPANY: ref(defaults('COMPANY')),
+  SERIES: ref(defaults('SERIES')),
+}
 const applied = ref(defaults('ANIME'))
 const isPerson = computed(() => applied.value.targetType === 'PERSON')
-const draft = computed(() => (isPerson.value ? personDraft.value : workDraft.value))
-const visibleRules = computed(() => (isPerson.value ? [sameNameRule] : rules))
+const sameNameOnly = computed(() => !isWorkTarget(applied.value.targetType))
+function draftFor(targetType: DataQualityTarget) {
+  return targetType === 'ANIME' || targetType === 'BOOK' ? workDraft : nameDrafts[targetType]
+}
+const draft = computed(() => draftFor(applied.value.targetType).value)
+const visibleRules = computed(() => (sameNameOnly.value ? [sameNameRule] : rules))
 const resultTarget = computed(() => targets[applied.value.targetType])
+const countLabel = computed(() =>
+  isPerson.value ? '人数' : sameNameOnly.value ? '记录数' : '作品数',
+)
 const result = ref<DataQualityPage>()
 const loading = ref(true)
 const error = ref('')
@@ -109,8 +149,8 @@ async function checkPage(pageNum = applied.value.pageNum) {
   }
 }
 function apply(targetType = draft.value.targetType) {
-  const next = targetType === 'PERSON' ? personDraft.value : workDraft.value
-  if (!next.ruleCodes.length && isPerson.value) next.ruleCodes = defaults(targetType).ruleCodes
+  const next = draftFor(targetType).value
+  if (!next.ruleCodes.length && sameNameOnly.value) next.ruleCodes = defaults(targetType).ruleCodes
   if (!next.ruleCodes.length) {
     validation.value = '请至少选择一项规则。'
     return
@@ -127,13 +167,9 @@ function apply(targetType = draft.value.targetType) {
   void checkPage()
 }
 function reset() {
-  if (isPerson.value) {
-    personDraft.value = defaults('PERSON')
-    applied.value = defaults('PERSON')
-  } else {
-    workDraft.value = defaults('ANIME')
-    applied.value = defaults('ANIME')
-  }
+  const targetType = sameNameOnly.value ? applied.value.targetType : 'ANIME'
+  draftFor(targetType).value = defaults(targetType)
+  applied.value = defaults(targetType)
   validation.value = ''
   void checkPage()
 }
@@ -149,7 +185,7 @@ onDeactivated(() => request?.abort())
       <div class="management-hero-copy">
         <p class="management-eyebrow">CONTENT ARCHIVE / QUALITY REVIEW</p>
         <h1>数据质量检查</h1>
-        <p>查找作品资料缺漏，核对同名作品和人物。</p>
+        <p>检查作品资料缺漏，核对同名记录。</p>
       </div>
       <span class="quality-hero-mark" aria-hidden="true"><AdminIcon name="check" /></span>
     </header>
@@ -161,7 +197,7 @@ onDeactivated(() => request?.abort())
           <h2>检查条件</h2>
         </div>
       </div>
-      <div class="quality-filters" :class="{ 'quality-person-filters': isPerson }">
+      <div class="quality-filters" :class="{ 'quality-person-filters': sameNameOnly }">
         <fieldset>
           <legend>内容类型</legend>
           <div class="segmented-control">
@@ -179,7 +215,7 @@ onDeactivated(() => request?.abort())
           </div>
         </fieldset>
         <div class="field quality-keyword">
-          <label for="qualityKeyword">{{ isPerson ? '人物姓名' : '作品名称' }}</label>
+          <label for="qualityKeyword">{{ resultTarget.searchLabel }}</label>
           <div class="input-shell">
             <AdminIcon class="input-icon" name="search-full" />
             <input
@@ -187,11 +223,11 @@ onDeactivated(() => request?.abort())
               v-model="draft.keyword"
               class="has-icon"
               type="search"
-              :placeholder="isPerson ? '按人物姓名搜索' : '按作品名称搜索'"
+              :placeholder="`按${resultTarget.searchLabel}搜索`"
             />
           </div>
         </div>
-        <fieldset v-if="!isPerson">
+        <fieldset v-if="!sameNameOnly">
           <legend>命中方式</legend>
           <div class="quality-options quality-match">
             <label><input v-model="draft.matchMode" type="radio" value="ANY" /> 满足任一项</label>
@@ -210,7 +246,7 @@ onDeactivated(() => request?.abort())
               v-model="draft.ruleCodes"
               type="checkbox"
               :value="rule.code"
-              :disabled="isPerson"
+              :disabled="sameNameOnly"
               @change="validation = ''"
             />
             <span>{{ rule.label }}</span>
@@ -231,15 +267,15 @@ onDeactivated(() => request?.abort())
 
     <section v-if="result && !loading && !error" class="quality-stats" aria-label="检查统计">
       <dl class="quality-stat">
-        <dt>当前范围{{ isPerson ? '人数' : '作品数' }}</dt>
+        <dt>当前范围{{ countLabel }}</dt>
         <dd>{{ result.summary.scopeTotal }}</dd>
       </dl>
       <dl class="quality-stat quality-total">
-        <dt>本次命中{{ isPerson ? '人数' : '作品数' }}</dt>
+        <dt>本次命中{{ countLabel }}</dt>
         <dd>{{ result.total }}</dd>
       </dl>
       <div class="quality-counts">
-        <h2>分项命中 <small v-if="!isPerson">同一作品可命中多项</small></h2>
+        <h2>分项命中 <small v-if="!sameNameOnly">同一作品可命中多项</small></h2>
         <dl v-for="rule in visibleRules" :key="rule.code">
           <dt>{{ rule.label }}</dt>
           <dd>{{ result.summary.ruleCounts[rule.code] ?? '—' }}</dd>
@@ -276,16 +312,18 @@ onDeactivated(() => request?.abort())
       <div v-else-if="!result?.rows.length" class="quality-state">
         <span class="quality-state-mark" aria-hidden="true"><AdminIcon name="check" /></span>
         <strong>{{
-          isPerson ? '当前条件下未发现同名人物' : '当前条件下未发现待补充或待核对的作品'
+          sameNameOnly
+            ? `当前条件下未发现同名${resultTarget.label}`
+            : '当前条件下未发现待补充或待核对的作品'
         }}</strong>
-        <p v-if="!isPerson">可以调整检查规则或作品名称后再检查。</p>
+        <p v-if="!sameNameOnly">可以调整检查规则或作品名称后再检查。</p>
       </div>
       <template v-else>
         <div class="quality-table-wrap">
           <table class="anime-table quality-table">
             <thead>
               <tr>
-                <th scope="col">{{ isPerson ? '人物' : '作品' }}</th>
+                <th scope="col">{{ sameNameOnly ? resultTarget.label : '作品' }}</th>
                 <th scope="col">命中项</th>
                 <th scope="col">更新时间</th>
                 <th scope="col">操作</th>
@@ -294,9 +332,11 @@ onDeactivated(() => request?.abort())
             <tbody>
               <tr v-for="row in result.rows" :key="row.targetId">
                 <td>
-                  <div v-if="row.targetType === 'PERSON'" class="quality-person">
+                  <div v-if="!isWorkTarget(row.targetType)" class="quality-person">
                     <strong>{{ row.name }}</strong>
-                    <small class="quality-id">ID {{ row.targetId }}</small>
+                    <small v-if="row.targetType === 'PERSON'" class="quality-id"
+                      >ID {{ row.targetId }}</small
+                    >
                     <ArchiveDescription :text="row.description" />
                   </div>
                   <div v-else class="quality-work">
@@ -342,7 +382,7 @@ onDeactivated(() => request?.abort())
                       query: { detail: row.targetId, from: 'data-quality' },
                     }"
                   >
-                    {{ row.targetType === 'PERSON' ? '查看详情' : '查看并补充' }}
+                    {{ isWorkTarget(row.targetType) ? '查看并补充' : '查看详情' }}
                     <AdminIcon name="right" />
                   </RouterLink>
                 </td>
@@ -475,12 +515,18 @@ onDeactivated(() => request?.abort())
   min-width: 0;
   font: inherit;
 }
+.quality-filters .segmented-control {
+  display: flex;
+  flex-wrap: wrap;
+  height: auto;
+}
 .quality-filters .segmented-control button {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
   min-width: 58px;
+  min-height: 32px;
   padding: 4px 10px;
   border: 0;
   border-radius: 8px;
@@ -701,6 +747,11 @@ onDeactivated(() => request?.abort())
 }
 .quality-state button {
   margin-top: 12px;
+}
+@media (max-width: 1100px) {
+  .quality-filters {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
 }
 @media (max-width: 780px) {
   .quality-filters {

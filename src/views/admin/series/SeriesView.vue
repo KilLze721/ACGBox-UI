@@ -218,7 +218,8 @@ async function loadPage(pageNum: number) {
       pageNum,
       pageSize.value,
       controller.signal,
-      appliedName.value
+      appliedName.value,
+      'NAME_INITIAL',
     )
     if (pageController !== controller) return
     page.value = result
@@ -431,7 +432,7 @@ function openRelatedBook(book: BookPageItem) {
       <header class="series-list-header management-list-header">
         <div>
           <h2 id="seriesListTitle">系列档案列表</h2>
-          <p>按最近更新排序 · 修改记录在保存后更新</p>
+          <p>按名称首字母排序 · 修改记录在保存后更新</p>
         </div>
         <div class="series-header-actions management-list-actions">
           <span class="management-list-meta"

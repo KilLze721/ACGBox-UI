@@ -259,7 +259,8 @@ async function loadPage(pageNum: number) {
       pageNum,
       pageSize.value,
       appliedName.value,
-      controller.signal
+      controller.signal,
+      'NAME_INITIAL',
     )
     if (controller.signal.aborted) return
     page.value = result
@@ -512,7 +513,7 @@ async function confirmDelete() {
       <header class="persons-list-header management-list-header">
         <div>
           <h2 id="personsListTitle">人物档案</h2>
-          <p>按最近更新排序 · 同名人物可结合简介与详情区分</p>
+          <p>按名称首字母排序 · 同名人物可结合简介与详情区分</p>
         </div>
         <div class="management-list-actions">
           <span class="management-list-meta">共 {{ page.total }} 条</span
