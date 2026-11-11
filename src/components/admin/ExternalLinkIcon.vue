@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import bangumiIcon from '@/assets/bangumi.ico'
-import bilibiliIcon from '@/assets/bilibili.ico'
+import bangumiIcon from '@/assets/ico/bangumi.ico'
+import bilibiliIcon from '@/assets/ico/bilibili.ico'
 
 const props = defineProps<{ url: string; label?: string | null }>()
 const sites = [
