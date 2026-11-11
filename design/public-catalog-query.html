@@ -113,6 +113,33 @@
     .mascot { position:absolute; top:15px; right:18px; width:106px; height:150px; filter:drop-shadow(0 4px 12px #15122c); pointer-events:none }
     .mascot img { width:100%; height:100%; object-fit:contain; mask-image:radial-gradient(ellipse 43% 56%,#000 65%,transparent 100%) }
     .foot { display:flex; justify-content:space-between; flex-wrap:wrap; gap:5px 12px; margin-top:14px; padding:12px 0 19px; border-top:1px solid var(--line); color:var(--muted); font-size:12px }
+    .work-title:hover,.series-link:hover { color:var(--pink); text-decoration:underline; text-underline-offset:3px }
+    .work-cover { display:block; border-radius:7px }
+    .cover.cover-empty { display:grid; place-items:center; padding:4px; text-align:center; color:var(--lilac); background:#9f81c321; font-size:12px }
+    .detail-nav { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; margin:22px 0 12px }
+    .detail-back { display:inline-flex; align-items:center; gap:6px; min-height:37px; padding:6px 12px; border-radius:9px; color:var(--lilac); font-weight:650 }
+    .detail-back:hover { color:var(--pink) }
+    .detail-nav span { color:var(--ink); font-size:12px; background:#211932bf; padding:2px 8px; border-radius:20px }
+    .detail-hero { display:grid; grid-template-columns:166px minmax(0,1fr); gap:23px; align-items:start; padding:20px; border-radius:17px }
+    .detail-heading { overflow-wrap:anywhere }
+    .detail-kind { display:inline-block; margin-bottom:6px; color:var(--lilac); background:#a385ce26; border-radius:20px; padding:2px 9px; font-weight:650 }
+    .detail-heading .alias { font-size:14px; margin-top:5px }
+    .detail-facts,.detail-credits { display:grid; gap:8px 12px; margin:14px 0 0 }
+    .detail-facts { grid-template-columns:repeat(auto-fit,minmax(115px,1fr)) }
+    .detail-facts div,.detail-credits div { min-width:0 }
+    .detail-facts div { border-top:1px solid var(--line); padding-top:7px }
+    .detail-facts dt,.detail-credits dt { color:var(--muted); font-size:12px }
+    .detail-facts dd,.detail-credits dd { margin:2px 0 0; overflow-wrap:anywhere }
+    .detail-body { display:grid; grid-template-columns:minmax(0,1fr) minmax(220px,34%); gap:13px; align-items:start; margin-top:13px }
+    .detail-panel { min-width:0; border-radius:16px; padding:15px 18px; overflow-wrap:anywhere }
+    .detail-panel h2 { font:800 20px/1.3 var(--serif); margin-bottom:7px }
+    .detail-panel p { color:var(--muted) }
+    .detail-credits { grid-template-columns:1fr 1fr; margin:0 }
+    .detail-tags { margin-top:13px; border-top:1px solid var(--line); padding-top:11px }
+    .detail-series { grid-column:1/-1 }
+    .series-items { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:0 12px; list-style:none; padding:0; margin:7px 0 0 }
+    .series-link { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; border-top:1px solid var(--line); padding:8px 2px; color:var(--lilac) }
+    .series-link small { color:var(--muted) }
     [data-theme=day] {
       color-scheme:light;
       --night:#f6eff8; --ink:#2e2142; --muted:#5f526d;
@@ -144,6 +171,7 @@
     [data-theme=day] .status.ongoing { background:#e1f1e8; color:#245542 }
     [data-theme=day] .status.pending { background:#f8e4ef; color:#813659 }
     [data-theme=day] .mascot { filter:drop-shadow(0 4px 12px #69448855) }
+    [data-theme=day] .detail-nav span { background:#fff9f3e5 }
     @media (max-width:900px) { .mascot { display:none } }
     @media (max-width:720px) {
       .wrap { width:calc(100% - 26px) }
@@ -153,6 +181,7 @@
       .mobile-filters { display:flex }
       .mobile-filters[aria-expanded=false] + .filter-body { display:none }
       .filter-body { padding:8px }
+      .detail-body { grid-template-columns:minmax(0,1fr) }
     }
     @media (max-width:450px) {
       .masthead { gap:8px; min-height:53px }
@@ -168,6 +197,12 @@
       .result-head,.applied { padding-inline:10px }
       .work { grid-template-columns:62px minmax(0,1fr); padding:9px 10px; gap:9px }
       .work h3 { font-size:16px }
+      .detail-hero { grid-template-columns:86px minmax(0,1fr); gap:10px; padding:12px }
+      .detail-heading h1 { font-size:25px }
+      .detail-facts { grid-template-columns:repeat(auto-fit,minmax(78px,1fr)); gap:5px 8px }
+      .detail-facts dt { font-size:11px }
+      .detail-panel { padding:12px }
+      .series-items { grid-template-columns:minmax(0,1fr) }
     }
     @media (max-width:350px) {
       .masthead .sample { display:none }
@@ -192,6 +227,7 @@
     </div>
   </header>
   <main class="wrap">
+    <div id="catalog-view">
     <div class="intro">
       <h1 id="page-title">动画查询</h1>
       <form class="query glass" id="query" role="search" aria-label="作品搜索">
@@ -228,6 +264,8 @@
         <nav class="paging" id="paging" aria-label="结果分页" hidden></nav>
       </section>
     </div>
+    </div>
+    <div id="detail-view" hidden></div>
     <noscript>请启用 JavaScript 后使用作品查询。</noscript>
     <footer class="foot"><span>ACGBox / 公开资料库</span><span>作品与封面均为原型演示素材</span></footer>
   </main>
@@ -279,7 +317,7 @@
         ['纸卫星','Paper Satellite','纸上宇宙','2025-01-17','轻小说','已完结','科幻','原创','水野葵','纸舟文库'],
         ['海图的背面','Back of the Sea Chart','潮汐档案','2019-11-09','漫画','已完结','冒险','小说改','朝雾灯','风铃漫画社'],
         ['远山便利店','Mountain Corner Store','南窗日记','2024-05-20','小说','已完结','日常/治愈','原创','南云晴','北岸出版社'],
-        ['零号花园','Garden Zero','纸上宇宙','','漫画','未连载','奇幻/科幻','游戏改','林遥','纸舟文库']
+        ['零号花园','Garden Zero','','','漫画','未连载','奇幻/科幻','游戏改','林遥','纸舟文库']
       ]
     };
     // 原创插画裁切并压缩为 JPEG，确保单文件离线可用。
@@ -408,8 +446,17 @@
         ({ id: i + 1, name, alias, series, date, year: date.slice(0,4) || '未知', type, status, adaptation, person, company, tags: tags.split('/') })
     )]));
     const views = {
-      anime: { title:'动画查询', year:'放送年份', type:'放送类型', status:'放送状态', adaptation:'改编类型' },
-      book: { title:'书籍查询', year:'首次发表年份', type:'书籍类型', status:'连载状态', adaptation:'改编类型' }
+      anime: { title:'动画查询', kind:'动画', date:'放送日期', year:'放送年份', type:'放送类型', status:'放送状态', adaptation:'改编类型' },
+      book: { title:'书籍查询', kind:'书籍', date:'首次发表日期', year:'首次发表年份', type:'书籍类型', status:'连载状态', adaptation:'改编类型' }
+    };
+    // 仅为代表性条目补充详情，未填写的资料不推断。
+    const detailSamples = {
+      'anime/1': { summary:'每天傍晚，云下邮局会收到几封没有地址的信。新来的投递员跟着一只抱星兔穿过云海，在看不见的街巷里寻找那些等待回信的人。', count:['集数','12 集'], role:'导演' },
+      'anime/2': { summary:'一座海边电台收到来自未来的求救信号。值夜的工程师沿着潮线追踪声源，却发现信号正在指向一艘早已失踪的船。', count:['集数','1 集'], role:'导演' },
+      'anime/14': { noCover:true },
+      'book/1': { summary:'北岸的灯塔停止闪烁后，巡夜人开始在航海日志里记录不属于这一片海的潮汐。小说沿着她的笔记，拼起失踪船只留下的线索。', count:['卷数','2 卷'], role:'作者' },
+      'book/2': { summary:'以一位年轻制图师的视角，描绘灯塔熄灭后北岸的日常与海上谜团。', count:['章节数','8 话'], role:'漫画作者' },
+      'book/11': { noCover:true }
     };
     const facets = ['type','adaptation','status','year'];
     const keys = ['q',...facets,'sort','page'];
@@ -417,6 +464,7 @@
     let state;
     let shownView;
     let decade;
+    let activeDetail;
     const normalize = text => text.trim().normalize('NFKC').toLocaleLowerCase();
     const collator = new Intl.Collator('zh-CN');
     const decadeFor = year => Math.floor(Number(year) / 10) * 10;
@@ -473,9 +521,59 @@
     function card(row) {
       const badge = ['放送中','连载中'].includes(row.status) ? 'ongoing' : ['未放送','未连载'].includes(row.status) ? 'pending' : '';
       const date = row.date ? `<time datetime="${row.date}">${row.date}</time>` : '<span>日期未知</span>';
-      const index = (row.id - 1 + (state.view === 'book' ? 2 : 0)) % assets.covers.length;
-      const cover = `<img class="cover" src="${assets.covers[index]}" alt="">`;
-      return `<article class="work">${cover}<div class="work-info"><h3>${row.name}</h3><p class="alias" lang="en">${row.alias}</p><div class="meta">${date}<span class="dot">${row.type}</span><span class="dot">${row.adaptation}</span><span class="status ${badge}">${row.status}</span></div><p class="credits">${row.person} · ${row.company}</p><div class="row-tags">${row.tags.map(tag => '<span>' + tag + '</span>').join('')}</div></div></article>`;
+      const href = '#' + state.view + '/' + row.id;
+      const label = `查看《${row.name}》（${row.type}）详情`;
+      return `<article class="work"><a class="work-cover" href="${href}" data-detail-link aria-label="${label}">${coverFor(state.view,row)}</a><div class="work-info"><h3><a class="work-title" href="${href}" data-detail-link aria-label="${label}">${row.name}</a></h3><p class="alias" lang="en">${row.alias}</p><div class="meta">${date}<span class="dot">${row.type}</span><span class="dot">${row.adaptation}</span><span class="status ${badge}">${row.status}</span></div><p class="credits">${row.person} · ${row.company}</p><div class="row-tags">${row.tags.map(tag => '<span>' + tag + '</span>').join('')}</div></div></article>`;
+    }
+
+    function coverFor(type,row) {
+      if (detailSamples[type + '/' + row.id]?.noCover) return '<span class="cover cover-empty">暂无封面</span>';
+      const index = (row.id - 1 + (type === 'book' ? 2 : 0)) % assets.covers.length;
+      return `<img class="cover" src="${assets.covers[index]}" alt="">`;
+    }
+
+    function markCategory(type,onDetail = false) {
+      document.querySelectorAll('[data-view]').forEach(link => {
+        if (link.dataset.view === type) link.setAttribute('aria-current',onDetail ? 'location' : 'page');
+        else link.removeAttribute('aria-current');
+      });
+    }
+
+    function drawDetail(type,id) {
+      const view = views[type];
+      const row = rows[type].find(item => String(item.id) === id);
+      const sample = detailSamples[type + '/' + id] || {};
+      const origin = history.state?.catalogOrigin || '#' + type;
+      const originType = origin.startsWith('#book') ? 'book' : 'anime';
+      const back = `<div class="detail-nav"><a class="detail-back glass" id="detail-back">← 返回${views[originType].kind}目录</a><span>${view.kind}详情</span></div>`;
+      const screen = $('detail-view');
+      markCategory(type,true);
+      document.title = (row ? row.name + '（' + row.type + '）' : '未找到作品') + ' · ACGBox';
+      if (!row) {
+        screen.innerHTML = back + '<section class="detail-panel glass"><h1 id="detail-title" tabindex="-1">未找到作品</h1><p>这条作品不在当前演示资料中，可返回目录继续浏览。</p></section>';
+      } else {
+        const facts = [[view.type,row.type],[view.date,row.date ? `<time datetime="${row.date}">${row.date}</time>` : '日期未知'],[view.status,row.status],[view.adaptation,row.adaptation]];
+        if (sample.count) facts.push(sample.count);
+        const pairs = values => values.map(([label,value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('');
+        const relatedTypes = [type === 'anime' ? 'book' : 'anime',type];
+        const related = row.series ? relatedTypes.flatMap(kind =>
+          rows[kind].filter(item => item.series === row.series && (kind !== type || item.id !== row.id)).map(item =>
+            `<li><a class="series-link" href="#${kind}/${item.id}" data-detail-link>${item.name}<small>${views[kind].kind} · ${item.type}</small></a></li>`)) : [];
+        screen.innerHTML = back + `<article aria-labelledby="detail-title">
+          <header class="detail-hero glass">
+            ${coverFor(type,row)}
+            <div class="detail-heading"><span class="detail-kind">${view.kind} · ${row.type}</span><h1 id="detail-title" tabindex="-1">${row.name}</h1><p class="alias" lang="en">${row.alias}</p><dl class="detail-facts">${pairs(facts)}</dl></div>
+          </header>
+          <div class="detail-body">
+            <section class="detail-panel glass"><h2>作品简介</h2><p>${sample.summary || '暂无简介。'}</p></section>
+            <section class="detail-panel glass"><h2>主创与公司</h2><dl class="detail-credits">${pairs([[sample.role || '主创',row.person],[type === 'anime' ? '制作公司' : '出版机构',row.company]])}</dl>
+              <div class="detail-tags"><h2>标签</h2><div class="row-tags">${row.tags.map(tag => '<span>' + tag + '</span>').join('')}</div></div>
+            </section>
+            <section class="detail-panel detail-series glass"><h2>同系列作品</h2>${row.series ? '<p>' + row.series + '</p>' : ''}${related.length ? '<ul class="series-items">' + related.join('') + '</ul>' : '<p>暂无同系列作品。</p>'}</section>
+          </div>
+        </article>`;
+      }
+      $('detail-back').href = origin;
     }
 
     function option(key,value,label,active) {
@@ -496,14 +594,11 @@
 
     function draw() {
       const view = views[state.view];
+      document.title = view.title + ' · ACGBox';
+      markCategory(state.view);
       if (shownView !== state.view) {
         shownView = state.view;
-        document.title = view.title + ' · ACGBox';
         $('page-title').textContent = view.title;
-        document.querySelectorAll('[data-view]').forEach(link => {
-          if (link.dataset.view === state.view) link.setAttribute('aria-current','page');
-          else link.removeAttribute('aria-current');
-        });
       }
       $('keyword').value = state.q;
       $('sort').querySelectorAll('[data-sort]').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.sort === state.sort)));
@@ -546,10 +641,25 @@
     }
 
     function restore() {
+      const detail = location.hash.match(/^#(anime|book)\/([^/?#]+)(?:\?.*)?$/);
+      const wasDetail = activeDetail;
+      activeDetail = Boolean(detail);
+      $('detail-view').hidden = !activeDetail;
+      $('catalog-view').hidden = activeDetail;
+      if (detail) {
+        drawDetail(detail[1],detail[2]);
+        $('detail-title').focus({preventScroll:true});
+        window.scrollTo(0,0);
+        return;
+      }
       state = readHash();
       decade = validYear(state.year) ? decadeFor(state.year) : defaultDecade(state.view);
       if (shownView !== state.view) $('more').setAttribute('aria-expanded','false');
       draw();
+      if (wasDetail) {
+        $('results-title').focus({preventScroll:true});
+        window.scrollTo(0,0);
+      }
     }
 
     $('query').addEventListener('submit', event => {
@@ -600,7 +710,16 @@
     });
     document.querySelector('.site-nav').addEventListener('click', event => {
       const link = event.target.closest('[data-view]');
-      if (link?.dataset.view === state.view && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) event.preventDefault();
+      if (!activeDetail && link?.dataset.view === state.view && !(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) event.preventDefault();
+    });
+    document.querySelector('main').addEventListener('click', event => {
+      const link = event.target.closest('[data-detail-link]');
+      if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      // 来源保存在当前历史条目，复制详情地址或新开标签不会带上原查询。
+      const catalogOrigin = activeDetail ? $('detail-back').getAttribute('href') : hashFor(state);
+      history.pushState({catalogOrigin}, '', link.hash);
+      restore();
     });
     window.addEventListener('hashchange',restore);
     restore();
