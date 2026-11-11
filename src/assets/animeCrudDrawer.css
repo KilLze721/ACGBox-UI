@@ -292,6 +292,9 @@
   background: var(--accent-soft);
 }
 .anime-detail-links strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 9px;
 }
 .anime-detail-links span {

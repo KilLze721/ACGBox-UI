@@ -15,6 +15,7 @@ import { deleteBooks, getBookPage, getBookTypes } from '@/api/book'
 import { getAdaptationTypes, getRegions, getTags } from '@/api/catalog'
 import { searchRelatedEntities } from '@/api/relatedEntities'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import WorkDataTransfer from '@/components/admin/WorkDataTransfer.vue'
 import WorkRelationsSummary from '@/components/admin/WorkRelationsSummary.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
@@ -1201,7 +1202,10 @@ function safeUrl(value: string | null) {
                     target="_blank"
                     rel="noopener noreferrer"
                     :title="link.title || link.url"
-                    >{{ link.title?.trim().slice(0, 2).toUpperCase() || '外链' }}</a
+                    :aria-label="link.title || link.url"
+                    ><ExternalLinkIcon :url="link.url">{{
+                      link.title?.trim().slice(0, 2).toUpperCase() || '外链'
+                    }}</ExternalLinkIcon></a
                   ><span
                     v-if="!book.externalLinks.some((link) => safeUrl(link.url))"
                     class="empty-value"
@@ -1325,7 +1329,10 @@ function safeUrl(value: string | null) {
                 target="_blank"
                 rel="noopener noreferrer"
                 :title="link.title || link.url"
-                >{{ link.title?.trim().slice(0, 2).toUpperCase() || '外链' }}</a
+                :aria-label="link.title || link.url"
+                ><ExternalLinkIcon :url="link.url">{{
+                  link.title?.trim().slice(0, 2).toUpperCase() || '外链'
+                }}</ExternalLinkIcon></a
               >
             </div>
             <div class="book-card-actions">

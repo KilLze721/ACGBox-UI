@@ -18,6 +18,7 @@ import { getAnimeDetail } from '@/api/anime'
 import { getCompanyById } from '@/api/catalog'
 import { getSeriesById } from '@/api/series'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import AnimeEditorForm from './AnimeEditorForm.vue'
 import type { AnimeDetail, AnimePageItem } from '@/types/api'
 
@@ -464,9 +465,13 @@ function getSafeExternalUrl(value: string) {
                   :href="getSafeExternalUrl(link.url)"
                   target="_blank"
                   rel="noopener noreferrer"
-                  ><strong>{{ link.title || '外部链接' }}</strong
-                  ><span>{{ link.url }}</span></a
                 >
+                  <strong>
+                    <ExternalLinkIcon :url="link.url" />
+                    {{ link.title || '外部链接' }}
+                  </strong>
+                  <span>{{ link.url }}</span>
+                </a>
               </div>
               <p v-else class="anime-detail-description">暂无外部链接</p>
             </section>

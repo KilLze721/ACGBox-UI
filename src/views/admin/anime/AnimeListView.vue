@@ -26,6 +26,7 @@ import type {
   TagMatchMode,
 } from '@/types/api'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import WorkDataTransfer from '@/components/admin/WorkDataTransfer.vue'
 import WorkRelationsSummary from '@/components/admin/WorkRelationsSummary.vue'
 import ArchiveDateInput from '@/components/admin/ArchiveDateInput.vue'
@@ -1438,7 +1439,10 @@ function markCoverBroken(url: string) {
                     target="_blank"
                     rel="noopener noreferrer"
                     :title="link.title || link.url"
-                    >{{ getExternalLinkLabel(link.title) }}</a
+                    :aria-label="link.title || link.url"
+                    ><ExternalLinkIcon :url="link.url">{{
+                      getExternalLinkLabel(link.title)
+                    }}</ExternalLinkIcon></a
                   ><span v-if="!anime.externalLinks.length" class="empty-value">—</span>
                 </div>
               </td>
@@ -1563,7 +1567,10 @@ function markCoverBroken(url: string) {
                 target="_blank"
                 rel="noopener noreferrer"
                 :title="link.title || link.url"
-                >{{ getExternalLinkLabel(link.title) }}</a
+                :aria-label="link.title || link.url"
+                ><ExternalLinkIcon :url="link.url">{{
+                  getExternalLinkLabel(link.title)
+                }}</ExternalLinkIcon></a
               >
             </div>
             <div class="anime-card-actions">
@@ -2183,7 +2190,10 @@ function markCoverBroken(url: string) {
                     target="_blank"
                     rel="noopener noreferrer"
                     :title="link.title || link.url"
-                    >{{ getExternalLinkLabel(link.title) }}</a
+                    :aria-label="link.title || link.url"
+                    ><ExternalLinkIcon :url="link.url">{{
+                      getExternalLinkLabel(link.title)
+                    }}</ExternalLinkIcon></a
                   >
                   <span v-if="!anime.externalLinks.length" class="empty-value">—</span>
                 </div>

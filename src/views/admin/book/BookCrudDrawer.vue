@@ -15,6 +15,7 @@ import { getAdaptationTypes, getCompanyById, getRegions } from '@/api/catalog'
 import { getSeriesById } from '@/api/series'
 import { getTagById } from '@/api/tags'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import BookEditorForm from './BookEditorForm.vue'
 import { bookStatusNames } from '@/config/bookFormOptions'
 import { useModalLayer } from '@/utils/useModalLayer'
@@ -347,16 +348,21 @@ function safeUrl(value: string) {
                 <span>04</span>
               </div>
               <div class="anime-detail-links">
-                <template v-for="link in detail.externalLinks" :key="link.url"
-                  ><a
+                <template v-for="link in detail.externalLinks" :key="link.url">
+                  <a
                     v-if="safeUrl(link.url)"
                     :href="safeUrl(link.url)"
                     target="_blank"
                     rel="noopener noreferrer"
-                    ><strong>{{ link.title || '外部链接' }}</strong
-                    ><span>{{ link.url }}</span></a
-                  ><span v-else>链接地址无效，已禁止打开</span></template
-                >
+                  >
+                    <strong>
+                      <ExternalLinkIcon :url="link.url" />
+                      {{ link.title || '外部链接' }}
+                    </strong>
+                    <span>{{ link.url }}</span>
+                  </a>
+                  <span v-else>链接地址无效，已禁止打开</span>
+                </template>
                 <p v-if="!detail.externalLinks.length">暂无外部链接</p>
               </div>
             </section>
