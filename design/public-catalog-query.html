@@ -585,8 +585,8 @@
       $('detail-back').href = origin;
     }
 
-    function option(key,value,label,active) {
-      return `<button type="button" class="option" data-filter="${key}" data-value="${value}" aria-pressed="${active}">${label}</button>`;
+    function option(key,value,label,active,accessibleLabel) {
+      return `<button type="button" class="option" data-filter="${key}" data-value="${value}" aria-pressed="${active}"${accessibleLabel ? ' aria-label="' + accessibleLabel + '"' : ''}>${label}</button>`;
     }
 
     function drawFacets(view) {
@@ -594,7 +594,12 @@
       const singles = facets.slice(0,3).map(key => group(key, '<div class="options">' +
         ['',...choices(state.view,key)].map(value => option(key,value,value || '全部',state[key] === value)).join('') + '</div>'));
       const years = Array.from({length:10},(_,i) => String(decade + 9 - i));
-      const calendar = `<div class="calendar"><div class="calendar-nav"><button class="quiet" type="button" data-decade="-10" aria-label="上一个年代" ${decade <= 1900 ? 'disabled' : ''}>‹</button><span role="status">${decade}–${decade + 9}</span><button class="quiet" type="button" data-decade="10" aria-label="下一个年代" ${decade >= 2090 ? 'disabled' : ''}>›</button></div><div class="years">${years.map(value => option('year',value,value,state.year === value)).join('')}${option('year','','全部',!state.year)}${option('year','未知','未知',state.year === '未知')}</div></div>`;
+      const yearOptions = [
+        option('year','','全部',!state.year,'全部年份'),
+        ...years.map(value => option('year',value,value,state.year === value)),
+        option('year','未知','未知',state.year === '未知')
+      ].join('');
+      const calendar = `<div class="calendar"><div class="calendar-nav"><button class="quiet" type="button" data-decade="-10" aria-label="上一个年代" ${decade <= 1900 ? 'disabled' : ''}>‹</button><span role="status">${decade}–${decade + 9}</span><button class="quiet" type="button" data-decade="10" aria-label="下一个年代" ${decade >= 2090 ? 'disabled' : ''}>›</button></div><div class="years">${yearOptions}</div></div>`;
       const tags = `<p class="hint">多选时须同时包含所选标签</p><div class="options">${choices(state.view,'tag').map(tag => option('tag',tag,tag,state.tags.includes(tag))).join('')}</div>`;
       $('facets').innerHTML = singles.join('') + group('year',calendar) + group('tag',tags);
       const active = facets.filter(key => state[key]).length + state.tags.length;
