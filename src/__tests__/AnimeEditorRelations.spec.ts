@@ -110,7 +110,7 @@ describe('新增和修改动画的关联资料', () => {
   it.each([
     ['anime', AnimeEditorForm],
     ['book', BookEditorForm],
-  ] as const)('%s的关联选择器在初始加载、搜索和翻页时使用名称倒序', async (kind, view) => {
+  ] as const)('%s的关联选择器在初始加载、搜索和翻页时使用名称正序', async (kind, view) => {
     const requests: URL[] = []
     vi.stubGlobal(
       'fetch',
@@ -125,7 +125,7 @@ describe('新增和修改动画的关联资料', () => {
               pageSize,
               total: pageSize + 1,
               pages: 2,
-              rows: [{ id: pageNum, name: pageNum === 1 ? 'Z 资料' : 'A 资料' }],
+              rows: [{ id: pageNum, name: pageNum === 1 ? 'A 资料' : 'Z 资料' }],
             }
           : []
         return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
@@ -139,11 +139,11 @@ describe('新增和修改动画的关联资料', () => {
       requests.filter((url) => url.pathname === `/api/${path}/page`)
     const checkSort = (url: URL) => {
       expect(url.searchParams.get('sortBy')).toBe('NAME_INITIAL')
-      expect(url.searchParams.get('sortDirection')).toBe('DESC')
+      expect(url.searchParams.get('sortDirection')).toBe('ASC')
     }
     expect(editor.findAll('.anime-tag-picker .tag-option').map((tag) => tag.text())).toEqual([
-      'Z 资料',
       'A 资料',
+      'Z 资料',
     ])
     expect(pageQueries('tags').map((url) => url.searchParams.get('pageNum'))).toEqual(['1', '2'])
     pageQueries('tags').forEach(checkSort)

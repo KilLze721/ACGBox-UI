@@ -32,7 +32,7 @@ describe('动画管理分页查询页面', () => {
     ['anime', AnimeListView],
     ['book', BookListView],
   ] as const)('%s的表格和卡片按接口顺序展示全部标签', async (kind, view) => {
-    const tags = ['战斗', '日常', '奇幻', '恋爱', '科幻', '123'].map((name, index) => ({
+    const tags = ['科幻', '恋爱', '奇幻', '日常', '战斗', '123'].map((name, index) => ({
       id: index + 1,
       name,
     }))
