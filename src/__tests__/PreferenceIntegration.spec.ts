@@ -6,6 +6,7 @@ import AnimeListView from '@/views/admin/anime/AnimeListView.vue'
 import TagsView from '@/views/admin/tags/TagsView.vue'
 import SeriesView from '@/views/admin/series/SeriesView.vue'
 import CompaniesView from '@/views/admin/companies/CompaniesView.vue'
+import PersonsView from '@/views/admin/persons/PersonsView.vue'
 import UsersView from '@/views/admin/users/UsersView.vue'
 import AnimeEditorForm from '@/views/admin/anime/AnimeEditorForm.vue'
 import { defaultPreferences, savePreferences } from '@/utils/preferences'
@@ -98,6 +99,69 @@ afterEach(() => {
 })
 
 describe('偏好在实际页面的应用', () => {
+  it.each([
+    ['制作公司', CompaniesView, '/admin/companies', '/api/companies/page'],
+    ['人物', PersonsView, '/admin/persons', '/api/persons/page'],
+    ['系列', SeriesView, '/admin/series', '/api/series/page'],
+    ['标签', TagsView, '/admin/tags', '/api/tags/page'],
+  ] as const)('%s按名称首字母切换方向时保留搜索并返回第一页', async (_, view, route, path) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) => {
+        const url = new URL(input, 'http://localhost')
+        requests.push(url)
+        const pageNum = Number(url.searchParams.get('pageNum'))
+        const pageSize = Number(url.searchParams.get('pageSize'))
+        const data = {
+          pageNum,
+          pageSize,
+          total: pageSize * 2,
+          pages: 2,
+          rows: [{ id: pageNum, name: '测试资料', description: null }],
+        }
+        return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
+      }),
+    )
+    await router.push(route)
+    const wrapper = mount(view, { global: { plugins: [router] } })
+    wrappers.push(wrapper)
+    await flushPromises()
+    const lastListQuery = () =>
+      requests
+        .filter((url) => url.pathname === path && url.searchParams.get('pageSize') !== '1')
+        .slice(-1)[0]!
+
+    expect(lastListQuery().searchParams.get('sortDirection')).toBe('ASC')
+    await wrapper.get('form input').setValue('测试')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    await wrapper.get('button[aria-label^="下一页"]').trigger('click')
+    await flushPromises()
+    expect(lastListQuery().searchParams.get('pageNum')).toBe('2')
+
+    await wrapper.get('button[aria-label="名称正序，切换为倒序"]').trigger('click')
+    await flushPromises()
+    expect(Object.fromEntries(lastListQuery().searchParams)).toMatchObject({
+      pageNum: '1',
+      name: '测试',
+      sortBy: 'NAME_INITIAL',
+      sortDirection: 'DESC',
+    })
+    await wrapper.get('button[aria-label^="下一页"]').trigger('click')
+    await flushPromises()
+    expect(lastListQuery().searchParams.get('pageNum')).toBe('2')
+    expect(lastListQuery().searchParams.get('sortDirection')).toBe('DESC')
+
+    await wrapper.get('button[aria-label="名称倒序，切换为正序"]').trigger('click')
+    await flushPromises()
+    expect(Object.fromEntries(lastListQuery().searchParams)).toMatchObject({
+      pageNum: '1',
+      name: '测试',
+      sortBy: 'NAME_INITIAL',
+      sortDirection: 'ASC',
+    })
+  })
+
   it('切换顶部标签不覆盖原列表，新开同路由实例才采用新偏好', async () => {
     savePreferences({ ...defaultPreferences(), sortBy: 'PERSONAL_RATING', sortDirection: 'ASC' })
     await router.push('/admin/dashboard')

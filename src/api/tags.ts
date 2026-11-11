@@ -1,8 +1,19 @@
 import { get, post } from './http'
-import type { NamedOption, PageResult } from '@/types/api'
+import type { NamedOption, PageResult, SortDirection } from '@/types/api'
 
-export function getTagPage(pageNum = 1, pageSize = 10, signal?: AbortSignal, name = '') {
-  return get<PageResult<NamedOption>>('/tags/page', { pageNum, pageSize, name }, signal)
+export function getTagPage(
+  pageNum = 1,
+  pageSize = 10,
+  signal?: AbortSignal,
+  name = '',
+  sortBy?: 'NAME_INITIAL',
+  sortDirection?: SortDirection,
+) {
+  return get<PageResult<NamedOption>>(
+    '/tags/page',
+    { pageNum, pageSize, name, sortBy, sortDirection },
+    signal,
+  )
 }
 
 export function getTagById(id: number, signal?: AbortSignal) {

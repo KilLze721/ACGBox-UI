@@ -1,5 +1,5 @@
 import { get, post } from './http'
-import type { PageResult, SeriesSummary } from '@/types/api'
+import type { PageResult, SeriesSummary, SortDirection } from '@/types/api'
 
 export interface SeriesPayload {
   name: string
@@ -12,8 +12,13 @@ export function getSeriesPage(
   signal?: AbortSignal,
   name = '',
   sortBy?: 'NAME_INITIAL',
+  sortDirection?: SortDirection,
 ) {
-  return get<PageResult<SeriesSummary>>('/series/page', { pageNum, pageSize, name, sortBy }, signal)
+  return get<PageResult<SeriesSummary>>(
+    '/series/page',
+    { pageNum, pageSize, name, sortBy, sortDirection },
+    signal,
+  )
 }
 
 export function getSeriesById(id: number, signal?: AbortSignal) {

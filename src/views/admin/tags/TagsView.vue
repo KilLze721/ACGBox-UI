@@ -9,7 +9,7 @@ import { useRoute } from 'vue-router'
 import { createTag, deleteTags, getTagById, getTagPage, updateTag } from '@/api/tags'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
-import type { NamedOption, PageResult } from '@/types/api'
+import type { NamedOption, PageResult, SortDirection } from '@/types/api'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 
 type DrawerMode = 'create' | 'edit'
@@ -35,6 +35,7 @@ const pageSizeModel = computed({
 })
 const searchName = ref(initialName)
 const appliedName = ref(initialName)
+const nameSortDirection = ref<SortDirection>('ASC')
 const jumpPage = ref('1')
 const selectedIds = ref<number[]>([])
 const listLoading = ref(false)
@@ -159,7 +160,14 @@ async function loadPage(pageNum: number) {
   listLoading.value = true
   listError.value = ''
   try {
-    const result = await getTagPage(pageNum, pageSize.value, controller.signal, appliedName.value)
+    const result = await getTagPage(
+      pageNum,
+      pageSize.value,
+      controller.signal,
+      appliedName.value,
+      'NAME_INITIAL',
+      nameSortDirection.value,
+    )
     if (pageController !== controller) return
     page.value = result
     jumpPage.value = String(result.pageNum)
@@ -178,7 +186,12 @@ function runSearch() {
   searchName.value = appliedName.value
   void loadPage(1)
 }
+function toggleNameSortDirection() {
+  nameSortDirection.value = nameSortDirection.value === 'ASC' ? 'DESC' : 'ASC'
+  void loadPage(1)
+}
 function resetSearch() {
+  nameSortDirection.value = 'ASC'
   pageSize.value = resolvePageSize(pageSizeOptions.map((option) => option.id), 10)
   searchName.value = ''
   appliedName.value = ''
@@ -379,6 +392,15 @@ async function confirmDelete() {
         ></label>
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
+        <button
+          class="ghost-button"
+          type="button"
+          :aria-label="nameSortDirection === 'ASC' ? '名称正序，切换为倒序' : '名称倒序，切换为正序'"
+          @click="toggleNameSortDirection"
+        >
+          <AdminIcon :name="nameSortDirection === 'ASC' ? 'sort-asc' : 'sort-desc'" />
+          {{ nameSortDirection === 'ASC' ? '名称 A–Z' : '名称 Z–A' }}
+        </button>
       </form>
       <div class="tags-table-scroll management-table-scroll">
         <table v-if="!listLoading && !listError && page.rows.length" class="tags-table management-table">

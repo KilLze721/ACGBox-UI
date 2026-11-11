@@ -1,5 +1,12 @@
 import { get, post } from './http'
-import type { CompanyOption, NamedOption, PageResult, SortableNamedOption } from '@/types/api'
+import { getTagPage } from './tags'
+import type {
+  CompanyOption,
+  NamedOption,
+  PageResult,
+  SortableNamedOption,
+  SortDirection,
+} from '@/types/api'
 
 export function getBroadcastTypes(signal?: AbortSignal) {
   return get<SortableNamedOption[]>('/broadcast-type/list', {}, signal)
@@ -61,8 +68,14 @@ export function deleteRegions(ids: number[]) {
   return post<null>('/region/delete', ids)
 }
 
-export function getTags(pageNum = 1, pageSize = 100, signal?: AbortSignal) {
-  return get<PageResult<NamedOption>>('/tags/page', { pageNum, pageSize }, signal)
+export function getTags(
+  pageNum = 1,
+  pageSize = 100,
+  signal?: AbortSignal,
+  sortBy?: 'NAME_INITIAL',
+  sortDirection?: SortDirection,
+) {
+  return getTagPage(pageNum, pageSize, signal, '', sortBy, sortDirection)
 }
 
 export function getCompanies(
@@ -71,10 +84,11 @@ export function getCompanies(
   signal?: AbortSignal,
   pageNum = 1,
   sortBy?: 'NAME_INITIAL',
+  sortDirection?: SortDirection,
 ) {
   return get<PageResult<CompanyOption>>(
     '/companies/page',
-    { pageNum, pageSize, name, sortBy },
+    { pageNum, pageSize, name, sortBy, sortDirection },
     signal,
   )
 }

@@ -1,5 +1,5 @@
 import { get, post } from './http'
-import type { PageResult, Person } from '@/types/api'
+import type { PageResult, Person, SortDirection } from '@/types/api'
 
 export function getPersonsPage(
   pageNum: number,
@@ -7,8 +7,13 @@ export function getPersonsPage(
   name = '',
   signal?: AbortSignal,
   sortBy?: 'NAME_INITIAL',
+  sortDirection?: SortDirection,
 ) {
-  return get<PageResult<Person>>('/persons/page', { pageNum, pageSize, name, sortBy }, signal)
+  return get<PageResult<Person>>(
+    '/persons/page',
+    { pageNum, pageSize, name, sortBy, sortDirection },
+    signal,
+  )
 }
 
 export function getPersonById(id: number, signal?: AbortSignal) {

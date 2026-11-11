@@ -255,7 +255,7 @@ async function loadForm() {
     const [, region, allTags, anime] = await Promise.all([
       refreshTypeOptions(),
       getRegions(controller.signal),
-      getAllPages((pageNum) => getTags(pageNum, 100, controller.signal)),
+      getAllPages((pageNum) => getTags(pageNum, 100, controller.signal, 'NAME_INITIAL', 'DESC')),
       props.mode === 'edit' && props.animeId
         ? getAnimeDetail(props.animeId, controller.signal)
         : Promise.resolve(null),
@@ -298,15 +298,15 @@ onBeforeUnmount(() => {
 })
 
 function searchCompanies(name: string, pageNum: number, signal: AbortSignal) {
-  return getCompanies(name, 10, signal, pageNum)
+  return getCompanies(name, 10, signal, pageNum, 'NAME_INITIAL', 'DESC')
 }
 
 function searchSeries(name: string, pageNum: number, signal: AbortSignal) {
-  return getSeriesPage(pageNum, 10, signal, name)
+  return getSeriesPage(pageNum, 10, signal, name, 'NAME_INITIAL', 'DESC')
 }
 
 function searchPersons(name: string, pageNum: number, signal: AbortSignal) {
-  return getPersonsPage(pageNum, 10, name, signal)
+  return getPersonsPage(pageNum, 10, name, signal, 'NAME_INITIAL', 'DESC')
 }
 
 function addPerson() {
@@ -372,7 +372,9 @@ async function refreshTags() {
   tagsRefreshing.value = true
   tagLoadError.value = ''
   try {
-    const result = await getAllPages((pageNum) => getTags(pageNum, 100, controller.signal))
+    const result = await getAllPages((pageNum) =>
+      getTags(pageNum, 100, controller.signal, 'NAME_INITIAL', 'DESC'),
+    )
     if (!controller.signal.aborted) tags.value = result
   } catch (error) {
     if (!controller.signal.aborted)

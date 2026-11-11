@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import AnimeListView from '@/views/admin/anime/AnimeListView.vue'
+import BookListView from '@/views/admin/book/BookListView.vue'
+import router from '@/router'
 
 const animeRow = {
   id: 15,
@@ -26,17 +28,29 @@ afterEach(() => {
 })
 
 describe('动画管理分页查询页面', () => {
-  it('列表展示全部标签，超过四个仍保留每个标签', async () => {
-    const tags = ['战斗', '恋爱', '奇幻', '日常', '科幻', '冒险'].map((name, index) => ({
+  it.each([
+    ['anime', AnimeListView],
+    ['book', BookListView],
+  ] as const)('%s的表格和卡片按接口顺序展示全部标签', async (kind, view) => {
+    const tags = ['战斗', '日常', '奇幻', '恋爱', '科幻', '123'].map((name, index) => ({
       id: index + 1,
       name,
     }))
+    const row = {
+      ...animeRow,
+      tags,
+      persons: [],
+      bookType: { id: 1, name: '小说', sortOrder: 0 },
+      publishDate: '2023-09-29',
+      volumeCount: null,
+      chapterCount: null,
+    }
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string | URL | Request) => {
         const path = new URL(String(input), 'http://localhost').pathname
-        const data = path.endsWith('/anime/page')
-          ? { pageNum: 1, pageSize: 10, total: 1, pages: 1, rows: [{ ...animeRow, tags }] }
+        const data = path.endsWith(`/${kind}/page`)
+          ? { pageNum: 1, pageSize: 10, total: 1, pages: 1, rows: [row] }
           : path.endsWith('/tags/page')
             ? { pageNum: 1, pageSize: 100, total: tags.length, pages: 1, rows: tags }
             : []
@@ -44,8 +58,10 @@ describe('动画管理分页查询页面', () => {
       }),
     )
 
-    const wrapper = mount(AnimeListView, {
+    await router.push(`/admin/${kind}`)
+    const wrapper = mount(view, {
       global: {
+        plugins: [router],
         stubs: {
           RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
         },
@@ -57,6 +73,10 @@ describe('动画管理分页查询页面', () => {
       tags.map((tag) => tag.name),
     )
     expect(wrapper.find('.anime-table tbody .tag-list .more').exists()).toBe(false)
+    await wrapper.findAll('button').find((button) => button.text() === '卡片')!.trigger('click')
+    expect(wrapper.findAll(`.${kind}-card-tags .tag`).map((tag) => tag.text())).toEqual(
+      tags.map((tag) => tag.name),
+    )
     wrapper.unmount()
   })
 

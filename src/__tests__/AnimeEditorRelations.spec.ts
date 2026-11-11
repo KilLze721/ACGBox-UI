@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import router from '@/router'
 import AnimeEditorForm from '@/views/admin/anime/AnimeEditorForm.vue'
+import BookEditorForm from '@/views/admin/book/BookEditorForm.vue'
 
 let wrapper: VueWrapper | undefined
 let submittedPayload: Record<string, unknown> | undefined
@@ -106,6 +107,72 @@ async function addCompanyRow() {
 }
 
 describe('新增和修改动画的关联资料', () => {
+  it.each([
+    ['anime', AnimeEditorForm],
+    ['book', BookEditorForm],
+  ] as const)('%s的关联选择器在初始加载、搜索和翻页时使用名称倒序', async (kind, view) => {
+    const requests: URL[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) => {
+        const url = new URL(input, 'http://localhost')
+        requests.push(url)
+        const pageNum = Number(url.searchParams.get('pageNum'))
+        const pageSize = Number(url.searchParams.get('pageSize'))
+        const data = pageNum
+          ? {
+              pageNum,
+              pageSize,
+              total: pageSize + 1,
+              pages: 2,
+              rows: [{ id: pageNum, name: pageNum === 1 ? 'Z 资料' : 'A 资料' }],
+            }
+          : []
+        return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
+      }),
+    )
+    await router.push(`/admin/${kind}/create`)
+    const editor = mount(view, { props: { mode: 'create' }, global: { plugins: [router] } })
+    wrapper = editor
+    await flushPromises()
+    const pageQueries = (path: string) =>
+      requests.filter((url) => url.pathname === `/api/${path}/page`)
+    const checkSort = (url: URL) => {
+      expect(url.searchParams.get('sortBy')).toBe('NAME_INITIAL')
+      expect(url.searchParams.get('sortDirection')).toBe('DESC')
+    }
+    expect(editor.findAll('.anime-tag-picker .tag-option').map((tag) => tag.text())).toEqual([
+      'Z 资料',
+      'A 资料',
+    ])
+    expect(pageQueries('tags').map((url) => url.searchParams.get('pageNum'))).toEqual(['1', '2'])
+    pageQueries('tags').forEach(checkSort)
+
+    for (const buttonName of ['添加人员', '添加公司']) {
+      await editor.findAll('button').find((button) => button.text() === buttonName)!.trigger('click')
+    }
+    for (const [path, suffix] of [
+      ['persons', 'Person-0'],
+      ['companies', 'Company-0'],
+      ['series', 'Series'],
+    ] as const) {
+      const input = editor.get(`#${kind}${suffix}`)
+      await input.trigger('focus')
+      await vi.waitFor(() => expect(pageQueries(path)).toHaveLength(1))
+      expect(pageQueries(path)[0]!.searchParams.has('name')).toBe(false)
+      await input.setValue('资料')
+      await vi.waitFor(() => expect(pageQueries(path)).toHaveLength(2))
+      const menu = editor.get(`#${kind}${suffix}-options`)
+      await menu.get('.anime-entity-more').trigger('click')
+      await flushPromises()
+      const queries = pageQueries(path)
+      expect(queries.map((url) => url.searchParams.get('pageNum'))).toEqual(['1', '1', '2'])
+      expect(queries.slice(1).map((url) => url.searchParams.get('name'))).toEqual(['资料', '资料'])
+      queries.forEach(checkSort)
+      await input.trigger('keydown', { key: 'Escape' })
+    }
+  })
+
   it('新增时远程选择公司与系列，并提交实际 ID 和自定义职责', async () => {
     stubRequests()
     await router.push('/admin/anime/create')

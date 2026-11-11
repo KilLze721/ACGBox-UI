@@ -33,7 +33,13 @@ import RelatedContentTabs from '@/components/admin/RelatedContentTabs.vue'
 import { useRelatedBook } from '@/utils/relatedBook'
 import type { BookPageItem } from '@/types/book'
 import { useRelatedAnime } from '@/utils/relatedAnime'
-import type { AnimePageItem, NamedOption, PageResult, SeriesSummary } from '@/types/api'
+import type {
+  AnimePageItem,
+  NamedOption,
+  PageResult,
+  SeriesSummary,
+  SortDirection,
+} from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
 const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
@@ -67,6 +73,7 @@ const pageSizeModel = computed({
 })
 const searchName = ref(initialName)
 const appliedName = ref(initialName)
+const nameSortDirection = ref<SortDirection>('ASC')
 const jumpPage = ref('1')
 const selectedIds = ref<number[]>([])
 const listLoading = ref(false)
@@ -220,6 +227,7 @@ async function loadPage(pageNum: number) {
       controller.signal,
       appliedName.value,
       'NAME_INITIAL',
+      nameSortDirection.value,
     )
     if (pageController !== controller) return
     page.value = result
@@ -238,7 +246,12 @@ function runSearch() {
   appliedName.value = searchName.value.trim()
   void loadPage(1)
 }
+function toggleNameSortDirection() {
+  nameSortDirection.value = nameSortDirection.value === 'ASC' ? 'DESC' : 'ASC'
+  void loadPage(1)
+}
 function resetSearch() {
+  nameSortDirection.value = 'ASC'
   pageSize.value = resolvePageSize(
     pageSizeOptions.map((option) => option.id),
     10
@@ -458,6 +471,15 @@ function openRelatedBook(book: BookPageItem) {
         /></label>
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
+        <button
+          class="ghost-button"
+          type="button"
+          :aria-label="nameSortDirection === 'ASC' ? '名称正序，切换为倒序' : '名称倒序，切换为正序'"
+          @click="toggleNameSortDirection"
+        >
+          <AdminIcon :name="nameSortDirection === 'ASC' ? 'sort-asc' : 'sort-desc'" />
+          {{ nameSortDirection === 'ASC' ? '名称 A–Z' : '名称 Z–A' }}
+        </button>
       </form>
       <div class="series-table-scroll management-table-scroll">
         <table

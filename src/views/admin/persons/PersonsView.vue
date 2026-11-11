@@ -34,7 +34,7 @@ import { useRelatedBook } from '@/utils/relatedBook'
 import type { BookPageItem } from '@/types/book'
 import { useRelatedAnime } from '@/utils/relatedAnime'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
-import type { AnimePageItem, PageResult, Person } from '@/types/api'
+import type { AnimePageItem, PageResult, Person, SortDirection } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
 const route = useRoute()
@@ -63,6 +63,7 @@ const page = ref<PageResult<Person>>({
 })
 const searchName = ref(initialName)
 const appliedName = ref(initialName)
+const nameSortDirection = ref<SortDirection>('ASC')
 const jumpPage = ref('1')
 const jumpError = ref('')
 const totalPersons = ref<number | null>(null)
@@ -261,6 +262,7 @@ async function loadPage(pageNum: number) {
       appliedName.value,
       controller.signal,
       'NAME_INITIAL',
+      nameSortDirection.value,
     )
     if (controller.signal.aborted) return
     page.value = result
@@ -283,7 +285,12 @@ function runSearch() {
   selectedPersons.value.clear()
   void loadPage(1)
 }
+function toggleNameSortDirection() {
+  nameSortDirection.value = nameSortDirection.value === 'ASC' ? 'DESC' : 'ASC'
+  void loadPage(1)
+}
 function resetSearch() {
+  nameSortDirection.value = 'ASC'
   pageSize.value = resolvePageSize(pageSizeValues, 20)
   searchName.value = ''
   runSearch()
@@ -536,8 +543,17 @@ async function confirmDelete() {
             placeholder="按姓名或常用署名搜索"
             autocomplete="off"
         /></label>
-        <button class="secondary-button" type="submit">查询</button
-        ><button class="ghost-button" type="button" @click="resetSearch">重置</button>
+        <button class="secondary-button" type="submit">查询</button>
+        <button class="ghost-button" type="button" @click="resetSearch">重置</button>
+        <button
+          class="ghost-button"
+          type="button"
+          :aria-label="nameSortDirection === 'ASC' ? '名称正序，切换为倒序' : '名称倒序，切换为正序'"
+          @click="toggleNameSortDirection"
+        >
+          <AdminIcon :name="nameSortDirection === 'ASC' ? 'sort-asc' : 'sort-desc'" />
+          {{ nameSortDirection === 'ASC' ? '名称 A–Z' : '名称 Z–A' }}
+        </button>
         <span class="management-filter-note">同名可保留，档案不自动合并。</span>
       </form>
       <div v-if="selectedPersons.size" class="persons-selection">
