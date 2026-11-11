@@ -29,15 +29,9 @@
     .site-nav a:hover,.site-nav a[aria-current] { color:var(--green-dark) }
     .site-nav a[aria-current]::after { content:""; position:absolute; bottom:0; inset-inline:3px; height:3px; background:var(--green); border-radius:3px 3px 0 0 }
     .sample { margin-left:auto; color:var(--rose); white-space:nowrap; font-size:12px; font-weight:650 }
-    .intro { position:relative; display:flex; justify-content:space-between; align-items:flex-end; gap:20px; padding:28px 0 22px }
-    .eyebrow,.folio,.card-index { font:600 11px/1.4 ui-monospace,Consolas,monospace; letter-spacing:.16em }
-    .eyebrow { display:flex; align-items:center; gap:10px; color:var(--green); margin:0 0 7px }
-    .eyebrow::before { content:""; width:18px; border-top:2px solid var(--rose) }
+    .intro { padding:24px 0 18px }
     h1,h2,h3,p { margin:0 }
     h1 { font:800 clamp(34px,4.5vw,54px)/1.14 var(--serif); letter-spacing:.045em }
-    .lede { color:var(--muted); margin-top:7px }
-    .folio { display:flex; align-items:center; gap:10px; color:var(--green); padding-bottom:4px; white-space:nowrap }
-    .folio svg { width:54px; height:38px }
     .query { border:1px solid var(--line); border-radius:16px; background:#fffefac9; backdrop-filter:blur(12px); padding:15px 17px 13px; box-shadow:0 4px 13px #34463808 }
     .search-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:9px }
     .search-box { min-width:0; display:flex; align-items:center; gap:9px; border:1px solid #cdd3c8; border-radius:9px; padding:0 11px; background:#f9faf6 }
@@ -70,9 +64,8 @@
     .chip:hover { border-color:var(--green) }
     .cards { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px }
     .work { min-width:0; overflow:hidden; border:1px solid var(--line); background:var(--card); border-radius:12px; box-shadow:0 4px 12px #34463808 }
-    .cover { position:relative; display:block; overflow:hidden; aspect-ratio:1.72; background:var(--wash) }
+    .cover { overflow:hidden; aspect-ratio:1.72; background:var(--wash) }
     .cover svg { display:block; width:100%; height:100% }
-    .card-index { position:absolute; left:9px; bottom:8px; color:#fff; background:#202721e0; border-radius:4px; padding:4px 6px }
     .work-info { padding:11px 12px 12px }
     h3 { font:800 18px/1.35 var(--serif); overflow-wrap:anywhere }
     .alias { margin-top:2px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; min-height:19px }
@@ -99,8 +92,7 @@
       .brand { gap:6px; font-size:19px }
       .brand-mark { width:28px; height:28px }
       .sample { font-size:11px }
-      .intro { padding:23px 0 16px }
-      .folio { display:none }
+      .intro { padding:20px 0 14px }
       .query { padding:11px }
       .primary { padding-inline:15px }
       .filters,.extra { grid-template-columns:repeat(2,minmax(0,1fr)) }
@@ -131,10 +123,7 @@
     </div>
   </header>
   <main class="wrap">
-    <div class="intro">
-      <div><p class="eyebrow" id="section-code">CATALOG / ANIMATION</p><h1 id="page-title">动画查询</h1><p class="lede" id="lede">按放送年份、类型与状态查找动画作品。</p></div>
-      <div class="folio" aria-hidden="true"><svg viewBox="0 0 58 40" fill="none" stroke="currentColor"><rect x="4" y="6" width="44" height="29" rx="3" transform="rotate(-7 26 21)"/><rect x="10" y="5" width="44" height="29" rx="3"/><path d="M16 12h32v15H16zM23 12v15m18-15v15m-13-3 7-8m-5 8 7-8"/></svg><span id="folio-text">01 / SCREEN INDEX</span></div>
-    </div>
+    <div class="intro"><h1 id="page-title">动画查询</h1></div>
     <form class="query" id="query" aria-label="作品搜索与筛选">
       <div class="search-row">
         <label class="search-box">
@@ -210,8 +199,8 @@
         ({ id: i + 1, name, alias, series, date, year: date.slice(0, 4) || '未知', type, status, region, tags: tags.split('/') })
     )]));
     const views = {
-      anime: { title:'动画查询', code:'CATALOG / ANIMATION', folio:'01 / SCREEN INDEX', year:'放送年份', type:'放送类型', status:'放送状态', lede:'按放送年份、类型与状态查找动画作品。', prefix:'ANI' },
-      book: { title:'书籍查询', code:'CATALOG / BOOKS', folio:'02 / PRINT INDEX', year:'首次发表年份', type:'书籍类型', status:'连载状态', lede:'按书籍类型、首次发表年份与连载状态查找作品。', prefix:'BOK' }
+      anime: { title:'动画查询', year:'放送年份', type:'放送类型', status:'放送状态' },
+      book: { title:'书籍查询', year:'首次发表年份', type:'书籍类型', status:'连载状态' }
     };
     const facets = ['year','type','status','region','tag'];
     const keys = ['q',...facets,'sort','page'];
@@ -281,7 +270,7 @@
     // 原创几何封面以胶片与纸页两种构图区分媒体类别。
     function artwork(row) {
       const [base, middle, light] = palettes[(row.id + (state.view === 'book' ? 2 : 0) - 1) % palettes.length];
-      const id = views[state.view].prefix + row.id;
+      const id = state.view + '-' + row.id;
       const x = 74 + (row.id * 29) % 160;
       const y = 42 + (row.id * 13) % 38;
       const shapes = state.view === 'anime'
@@ -293,7 +282,7 @@
     function card(row) {
       const badge = ['放送中','连载中'].includes(row.status) ? 'ongoing' : ['未放送','未连载'].includes(row.status) ? 'pending' : '';
       const year = row.date ? `<time datetime="${row.date}">${row.year}</time>` : '<span>年份未知</span>';
-      return `<article class="work"><div class="cover" aria-hidden="true">${artwork(row)}<span class="card-index">${views[state.view].prefix} / ${String(row.id).padStart(2,'0')}</span></div><div class="work-info"><h3>${row.name}</h3><p class="alias" lang="en">${row.alias}</p><div class="meta">${year}<span class="dot">${row.type}</span><span class="status ${badge}">${row.status}</span></div></div></article>`;
+      return `<article class="work"><div class="cover" aria-hidden="true">${artwork(row)}</div><div class="work-info"><h3>${row.name}</h3><p class="alias" lang="en">${row.alias}</p><div class="meta">${year}<span class="dot">${row.type}</span><span class="status ${badge}">${row.status}</span></div></div></article>`;
     }
 
     function draw() {
@@ -302,9 +291,6 @@
         shownView = state.view;
         document.title = view.title + ' · ACGBox';
         $('page-title').textContent = view.title;
-        $('section-code').textContent = view.code;
-        $('folio-text').textContent = view.folio;
-        $('lede').textContent = view.lede;
         for (const key of ['year','type','status']) $(key + '-label').textContent = view[key];
         for (const key of facets) {
           const caption = {year:'年份',type:'类型',status:'状态',region:'地区',tag:'标签'}[key];
