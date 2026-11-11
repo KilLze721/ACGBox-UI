@@ -172,6 +172,15 @@
     [data-theme=day] .status.pending { background:#f8e4ef; color:#813659 }
     [data-theme=day] .mascot { filter:drop-shadow(0 4px 12px #69448855) }
     [data-theme=day] .detail-nav span { background:#fff9f3e5 }
+    @media (width > 720px) {
+      .sidebar {
+        --sticky-gap:14px;
+        position:sticky;
+        top:var(--sticky-gap);
+        max-height:calc(100dvh - 2 * var(--sticky-gap));
+        overflow-y:auto;
+      }
+    }
     @media (max-width:900px) { .mascot { display:none } }
     @media (max-width:720px) {
       .wrap { width:calc(100% - 26px) }
