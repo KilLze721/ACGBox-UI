@@ -38,6 +38,7 @@ import type { AnimePageItem, PageResult, Person } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
 const route = useRoute()
+const ownerFullPath = route.fullPath
 const router = useRouter()
 const navigateLinkedContent =
   inject<(path: '/admin/anime', keyword: string) => Promise<void>>('navigateLinkedContent')
@@ -143,11 +144,11 @@ defineExpose({
 onMounted(() => {
   void loadPage(1)
   void loadTotal()
-  const id = Number(route.query.detail)
-  if (Number.isInteger(id) && id > 0) void openDrawer('detail', id)
+  openLinkedDetail()
 })
 onActivated(() => {
   tabActive.value = true
+  if (route.query.from === 'data-quality' && !drawerMode.value) openLinkedDetail()
 })
 onDeactivated(() => {
   tabActive.value = false
@@ -334,6 +335,11 @@ function requestDrawer(mode: DrawerMode, id?: number) {
   protectChanges(() => {
     void openDrawer(mode, id)
   })
+}
+function openLinkedDetail() {
+  const id = Number(route.query.detail)
+  if (route.fullPath === ownerFullPath && Number.isInteger(id) && id > 0)
+    requestDrawer('detail', id)
 }
 async function openDrawer(mode: DrawerMode, id?: number) {
   if (saving.value || deleting.value) return

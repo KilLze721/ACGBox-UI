@@ -95,7 +95,7 @@ export interface NamedOption {
   name: string
 }
 
-export type DataQualityTarget = 'ANIME' | 'BOOK'
+export type DataQualityTarget = 'ANIME' | 'BOOK' | 'PERSON'
 export type DataQualityRule =
   | 'MISSING_COVER'
   | 'MISSING_DESCRIPTION'
@@ -118,6 +118,7 @@ export interface DataQualityRow {
   targetType: DataQualityTarget
   targetId: number
   name: string
+  description?: string | null
   coverImageUrl: string | null
   contentType: NamedOption | null
   region: NamedOption | null
@@ -128,7 +129,7 @@ export interface DataQualityRow {
 
 export interface DataQualityPage extends PageResult<DataQualityRow> {
   checkedAt: string
-  summary: { scopeTotal: number; ruleCounts: Record<DataQualityRule, number> }
+  summary: { scopeTotal: number; ruleCounts: Partial<Record<DataQualityRule, number>> }
 }
 
 export interface SortableNamedOption extends NamedOption {

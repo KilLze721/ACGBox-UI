@@ -4,6 +4,7 @@ import { computed, onActivated, onDeactivated, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getDataQualityPage } from '@/api/dataQuality'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import type {
   DataQualityPage,
@@ -13,6 +14,7 @@ import type {
 } from '@/types/api'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 
+const sameNameRule = { code: 'SAME_NAME_REVIEW', label: '同名待核对' } as const
 const rules: Array<{ code: DataQualityRule; label: string }> = [
   { code: 'MISSING_COVER', label: '缺封面' },
   { code: 'MISSING_DESCRIPTION', label: '缺简介' },
@@ -20,22 +22,35 @@ const rules: Array<{ code: DataQualityRule; label: string }> = [
   { code: 'MISSING_COMPANY', label: '缺公司' },
   { code: 'MISSING_TAG', label: '缺标签' },
   { code: 'MISSING_DATE', label: '缺日期' },
-  { code: 'SAME_NAME_REVIEW', label: '同名待核对' },
+  sameNameRule,
 ]
+const targets = {
+  ANIME: { label: '动画', icon: 'anime', path: '/admin/anime', unit: '部' },
+  BOOK: { label: '书籍', icon: 'book', path: '/admin/book', unit: '部' },
+  PERSON: { label: '人物', icon: 'user', path: '/admin/persons', unit: '位' },
+}
 const pageSizes = pageSizeValues.map((id) => ({ id, name: `${id} 条` }))
 function defaults(targetType: DataQualityTarget): DataQualityQuery {
   return {
     targetType,
     keyword: '',
-    ruleCodes: rules.map(({ code }) => code).filter((code) => code !== 'SAME_NAME_REVIEW'),
+    ruleCodes:
+      targetType === 'PERSON'
+        ? [sameNameRule.code]
+        : rules.map(({ code }) => code).filter((code) => code !== sameNameRule.code),
     matchMode: 'ANY',
     pageNum: 1,
     pageSize: resolvePageSize(pageSizeValues, 20),
   }
 }
 
-const draft = ref(defaults('ANIME'))
+const workDraft = ref(defaults('ANIME'))
+const personDraft = ref(defaults('PERSON'))
 const applied = ref(defaults('ANIME'))
+const isPerson = computed(() => applied.value.targetType === 'PERSON')
+const draft = computed(() => (isPerson.value ? personDraft.value : workDraft.value))
+const visibleRules = computed(() => (isPerson.value ? [sameNameRule] : rules))
+const resultTarget = computed(() => targets[applied.value.targetType])
 const result = ref<DataQualityPage>()
 const loading = ref(true)
 const error = ref('')
@@ -46,7 +61,7 @@ const dirty = computed(
   () =>
     draft.value.keyword?.trim() !== applied.value.keyword ||
     draft.value.matchMode !== applied.value.matchMode ||
-    rules.some(
+    visibleRules.value.some(
       ({ code }) => draft.value.ruleCodes.includes(code) !== applied.value.ruleCodes.includes(code),
     ),
 )
@@ -94,24 +109,31 @@ async function checkPage(pageNum = applied.value.pageNum) {
   }
 }
 function apply(targetType = draft.value.targetType) {
-  if (!draft.value.ruleCodes.length) {
+  const next = targetType === 'PERSON' ? personDraft.value : workDraft.value
+  if (!next.ruleCodes.length && isPerson.value) next.ruleCodes = defaults(targetType).ruleCodes
+  if (!next.ruleCodes.length) {
     validation.value = '请至少选择一项规则。'
     return
   }
   validation.value = ''
-  draft.value.targetType = targetType
+  next.targetType = targetType
   applied.value = {
-    ...draft.value,
-    keyword: draft.value.keyword?.trim() ?? '',
-    ruleCodes: [...draft.value.ruleCodes],
+    ...next,
+    keyword: next.keyword?.trim() ?? '',
+    ruleCodes: [...next.ruleCodes],
     pageSize: applied.value.pageSize,
     pageNum: 1,
   }
   void checkPage()
 }
 function reset() {
-  draft.value = defaults('ANIME')
-  applied.value = defaults('ANIME')
+  if (isPerson.value) {
+    personDraft.value = defaults('PERSON')
+    applied.value = defaults('PERSON')
+  } else {
+    workDraft.value = defaults('ANIME')
+    applied.value = defaults('ANIME')
+  }
   validation.value = ''
   void checkPage()
 }
@@ -127,7 +149,7 @@ onDeactivated(() => request?.abort())
       <div class="management-hero-copy">
         <p class="management-eyebrow">CONTENT ARCHIVE / QUALITY REVIEW</p>
         <h1>数据质量检查</h1>
-        <p>查找资料缺漏和待核对的同名作品，从结果直接进入作品详情。</p>
+        <p>查找作品资料缺漏，核对同名作品和人物。</p>
       </div>
       <span class="quality-hero-mark" aria-hidden="true"><AdminIcon name="check" /></span>
     </header>
@@ -137,28 +159,27 @@ onDeactivated(() => request?.abort())
         <AdminIcon name="filter" />
         <div>
           <h2>检查条件</h2>
-          <p>选择作品类型及要检查的规则</p>
         </div>
       </div>
-      <div class="quality-filters">
+      <div class="quality-filters" :class="{ 'quality-person-filters': isPerson }">
         <fieldset>
           <legend>内容类型</legend>
           <div class="segmented-control">
             <button
-              v-for="kind in ['ANIME', 'BOOK'] as const"
+              v-for="(target, kind) in targets"
               :key="kind"
               type="button"
               :class="{ active: draft.targetType === kind }"
               :aria-pressed="draft.targetType === kind"
               @click="draft.targetType !== kind && apply(kind)"
             >
-              <AdminIcon :name="kind === 'ANIME' ? 'anime' : 'book'" />
-              {{ kind === 'ANIME' ? '动画' : '书籍' }}
+              <AdminIcon :name="target.icon" />
+              {{ target.label }}
             </button>
           </div>
         </fieldset>
         <div class="field quality-keyword">
-          <label for="qualityKeyword">作品名称</label>
+          <label for="qualityKeyword">{{ isPerson ? '人物姓名' : '作品名称' }}</label>
           <div class="input-shell">
             <AdminIcon class="input-icon" name="search-full" />
             <input
@@ -166,11 +187,11 @@ onDeactivated(() => request?.abort())
               v-model="draft.keyword"
               class="has-icon"
               type="search"
-              placeholder="按作品名称搜索"
+              :placeholder="isPerson ? '按人物姓名搜索' : '按作品名称搜索'"
             />
           </div>
         </div>
-        <fieldset>
+        <fieldset v-if="!isPerson">
           <legend>命中方式</legend>
           <div class="quality-options quality-match">
             <label><input v-model="draft.matchMode" type="radio" value="ANY" /> 满足任一项</label>
@@ -184,11 +205,12 @@ onDeactivated(() => request?.abort())
       <fieldset class="quality-rules">
         <legend>检查规则</legend>
         <div class="quality-options quality-rule-grid">
-          <label v-for="rule in rules" :key="rule.code">
+          <label v-for="rule in visibleRules" :key="rule.code">
             <input
               v-model="draft.ruleCodes"
               type="checkbox"
               :value="rule.code"
+              :disabled="isPerson"
               @change="validation = ''"
             />
             <span>{{ rule.label }}</span>
@@ -209,16 +231,16 @@ onDeactivated(() => request?.abort())
 
     <section v-if="result && !loading && !error" class="quality-stats" aria-label="检查统计">
       <dl class="quality-stat">
-        <dt>当前范围作品数</dt>
+        <dt>当前范围{{ isPerson ? '人数' : '作品数' }}</dt>
         <dd>{{ result.summary.scopeTotal }}</dd>
       </dl>
       <dl class="quality-stat quality-total">
-        <dt>本次命中作品数</dt>
+        <dt>本次命中{{ isPerson ? '人数' : '作品数' }}</dt>
         <dd>{{ result.total }}</dd>
       </dl>
       <div class="quality-counts">
-        <h2>分项命中 <small>同一作品可命中多项</small></h2>
-        <dl v-for="rule in rules" :key="rule.code">
+        <h2>分项命中 <small v-if="!isPerson">同一作品可命中多项</small></h2>
+        <dl v-for="rule in visibleRules" :key="rule.code">
           <dt>{{ rule.label }}</dt>
           <dd>{{ result.summary.ruleCounts[rule.code] ?? '—' }}</dd>
         </dl>
@@ -236,7 +258,7 @@ onDeactivated(() => request?.abort())
           <div>
             <h2 id="quality-results-title">检查结果</h2>
             <p v-if="result && !loading && !error">
-              共 {{ result.total }} 部{{ applied.targetType === 'ANIME' ? '动画' : '书籍' }}
+              共 {{ result.total }} {{ resultTarget.unit }}{{ resultTarget.label }}
             </p>
           </div>
         </div>
@@ -244,22 +266,26 @@ onDeactivated(() => request?.abort())
           >读取于 {{ formatDate(result.checkedAt) }}</small
         >
       </header>
-      <p v-if="loading" class="quality-state" role="status">正在检查作品资料…</p>
+      <p v-if="loading" class="quality-state" role="status">
+        正在检查{{ resultTarget.label }}资料…
+      </p>
       <div v-else-if="error" class="quality-state" role="alert">
         <p class="quality-error">{{ error }}</p>
         <button type="button" class="secondary-button" @click="checkPage()">重试</button>
       </div>
       <div v-else-if="!result?.rows.length" class="quality-state">
         <span class="quality-state-mark" aria-hidden="true"><AdminIcon name="check" /></span>
-        <strong>当前条件下未发现待补充或待核对的作品</strong>
-        <p>可以调整检查规则或作品名称后再检查。</p>
+        <strong>{{
+          isPerson ? '当前条件下未发现同名人物' : '当前条件下未发现待补充或待核对的作品'
+        }}</strong>
+        <p v-if="!isPerson">可以调整检查规则或作品名称后再检查。</p>
       </div>
       <template v-else>
         <div class="quality-table-wrap">
           <table class="anime-table quality-table">
             <thead>
               <tr>
-                <th scope="col">作品</th>
+                <th scope="col">{{ isPerson ? '人物' : '作品' }}</th>
                 <th scope="col">命中项</th>
                 <th scope="col">更新时间</th>
                 <th scope="col">操作</th>
@@ -268,7 +294,12 @@ onDeactivated(() => request?.abort())
             <tbody>
               <tr v-for="row in result.rows" :key="row.targetId">
                 <td>
-                  <div class="quality-work">
+                  <div v-if="row.targetType === 'PERSON'" class="quality-person">
+                    <strong>{{ row.name }}</strong>
+                    <small class="quality-id">ID {{ row.targetId }}</small>
+                    <ArchiveDescription :text="row.description" />
+                  </div>
+                  <div v-else class="quality-work">
                     <div class="cover">
                       <img
                         v-if="row.coverImageUrl && !brokenCovers.has(row.coverImageUrl)"
@@ -297,7 +328,7 @@ onDeactivated(() => request?.abort())
                     >
                       {{ issue.message
                       }}<template v-if="issue.code === 'SAME_NAME_REVIEW' && row.duplicateCount">
-                        · {{ row.duplicateCount }} 部</template
+                        · {{ row.duplicateCount }} {{ targets[row.targetType].unit }}</template
                       >
                     </span>
                   </div>
@@ -307,11 +338,12 @@ onDeactivated(() => request?.abort())
                   <RouterLink
                     class="secondary-button quality-link"
                     :to="{
-                      path: row.targetType === 'ANIME' ? '/admin/anime' : '/admin/book',
+                      path: targets[row.targetType].path,
                       query: { detail: row.targetId, from: 'data-quality' },
                     }"
                   >
-                    查看并补充 <AdminIcon name="right" />
+                    {{ row.targetType === 'PERSON' ? '查看详情' : '查看并补充' }}
+                    <AdminIcon name="right" />
                   </RouterLink>
                 </td>
               </tr>
@@ -320,7 +352,10 @@ onDeactivated(() => request?.abort())
         </div>
         <div class="pagination">
           <span class="page-summary"
-            >共 {{ result.total }} 部 · {{ result.pageNum }}/{{ result.pages }} 页</span
+            >共 {{ result.total }} {{ resultTarget.unit }} · {{ result.pageNum }}/{{
+              result.pages
+            }}
+            页</span
           >
           <div class="page-controls">
             <ArchiveSelect
@@ -416,6 +451,9 @@ onDeactivated(() => request?.abort())
   align-items: end;
   gap: 16px;
   margin-top: 16px;
+}
+.quality-person-filters {
+  grid-template-columns: auto minmax(180px, 1fr);
 }
 .quality-panel fieldset {
   padding: 0;
@@ -603,9 +641,14 @@ onDeactivated(() => request?.abort())
   align-items: center;
   gap: 10px;
 }
-.quality-work strong {
+.quality-work strong,
+.quality-person strong {
   font-weight: 700;
   overflow-wrap: anywhere;
+}
+.quality-person .archive-description {
+  margin-top: 4px;
+  color: var(--ink-soft);
 }
 .quality-table .cover {
   flex: none;
