@@ -822,10 +822,6 @@ function getSafeExternalUrl(url: string) {
   }
 }
 
-function getExternalLinkLabel(title: string | null) {
-  return title?.trim().slice(0, 2).toUpperCase() || '外链'
-}
-
 function getCoverGradient(id: number) {
   const gradients = [
     'linear-gradient(145deg, #d95f86, #7567aa)',
@@ -1440,9 +1436,7 @@ function markCoverBroken(url: string) {
                     rel="noopener noreferrer"
                     :title="link.title || link.url"
                     :aria-label="link.title || link.url"
-                    ><ExternalLinkIcon :url="link.url">{{
-                      getExternalLinkLabel(link.title)
-                    }}</ExternalLinkIcon></a
+                    ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
                   ><span v-if="!anime.externalLinks.length" class="empty-value">—</span>
                 </div>
               </td>
@@ -1568,9 +1562,7 @@ function markCoverBroken(url: string) {
                 rel="noopener noreferrer"
                 :title="link.title || link.url"
                 :aria-label="link.title || link.url"
-                ><ExternalLinkIcon :url="link.url">{{
-                  getExternalLinkLabel(link.title)
-                }}</ExternalLinkIcon></a
+                ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
               >
             </div>
             <div class="anime-card-actions">
@@ -2191,9 +2183,7 @@ function markCoverBroken(url: string) {
                     rel="noopener noreferrer"
                     :title="link.title || link.url"
                     :aria-label="link.title || link.url"
-                    ><ExternalLinkIcon :url="link.url">{{
-                      getExternalLinkLabel(link.title)
-                    }}</ExternalLinkIcon></a
+                    ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
                   >
                   <span v-if="!anime.externalLinks.length" class="empty-value">—</span>
                 </div>

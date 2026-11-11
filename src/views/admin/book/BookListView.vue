@@ -1203,9 +1203,7 @@ function safeUrl(value: string | null) {
                     rel="noopener noreferrer"
                     :title="link.title || link.url"
                     :aria-label="link.title || link.url"
-                    ><ExternalLinkIcon :url="link.url">{{
-                      link.title?.trim().slice(0, 2).toUpperCase() || '外链'
-                    }}</ExternalLinkIcon></a
+                    ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
                   ><span
                     v-if="!book.externalLinks.some((link) => safeUrl(link.url))"
                     class="empty-value"
@@ -1330,9 +1328,7 @@ function safeUrl(value: string | null) {
                 rel="noopener noreferrer"
                 :title="link.title || link.url"
                 :aria-label="link.title || link.url"
-                ><ExternalLinkIcon :url="link.url">{{
-                  link.title?.trim().slice(0, 2).toUpperCase() || '外链'
-                }}</ExternalLinkIcon></a
+                ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
               >
             </div>
             <div class="book-card-actions">
