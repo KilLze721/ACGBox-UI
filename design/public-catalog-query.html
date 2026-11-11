@@ -16,9 +16,9 @@
 <style>
     :root {
       color-scheme:dark;
-      --night:#14181e; --ink:#e8edf3; --muted:#a6b2c0;
-      --surface:#1a2028; --raised:#202730; --line:#343e4b; --hover:#28323e;
-      --lilac:#a0c5ef; --accent-fill:#a0c5ef; --accent-ink:#142435; --selected:#263e55;
+      --night:#19171a; --ink:#f0ebee; --muted:#bdb2b9;
+      --surface:#221e22; --raised:#282329; --line:#443b43; --hover:#332932;
+      --lilac:#f0b2cb; --accent-fill:#f0b2cb; --accent-ink:#311b27; --selected:#472e3b;
 
       --content-width:1080px;
       --serif:"Noto Serif SC","Source Han Serif SC","Songti SC","SimSun",serif;
@@ -42,14 +42,14 @@
         width:calc((100% - var(--content-width)) / 2 - 18px);
         pointer-events:none;
         background:
-          radial-gradient(circle at 22px 25px,#c9b7f135 0 1.1px,transparent 1.8px) 0 0 / 93px 117px,
-          radial-gradient(circle at 56px 66px,#b7a4e329 0 .8px,transparent 1.5px) 9px 17px / 109px 139px,
-          radial-gradient(circle at 12px 45px,#d9c6ff20 0 .6px,transparent 1.3px) 31px 11px / 71px 87px;
+          radial-gradient(circle at 22px 25px,#ebb6ce35 0 1.1px,transparent 1.8px) 0 0 / 93px 117px,
+          radial-gradient(circle at 56px 66px,#d5a3bf29 0 .8px,transparent 1.5px) 9px 17px / 109px 139px,
+          radial-gradient(circle at 12px 45px,#f3d3e020 0 .6px,transparent 1.3px) 31px 11px / 71px 87px;
       }
       main.wrap::before { left:0; mask-image:linear-gradient(to right,#000 18%,transparent 100%) }
       main.wrap::after { right:0; background-position:32px 27px,64px 8px,5px 39px; mask-image:linear-gradient(to left,#000 18%,transparent 100%) }
       [data-theme=day] main.wrap::before,[data-theme=day] main.wrap::after {
-        background:radial-gradient(circle at center,#a481c628 0 1px,transparent 1.7px) 0 0 / 24px 24px;
+        background:radial-gradient(circle at center,#b66c8e2b 0 1px,transparent 1.7px) 0 0 / 24px 24px;
       }
       [data-theme=day] main.wrap::after { background-position:12px 12px }
     }
@@ -70,7 +70,7 @@
     .account-avatar { display:grid; flex:none; place-items:center; width:40px; height:40px; margin-left:-18px; padding:0; border:1px solid var(--line); border-radius:50%; background:var(--surface); color:var(--muted) }
     .account-avatar:hover,.account-avatar[aria-expanded=true] { border-color:var(--lilac) }
     .account-avatar.signed-in { background:var(--selected); color:var(--lilac); font:700 17px/1 var(--sans) }
-    .account-menu { position:fixed; inset:51px max(26px,calc((100% - var(--content-width)) / 2)) auto auto; margin:0; min-width:154px; padding:4px; border:1px solid var(--line); border-radius:5px; background:var(--surface); color:var(--ink); box-shadow:0 3px 10px #10182024 }
+    .account-menu { position:fixed; inset:51px max(26px,calc((100% - var(--content-width)) / 2)) auto auto; margin:0; min-width:154px; padding:4px; border:1px solid var(--line); border-radius:5px; background:var(--surface); color:var(--ink); box-shadow:0 3px 10px #20141b24 }
     .account-menu button { display:block; width:100%; min-height:40px; padding:6px 10px; border:0; border-radius:3px; background:none; text-align:left }
     .account-menu button:is(:hover,:focus-visible) { background:var(--hover) }
     .account-menu button:last-child { border-top:1px solid var(--line); color:var(--muted) }
@@ -184,7 +184,7 @@
     .mine-item h3 { overflow-wrap:anywhere }
     .mine-score { font-weight:700; color:var(--ink); white-space:nowrap }
     .personal-dialog { width:min(440px,calc(100% - 26px)); max-height:calc(100dvh - 26px); margin:auto; border-radius:6px; padding:17px; color:var(--ink); background:var(--surface); overflow:auto }
-    .personal-dialog::backdrop { background:#10172075 }
+    .personal-dialog::backdrop { background:#20141b75 }
     .personal-dialog h2 { font:700 19px/1.3 var(--sans) }
     .personal-dialog p { margin-top:6px; color:var(--muted) }
     .modal-actions { justify-content:flex-end; margin-top:15px }
@@ -198,9 +198,9 @@
     .score-option:has(:checked) { background:var(--selected); border-color:var(--lilac); color:var(--lilac); font-weight:700 }
     [data-theme=day] {
       color-scheme:light;
-      --night:#f4f5f6; --ink:#202832; --muted:#56616e;
-      --surface:#fff; --raised:#f6f8fa; --line:#d8dfe6; --hover:#edf2f7;
-      --lilac:#255786; --accent-fill:#255786; --accent-ink:#fff; --selected:#e5eff8;
+      --night:#faeff3; --ink:#2e292d; --muted:#62585f;
+      --surface:#fffdfd; --raised:#fcf5f7; --line:#e8d9df; --hover:#faedf2;
+      --lilac:#8b3154; --accent-fill:#91395d; --accent-ink:#fff; --selected:#f8e0ea;
     }
     @media (width > 720px) {
       .sidebar {
