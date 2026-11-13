@@ -1105,69 +1105,6 @@ html:has(body[data-theme='dark'] .app-shell),
   gap: 18px;
 }
 
-.archive-mascot {
-  position: relative;
-  display: grid;
-  width: 74px;
-  height: 74px;
-  place-items: center;
-}
-
-.mascot-orbit {
-  position: absolute;
-  inset: 4px;
-  border: 1px solid rgba(117, 211, 205, 0.28);
-  border-radius: 46% 54% 50% 50%;
-  transform: rotate(-18deg);
-  animation: orbit 8s linear infinite;
-}
-
-.mascot-body {
-  position: relative;
-  width: 49px;
-  height: 45px;
-  background: linear-gradient(145deg, #f4dbe8, #a79bc9);
-  border: 2px solid rgba(255, 255, 255, 0.24);
-  border-radius: 46% 46% 40% 40%;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
-}
-
-.mascot-body::before,
-.mascot-body::after {
-  position: absolute;
-  top: -8px;
-  width: 15px;
-  height: 19px;
-  content: '';
-  background: #d3b9d2;
-  border-radius: 2px 12px 3px 11px;
-}
-
-.mascot-body::before {
-  left: 4px;
-  transform: rotate(-23deg);
-}
-
-.mascot-body::after {
-  right: 4px;
-  transform: rotate(23deg) scaleX(-1);
-}
-
-.mascot-face {
-  position: absolute;
-  top: 17px;
-  left: 12px;
-  display: flex;
-  gap: 11px;
-}
-
-.mascot-eye {
-  width: 4px;
-  height: 6px;
-  background: #3c355c;
-  border-radius: 50%;
-}
-
 .primary-button,
 .secondary-button,
 .danger-button,
@@ -3660,12 +3597,6 @@ html:has(body[data-theme='dark'] .app-shell),
   }
 }
 
-@keyframes orbit {
-  to {
-    transform: rotate(342deg);
-  }
-}
-
 @keyframes dropdown-in {
   from {
     opacity: 0;
@@ -3873,8 +3804,7 @@ html:has(body[data-theme='dark'] .app-shell),
     border-radius: 19px;
   }
 
-  .page-hero h1 span,
-  .archive-mascot {
+  .page-hero h1 span {
     display: none;
   }
 

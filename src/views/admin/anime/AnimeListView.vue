@@ -870,15 +870,6 @@ function markCoverBroken(url: string) {
         </p>
       </div>
       <div class="hero-actions">
-        <div class="archive-mascot" aria-hidden="true">
-          <span class="mascot-orbit"></span>
-          <span class="mascot-body">
-            <span class="mascot-face">
-              <span class="mascot-eye"></span>
-              <span class="mascot-eye"></span>
-            </span>
-          </span>
-        </div>
         <RouterLink class="primary-button" to="/admin/anime/create">
           <AdminIcon name="plus" />
           新增动画
