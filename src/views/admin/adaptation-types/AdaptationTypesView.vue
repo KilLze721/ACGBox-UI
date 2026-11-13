@@ -3,7 +3,7 @@
  * 改编类型字典管理页面：展示并筛选作品来源类型，维护新增和修改表单。
  * 支持勾选后删除和危险操作确认，不包含详情页面或详情抽屉。
  */
-import '@/assets/adminManagementCards.css'
+import '@/assets/css/adminManagementCards.css'
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {

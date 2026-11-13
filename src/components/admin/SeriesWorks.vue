@@ -162,7 +162,7 @@ function workLabel(work: SeriesWork) {
   </section>
 </template>
 
-<style scoped src="@/assets/relatedWorkList.css"></style>
+<style scoped src="@/assets/css/relatedWorkList.css"></style>
 <style scoped>
 .series-works {
   margin-top: 12px;

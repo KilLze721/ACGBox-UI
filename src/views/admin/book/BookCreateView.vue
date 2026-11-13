@@ -50,4 +50,4 @@ async function closeAndReturnToBook() {
   </main>
 </template>
 
-<style scoped src="@/assets/animeCreatePage.css"></style>
+<style scoped src="@/assets/css/animeCreatePage.css"></style>

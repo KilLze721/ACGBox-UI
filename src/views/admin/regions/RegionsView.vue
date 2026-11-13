@@ -3,7 +3,7 @@
  * 地区字典管理页面：读取地区列表，在前端按名称筛选并展示选择状态。
  * 使用抽屉新增、修改地区，使用确认弹窗删除单项或多项；不提供详情展示。
  */
-import '@/assets/adminManagementCards.css'
+import '@/assets/css/adminManagementCards.css'
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { createRegion, deleteRegions, getRegionById, getRegions, updateRegion } from '@/api/catalog'

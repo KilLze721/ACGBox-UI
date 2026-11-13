@@ -124,4 +124,4 @@ const summary = computed(() => {
   </section>
 </template>
 
-<style scoped src="@/assets/relatedWorkList.css"></style>
+<style scoped src="@/assets/css/relatedWorkList.css"></style>

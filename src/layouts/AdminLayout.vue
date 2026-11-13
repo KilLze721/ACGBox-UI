@@ -21,7 +21,7 @@ import {
 } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { logout } from '@/api/auth'
-import brandImage from '@/assets/acgbox-brand-mark.png'
+import brandImage from '@/assets/img/acgbox-brand-mark.png'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import { clearLogin, getCurrentUser, getToken } from '@/utils/auth'
 import { effectiveDarkTheme, initializeTheme, setThemeMode, themeMode } from '@/utils/preferences'

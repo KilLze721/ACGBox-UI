@@ -474,4 +474,4 @@ function getSafeExternalUrl(value: string) {
   </Teleport>
 </template>
 
-<style scoped src="@/assets/animeCrudDrawer.css"></style>
+<style scoped src="@/assets/css/animeCrudDrawer.css"></style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import '@/assets/adminManagementCards.css'
+import '@/assets/css/adminManagementCards.css'
 import { computed, onActivated, onDeactivated, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getDataQualityPage } from '@/api/dataQuality'

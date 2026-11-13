@@ -3,7 +3,7 @@
  * 制作公司管理页面：维护公司名称、简介，提供分页搜索和抽屉式新增、修改、详情。
  * 公司详情中按公司查询关联动画，支持分页、排序及跳转；删除操作需单独确认。
  */
-import '@/assets/adminManagementCards.css'
+import '@/assets/css/adminManagementCards.css'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 import {
   computed,

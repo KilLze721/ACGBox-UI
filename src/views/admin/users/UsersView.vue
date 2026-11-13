@@ -3,7 +3,7 @@
  * 管理员用户管理页面：查询账号列表，管理新增、详情和可编辑的账号字段。
  * 重置密码、删除账号通过确认流程调用用户管理接口，与当前账号自助设置分开。
  */
-import '@/assets/adminManagementCards.css'
+import '@/assets/css/adminManagementCards.css'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 import {
   computed,

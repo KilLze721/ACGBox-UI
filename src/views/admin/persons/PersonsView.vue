@@ -3,7 +3,7 @@
  * 人物管理页面：维护允许同名的创作人员档案，支持分页搜索、跨页选择和抽屉编辑。
  * 复用管理端请求、主题和工作区关闭保护，按人物标识分页读取关联动画与全部职责。
  */
-import '@/assets/adminManagementCards.css'
+import '@/assets/css/adminManagementCards.css'
 import {
   computed,
   inject,

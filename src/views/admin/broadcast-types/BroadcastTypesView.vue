@@ -3,7 +3,7 @@
  * 放送类型字典管理页面：维护动画使用的放送类型，支持名称筛选和多项选择。
  * 新增、修改在抽屉内完成，删除需确认；当前列表由已有字典接口一次读取。
  */
-import '@/assets/adminManagementCards.css'
+import '@/assets/css/adminManagementCards.css'
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
@@ -566,4 +566,4 @@ async function confirmDelete() {
   </section>
 </template>
 
-<style scoped src="@/assets/catalogTypeManagement.css"></style>
+<style scoped src="@/assets/css/catalogTypeManagement.css"></style>

@@ -1537,8 +1537,8 @@ function safeUrl(value: string | null) {
   </div>
 </template>
 
-<style scoped src="@/assets/animeList.css"></style>
-<style scoped src="@/assets/workListCards.css"></style>
+<style scoped src="@/assets/css/animeList.css"></style>
+<style scoped src="@/assets/css/workListCards.css"></style>
 <style scoped>
 .book-management-page .book-list-table {
   min-width: 1420px;

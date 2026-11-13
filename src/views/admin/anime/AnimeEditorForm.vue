@@ -1340,4 +1340,4 @@ async function confirmAction() {
   </div>
 </template>
 
-<style scoped src="@/assets/animeEditorForm.css"></style>
+<style scoped src="@/assets/css/animeEditorForm.css"></style>

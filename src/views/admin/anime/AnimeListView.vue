@@ -2270,8 +2270,8 @@ function markCoverBroken(url: string) {
   </div>
 </template>
 
-<style scoped src="@/assets/animeList.css"></style>
-<style scoped src="@/assets/workListCards.css"></style>
+<style scoped src="@/assets/css/animeList.css"></style>
+<style scoped src="@/assets/css/workListCards.css"></style>
 <style scoped>
 .anime-management-page .anime-table .company-cell {
   width: 185px;
