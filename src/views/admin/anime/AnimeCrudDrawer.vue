@@ -16,16 +16,17 @@ import {
 import { useRoute, useRouter } from 'vue-router'
 import { getAnimeDetail } from '@/api/anime'
 import { getCompanyById } from '@/api/catalog'
-import { getSeriesById } from '@/api/series'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
+import SeriesWorks from '@/components/admin/SeriesWorks.vue'
 import AnimeEditorForm from './AnimeEditorForm.vue'
-import type { AnimeDetail, AnimePageItem } from '@/types/api'
+import type { AnimeDetail, AnimePageItem, SeriesWork } from '@/types/api'
 
 const props = defineProps<{
   mode: 'detail' | 'edit'
   animeId: number
   anime: AnimePageItem
+  initialDetail?: AnimeDetail
 }>()
 
 const route = useRoute()
@@ -37,6 +38,7 @@ const navigateLinkedContent =
       keyword: string
     ) => Promise<void>
   >('navigateLinkedContent')
+const openBookDetail = inject<((id: number) => Promise<void>) | null>('openBookDetail', null)
 const ownerFullPath = route.fullPath
 const visible = computed(() => route.fullPath === ownerFullPath)
 
@@ -45,23 +47,15 @@ const emit = defineEmits<{
   saved: [anime: AnimeDetail]
   edit: []
   delete: [anime: AnimePageItem]
+  selectAnime: [id: number]
 }>()
 
 const detail = ref<AnimeDetail | null>(null)
 const loading = ref(true)
 const errorMessage = ref('')
-const seriesLinkError = ref('')
-const seriesLinkLoading = ref(false)
 const companyLinkError = ref('')
 const companyLinkLoading = ref<number | null>(null)
 const editorForm = ref<InstanceType<typeof AnimeEditorForm> | null>(null)
-const linkedSeriesName = computed(() => {
-  const seriesId = detail.value?.seriesId
-  const series = props.anime.series
-  return series && series.id === seriesId && series.name !== `#${seriesId}`
-    ? series.name.trim()
-    : ''
-})
 function linkedCompanyName(companyId: number) {
   const name = props.anime.companies
     .find((item) => item.companyId === companyId)
@@ -124,7 +118,7 @@ onMounted(async () => {
   if (props.mode !== 'detail') return
   controller = new AbortController()
   try {
-    detail.value = await getAnimeDetail(props.animeId, controller.signal)
+    detail.value = props.initialDetail ?? (await getAnimeDetail(props.animeId, controller.signal))
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') return
     errorMessage.value = error instanceof Error ? error.message : '动画详情加载失败，请稍后重试。'
@@ -157,27 +151,22 @@ function openEdit() {
   emit('edit')
 }
 
-async function openSeriesDetail() {
-  if (detail.value?.seriesId == null) return
-  const seriesId = detail.value.seriesId
-  if (seriesLinkLoading.value) return
-  seriesLinkError.value = ''
-  let seriesName = linkedSeriesName.value
-  if (!seriesName) {
-    seriesLinkLoading.value = true
-    try {
-      seriesName = (await getSeriesById(seriesId)).name.trim()
-    } catch (error) {
-      seriesLinkError.value =
-        error instanceof Error ? error.message : '系列名称读取失败，请稍后重试。'
-      return
-    } finally {
-      seriesLinkLoading.value = false
-    }
-  }
+// 系列名称沿用动画详情原有的名称搜索跳转。
+async function openSeriesDetail(seriesName: string) {
   emit('close')
   if (navigateLinkedContent) await navigateLinkedContent('/admin/series', seriesName)
   else await router.push({ path: '/admin/series', query: { name: seriesName } })
+}
+
+// 同类型作品直接交给当前列表打开，跨类型复用目标列表标签。
+function openSeriesWork(work: SeriesWork) {
+  if (work.workType === 'ANIME') {
+    emit('selectAnime', work.workId)
+    return
+  }
+  emit('close')
+  if (openBookDetail) void openBookDetail(work.workId)
+  else void router.push({ name: 'admin-book-detail', params: { id: work.workId } })
 }
 
 async function openCompanyDetail(companyId: number) {
@@ -429,25 +418,19 @@ function getSafeExternalUrl(value: string) {
                     companyLinkError
                   }}</small>
                 </div>
-                <div>
+                <div v-if="detail.seriesId === null">
                   <span>所属系列</span>
-                  <div class="anime-detail-chips">
-                    <button
-                      v-if="detail.seriesId !== null"
-                      class="anime-detail-series-link"
-                      type="button"
-                      :aria-label="`搜索所属系列：${linkedSeriesName || '所属系列'}`"
-                      :disabled="seriesLinkLoading"
-                      @click="openSeriesDetail"
-                    >
-                      {{ linkedSeriesName || '查看所属系列' }}</button
-                    ><i v-else>未关联系列</i>
-                  </div>
-                  <small v-if="seriesLinkError" class="anime-detail-series-error" role="alert">{{
-                    seriesLinkError
-                  }}</small>
+                  <div class="anime-detail-chips"><i>未关联系列</i></div>
                 </div>
               </div>
+              <SeriesWorks
+                v-if="detail.seriesId !== null"
+                :series-id="detail.seriesId"
+                work-type="ANIME"
+                :work-id="detail.id"
+                @open-series="openSeriesDetail"
+                @select="openSeriesWork"
+              />
             </section>
 
             <section class="anime-detail-card">

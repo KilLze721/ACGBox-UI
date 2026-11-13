@@ -34,7 +34,12 @@ const animeRow = {
   series: null,
 }
 
-function stubCatalogRequests(withAnime = false, withSeries = false, withCompany = false) {
+function stubCatalogRequests(
+  withAnime = false,
+  withSeries = false,
+  withCompany = false,
+  failSeriesWorks = false,
+) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string | URL | Request) => {
@@ -74,6 +79,56 @@ function stubCatalogRequests(withAnime = false, withSeries = false, withCompany 
           pages: matches ? 1 : 0,
           rows: matches ? [{ id: 5, name: '测试公司', description: '公司简介' }] : [],
         }
+      } else if (withSeries && path.endsWith('/series/7/works')) {
+        if (failSeriesWorks) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ code: 500, message: '系列作品暂时无法读取' }),
+          }
+        }
+        const pageNum = Number(url.searchParams.get('pageNum'))
+        const pageSize = Number(url.searchParams.get('pageSize'))
+        data = {
+          series: { id: 7, name: '测试动画系列', description: '测试系列说明' },
+          works: {
+            pageNum,
+            pageSize,
+            total: pageSize + 1,
+            pages: 2,
+            // 动画和书籍使用相同数字 ID，当前作品与跳转都必须按类型区分。
+            rows:
+              pageNum === 1
+                ? [
+                    {
+                      workType: 'BOOK',
+                      workId: 15,
+                      name: '测试系列原作',
+                      coverImageUrl: null,
+                      releaseDate: '2025-05-01',
+                      bookTypeName: '轻小说',
+                    },
+                    {
+                      workType: 'ANIME',
+                      workId: 15,
+                      name: '测试动画',
+                      coverImageUrl: null,
+                      releaseDate: animeRow.airDate,
+                      bookTypeName: null,
+                    },
+                  ]
+                : [
+                    {
+                      workType: 'ANIME',
+                      workId: 16,
+                      name: '测试系列续作',
+                      coverImageUrl: null,
+                      releaseDate: null,
+                      bookTypeName: null,
+                    },
+                  ],
+          },
+        }
       } else if (withSeries && path.endsWith('/series/7')) {
         data = { id: 7, name: '测试动画系列', description: '测试系列说明' }
       } else if (withSeries && path.endsWith('/series/page')) {
@@ -88,10 +143,11 @@ function stubCatalogRequests(withAnime = false, withSeries = false, withCompany 
         }
       } else if (path.endsWith('/page')) {
         data = { pageNum: 1, pageSize: 10, total: 0, pages: 0, rows: [] }
-      } else if (path.endsWith('/anime/15')) {
+      } else if (path.endsWith('/anime/15') || (withSeries && path.endsWith('/anime/16'))) {
+        const isSequel = path.endsWith('/anime/16')
         data = {
-          id: animeRow.id,
-          name: animeRow.name,
+          id: isSequel ? 16 : animeRow.id,
+          name: isSequel ? '测试系列续作' : animeRow.name,
           episodeCount: animeRow.episodeCount,
           broadcastTypeId: 1,
           adaptationTypeId: 1,
@@ -108,6 +164,27 @@ function stubCatalogRequests(withAnime = false, withSeries = false, withCompany 
           seriesId: withSeries ? 7 : null,
           personalRatingScore: null,
         }
+      } else if (withSeries && path.endsWith('/book/15')) {
+        data = {
+          id: 15,
+          name: '测试系列原作',
+          bookTypeId: 1,
+          adaptationTypeId: 1,
+          regionId: 1,
+          publishDate: '2025-05-01',
+          volumeCount: null,
+          chapterCount: null,
+          coverImageUrl: null,
+          status: 1,
+          description: null,
+          aliasNames: [],
+          companies: [],
+          externalLinks: [],
+          tagIds: [],
+          persons: [],
+          seriesId: 7,
+          personalRatingScore: null,
+        }
       }
       return {
         ok: true,
@@ -116,6 +193,12 @@ function stubCatalogRequests(withAnime = false, withSeries = false, withCompany 
       }
     }),
   )
+}
+
+function seriesWorksQueries() {
+  return vi.mocked(fetch).mock.calls
+    .map(([input]) => new URL(String(input), 'http://localhost'))
+    .filter((url) => /^\/api\/series\/[^/]+\/works$/.test(url.pathname))
 }
 
 describe('工作台页面标签', () => {
@@ -130,8 +213,86 @@ describe('工作台页面标签', () => {
     await flushPromises()
 
     expect(document.body.querySelector('.anime-crud-drawer')?.textContent).toContain('测试动画')
+    expect(document.body.querySelector('.anime-crud-drawer')?.textContent).toContain('未关联系列')
+    expect(seriesWorksQueries()).toHaveLength(0)
     expect(router.currentRoute.value.path).toBe('/admin/anime')
     expect(wrapper.findAll('.workspace-tab')).toHaveLength(tabCount)
+    wrapper.unmount()
+  })
+
+  it('动画和书籍详情展示混合系列作品，支持翻页和同 ID 跨类型切换', async () => {
+    stubCatalogRequests(true, true)
+    sessionStorage.setItem('acgbox-user', JSON.stringify({ id: 1, username: 'admin', role: 'ADMIN' }))
+    await router.push('/admin/dashboard')
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+    await openAnimeList(wrapper)
+    await wrapper.find('.anime-table .work-title').trigger('click')
+    await flushPromises()
+    const series = () => document.querySelector<HTMLElement>('.series-works')!
+    expect(series().textContent).toContain('测试系列说明')
+    expect(series().querySelector('[aria-current]')?.textContent).toContain('测试动画')
+    expect(series().textContent).toContain('轻小说')
+    expect(seriesWorksQueries()[0]?.pathname).toBe('/api/series/7/works')
+    expect(seriesWorksQueries()[0]?.search).toBe('?pageNum=1&pageSize=20')
+
+    series().querySelector<HTMLButtonElement>('[aria-label="下一页系列作品"]')!.click()
+    await flushPromises()
+    expect(series().textContent).toContain('测试系列续作')
+    expect(series().textContent).toContain('日期未填写')
+    expect(seriesWorksQueries().slice(-1)[0]?.search).toBe('?pageNum=2&pageSize=20')
+    series().querySelector<HTMLButtonElement>('[aria-label="系列作品每页条数"]')!.click()
+    await flushPromises()
+    Array.from(series().querySelectorAll<HTMLButtonElement>('[role="option"]'))
+      .find((option) => option.textContent?.trim() === '10 条')!
+      .click()
+    await flushPromises()
+    expect(seriesWorksQueries().slice(-1)[0]?.search).toBe('?pageNum=1&pageSize=10')
+
+    series().querySelector<HTMLButtonElement>('[aria-label="查看书籍详情：测试系列原作"]')!.click()
+    await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/book'))
+    await vi.dynamicImportSettled()
+    await vi.waitFor(() =>
+      expect(series()?.querySelector('[aria-current]')?.textContent ?? '').toContain('测试系列原作'),
+    )
+    expect(router.currentRoute.value.path).toBe('/admin/book')
+    const tabCount = wrapper.findAll('.workspace-tab').length
+    series().querySelector<HTMLButtonElement>('[aria-label="查看动画详情：测试动画"]')!.click()
+    await vi.waitFor(() =>
+      expect(series()?.querySelector('[aria-current]')?.textContent ?? '').toContain('测试动画'),
+    )
+    expect(router.currentRoute.value.path).toBe('/admin/anime')
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(tabCount)
+
+    series().querySelector<HTMLButtonElement>('[aria-label="下一页系列作品"]')!.click()
+    await flushPromises()
+    series().querySelector<HTMLButtonElement>('[aria-label="查看动画详情：测试系列续作"]')!.click()
+    await flushPromises()
+    expect(document.querySelector('.anime-detail-title-copy h2')?.textContent).toBe('测试系列续作')
+    expect(router.currentRoute.value.path).toBe('/admin/anime')
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(tabCount)
+    expect(
+      vi.mocked(fetch).mock.calls.some(([input]) => String(input).endsWith('/series/7')),
+    ).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('系列局部请求失败时保留动画详情并允许单独重试', async () => {
+    stubCatalogRequests(true, true, false, true)
+    await router.push('/admin/dashboard')
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+    await openAnimeList(wrapper)
+    await wrapper.find('.anime-table .work-title').trigger('click')
+    await flushPromises()
+    const drawer = document.querySelector('.anime-crud-drawer')!
+    expect(drawer.querySelector('.anime-detail-title-copy h2')?.textContent).toBe('测试动画')
+    const error = drawer.querySelector('.series-works [role="alert"]')!
+    expect(error.textContent).toContain('系列作品暂时无法读取')
+    error.querySelector<HTMLButtonElement>('button')!.click()
+    await flushPromises()
+    expect(seriesWorksQueries().map((url) => url.searchParams.get('pageNum'))).toEqual(['1', '1'])
+    expect(
+      vi.mocked(fetch).mock.calls.filter(([input]) => String(input).endsWith('/anime/15')),
+    ).toHaveLength(1)
     wrapper.unmount()
   })
 

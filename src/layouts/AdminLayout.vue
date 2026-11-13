@@ -43,6 +43,7 @@ interface TabCloseState {
 
 interface CloseAwarePage {
   getCloseState?: () => TabCloseState
+  openAnimeDetail?: (id: number) => Promise<void>
   openBookDetail?: (id: number) => void
 }
 
@@ -143,6 +144,7 @@ const canCloseOtherTabs = computed(() =>
 provide('returnToAnimeList', returnToAnimeList)
 provide('navigateLinkedContent', navigateLinkedContent)
 provide('returnToBookList', returnToBookList)
+provide('openAnimeDetail', openAnimeDetail)
 provide('openBookDetail', openBookDetail)
 
 watch(
@@ -439,6 +441,22 @@ async function returnToAnimeList(createFullPath: string) {
 
   if (pendingTabClose.value?.ids.includes(createTab.id)) pendingTabClose.value = null
   await finishClosingTabs([createTab.id], null)
+}
+
+// 系列内的动画按 ID 打开，优先复用已有列表。编辑中的列表保留草稿。
+async function openAnimeDetail(id: number) {
+  const tab =
+    workspaceTabs.value.find(
+      (item) => item.id === lastAnimeTabId.value && item.path === '/admin/anime',
+    ) ?? workspaceTabs.value.find((item) => item.path === '/admin/anime')
+  const state = tab && getCloseState(tab)
+  if (!tab || state?.dirty || state?.submitting) {
+    await router.push({ name: 'admin-anime-detail', params: { id } })
+    return
+  }
+  await activateTab(tab)
+  await nextTick()
+  if (route.fullPath === tab.fullPath) await pageInstances.get(tab.id)?.openAnimeDetail?.(id)
 }
 
 // 书籍关联按标识打开详情，复用已有列表实例与筛选状态，由列表自行保护未保存表单。

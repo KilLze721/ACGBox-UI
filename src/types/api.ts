@@ -170,6 +170,21 @@ export interface SeriesSummary extends NamedOption {
   description: string | null
 }
 
+// 系列作品列表混合返回动画和书籍，同一数字 ID 可出现在不同类型中。
+export interface SeriesWork {
+  workType: 'ANIME' | 'BOOK'
+  workId: number
+  name: string
+  coverImageUrl: string | null
+  releaseDate: string | null
+  bookTypeName: string | null
+}
+
+export interface SeriesWorksResult {
+  series: SeriesSummary
+  works: PageResult<SeriesWork>
+}
+
 export interface AnimePageItem {
   id: number
   name: string

@@ -17,6 +17,7 @@ import { routeLocationKey } from 'vue-router'
 import { deleteAnime, getAnimeDetail, getAnimePage } from '@/api/anime'
 import { getAdaptationTypes, getBroadcastTypes, getRegions, getTags } from '@/api/catalog'
 import type {
+  AnimeDetail,
   AnimePageItem,
   AnimePageQuery,
   AnimeSortField,
@@ -180,8 +181,9 @@ function getCloseState() {
   }
 }
 
-defineExpose({ getCloseState })
+defineExpose({ getCloseState, openAnimeDetail: openLinkedDetail })
 const drawerAnime = ref<AnimePageItem | null>(null)
+const drawerInitialDetail = ref<AnimeDetail>()
 const toast = ref<{ title: string; message: string; type: 'success' | 'error' } | null>(null)
 const page = ref<PageResult<AnimePageItem>>({
   pageNum: 1,
@@ -204,6 +206,7 @@ const tags = ref<NamedOption[]>([])
 let pageController: AbortController | undefined
 let catalogController: AbortController | undefined
 let statsController: AbortController | undefined
+let linkedDetailController: AbortController | undefined
 let toastTimer: number | undefined
 let hasActivated = false
 
@@ -357,6 +360,7 @@ onActivated(() => {
 
 onDeactivated(() => {
   showTagDropdown.value = false
+  linkedDetailController?.abort()
 })
 
 onBeforeUnmount(() => {
@@ -364,6 +368,7 @@ onBeforeUnmount(() => {
   pageController?.abort()
   catalogController?.abort()
   statsController?.abort()
+  linkedDetailController?.abort()
   if (toastTimer) window.clearTimeout(toastTimer)
 })
 
@@ -738,7 +743,9 @@ async function confirmDelete() {
   }
 }
 
-function openCrudDrawer(mode: 'detail' | 'edit', anime: AnimePageItem) {
+function openCrudDrawer(mode: 'detail' | 'edit', anime: AnimePageItem, detail?: AnimeDetail) {
+  linkedDetailController?.abort()
+  drawerInitialDetail.value = detail
   drawerAnime.value = anime
   drawerMode.value = mode
 }
@@ -747,16 +754,28 @@ async function openLinkedDetail(selectedId?: number) {
   if (!route) return
   const id = selectedId ?? Number(route.query.detail)
   if (!Number.isInteger(id) || id <= 0 || route.fullPath !== ownerFullPath) return
+  if (selectedId === undefined && route.query.from === 'data-quality' && drawerMode.value) return
+  const cachedRow = page.value.rows.find((row) => row.id === id)
+  if (cachedRow) {
+    openCrudDrawer('detail', cachedRow)
+    return
+  }
+  // 连续打开或关闭关联详情时取消旧查询，已读到的详情交给抽屉直接使用。
+  linkedDetailController?.abort()
+  const request = new AbortController()
+  linkedDetailController = request
   try {
-    const detail = await getAnimeDetail(id)
+    const detail = await getAnimeDetail(id, request.signal)
+    if (request.signal.aborted) return
     let anime: AnimePageItem | undefined
     try {
-      anime = (await getAnimePage({ pageNum: 1, pageSize: 20, keyword: detail.name })).rows.find(
-        (row) => row.id === id,
-      )
+      anime = (
+        await getAnimePage({ pageNum: 1, pageSize: 20, keyword: detail.name }, request.signal)
+      ).rows.find((row) => row.id === id)
     } catch {
       /* 详情接口成功时仍可展示基础资料。 */
     }
+    if (request.signal.aborted) return
     if (!anime) {
       anime = {
         id: detail.id,
@@ -785,15 +804,16 @@ async function openLinkedDetail(selectedId?: number) {
             : { id: detail.seriesId, name: `#${detail.seriesId}`, description: null },
       }
     }
-    if (route.fullPath === ownerFullPath && (route.query.from !== 'data-quality' || !drawerMode.value))
-      openCrudDrawer('detail', anime)
-  } catch (error) {
     if (route.fullPath === ownerFullPath)
+      openCrudDrawer('detail', anime, detail)
+  } catch (error) {
+    if (!request.signal.aborted && route.fullPath === ownerFullPath)
       showToast('详情读取失败', error instanceof Error ? error.message : '请稍后重试。', 'error')
   }
 }
 
 function closeCrudDrawer() {
+  linkedDetailController?.abort()
   drawerMode.value = null
 }
 
@@ -1719,9 +1739,11 @@ function markCoverBroken(url: string) {
       :mode="drawerMode"
       :anime-id="drawerAnime.id"
       :anime="drawerAnime"
+      :initial-detail="drawerInitialDetail"
       @close="closeCrudDrawer"
       @saved="handleAnimeSaved"
-      @edit="drawerMode = 'edit'"
+      @edit="openCrudDrawer('edit', drawerAnime)"
+      @select-anime="openLinkedDetail"
       @delete="handleDrawerDelete"
     />
 

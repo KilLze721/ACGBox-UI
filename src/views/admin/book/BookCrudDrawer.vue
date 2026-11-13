@@ -2,6 +2,7 @@
 /** 书籍详情及编辑抽屉：复用动画抽屉样式，关联资料加载失败不会清空基础详情。 */
 import {
   computed,
+  inject,
   nextTick,
   onActivated,
   onBeforeUnmount,
@@ -12,14 +13,14 @@ import {
 import { useRoute, useRouter } from 'vue-router'
 import { getBookDetail, getBookTypes } from '@/api/book'
 import { getAdaptationTypes, getCompanyById, getRegions } from '@/api/catalog'
-import { getSeriesById } from '@/api/series'
 import { getTagById } from '@/api/tags'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
+import SeriesWorks from '@/components/admin/SeriesWorks.vue'
 import BookEditorForm from './BookEditorForm.vue'
 import { bookStatusNames } from '@/config/bookFormOptions'
 import { useModalLayer } from '@/utils/useModalLayer'
-import type { NamedOption } from '@/types/api'
+import type { NamedOption, SeriesWork } from '@/types/api'
 import type { BookDetail } from '@/types/book'
 
 const props = defineProps<{ mode: 'detail' | 'edit'; bookId: number }>()
@@ -28,10 +29,12 @@ const emit = defineEmits<{
   saved: [book: BookDetail]
   edit: []
   delete: [book: BookDetail]
+  selectBook: [id: number]
 }>()
 const route = useRoute(),
   router = useRouter(),
   ownerFullPath = route.fullPath
+const openAnimeDetail = inject<((id: number) => Promise<void>) | null>('openAnimeDetail', null)
 const active = ref(true)
 const visible = computed(() => active.value && route.fullPath === ownerFullPath)
 const detail = ref<BookDetail | null>(null)
@@ -41,8 +44,7 @@ const loading = ref(false),
 const bookTypes = ref<NamedOption[]>([]),
   adaptations = ref<NamedOption[]>([]),
   regions = ref<NamedOption[]>([])
-const companyNames = ref<Record<number, string>>({}),
-  seriesName = ref('')
+const companyNames = ref<Record<number, string>>({})
 const tagNames = ref<Record<number, string>>({})
 const editorForm = ref<InstanceType<typeof BookEditorForm>>()
 const drawer = useModalLayer(visible, requestClose)
@@ -84,7 +86,6 @@ async function loadDetail() {
 async function loadRelations(book: BookDetail, signal: AbortSignal) {
   relationError.value = ''
   companyNames.value = {}
-  seriesName.value = ''
   tagNames.value = {}
   const results = await Promise.allSettled([
     getBookTypes(signal).then((value) => {
@@ -106,13 +107,6 @@ async function loadRelations(book: BookDetail, signal: AbortSignal) {
         if (!signal.aborted) tagNames.value[value.id] = value.name
       }),
     ),
-    ...(book.seriesId === null
-      ? []
-      : [
-          getSeriesById(book.seriesId, signal).then((value) => {
-            if (!signal.aborted) seriesName.value = value.name
-          }),
-        ]),
   ])
   if (!signal.aborted && results.some((result) => result.status === 'rejected'))
     relationError.value = '部分关联资料名称读取失败，基础档案仍可查看，请重试。'
@@ -130,6 +124,21 @@ async function openReference(path: string, name: string, id: number) {
   emit('close')
   await nextTick()
   await router.push({ path, query: { name, detail: String(id) } })
+}
+// 系列简介与作品由同一个接口返回，保留系列名称原有的详情跳转。
+function openSeriesDetail(name: string) {
+  const id = detail.value?.seriesId
+  if (id != null) void openReference('/admin/series', name, id)
+}
+// 同类型作品直接在书籍列表中切换详情，动画交给动画管理页打开。
+function openSeriesWork(work: SeriesWork) {
+  if (work.workType === 'BOOK') {
+    emit('selectBook', work.workId)
+    return
+  }
+  emit('close')
+  if (openAnimeDetail) void openAnimeDetail(work.workId)
+  else void router.push({ name: 'admin-anime-detail', params: { id: work.workId } })
 }
 function safeUrl(value: string) {
   try {
@@ -326,21 +335,19 @@ function safeUrl(value: string) {
                     ><i v-if="!detail.companies.length">暂无关联公司</i>
                   </div>
                 </div>
-                <div>
+                <div v-if="detail.seriesId === null">
                   <span>所属系列</span>
-                  <div class="anime-detail-chips">
-                    <button
-                      v-if="detail.seriesId !== null"
-                      class="anime-detail-series-link"
-                      type="button"
-                      :disabled="!seriesName"
-                      @click="openReference('/admin/series', seriesName, detail.seriesId)"
-                    >
-                      {{ seriesName || '系列名称读取中' }}</button
-                    ><i v-else>未关联系列</i>
-                  </div>
+                  <div class="anime-detail-chips"><i>未关联系列</i></div>
                 </div>
               </div>
+              <SeriesWorks
+                v-if="detail.seriesId !== null"
+                :series-id="detail.seriesId"
+                work-type="BOOK"
+                :work-id="detail.id"
+                @open-series="openSeriesDetail"
+                @select="openSeriesWork"
+              />
             </section>
             <section class="anime-detail-card">
               <div class="anime-detail-section-head">

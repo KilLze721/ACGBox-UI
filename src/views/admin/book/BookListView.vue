@@ -1436,6 +1436,7 @@ function safeUrl(value: string | null) {
       :book-id="drawerId"
       @close="closeDrawer"
       @edit="openDrawer('edit', drawerId!)"
+      @select-book="openDrawer('detail', $event)"
       @saved="handleSaved"
       @delete="openDelete($event)"
     />

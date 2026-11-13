@@ -1,5 +1,5 @@
 import { get, post } from './http'
-import type { PageResult, SeriesSummary, SortDirection } from '@/types/api'
+import type { PageResult, SeriesSummary, SeriesWorksResult, SortDirection } from '@/types/api'
 
 export interface SeriesPayload {
   name: string
@@ -23,6 +23,11 @@ export function getSeriesPage(
 
 export function getSeriesById(id: number, signal?: AbortSignal) {
   return get<SeriesSummary>(`/series/${id}`, {}, signal)
+}
+
+// 在同一个请求中读取系列简介及按日期排列的作品页。
+export function getSeriesWorks(id: number, pageNum: number, pageSize: number, signal?: AbortSignal) {
+  return get<SeriesWorksResult>(`/series/${id}/works`, { pageNum, pageSize }, signal)
 }
 
 export function createSeries(payload: SeriesPayload, signal?: AbortSignal) {
