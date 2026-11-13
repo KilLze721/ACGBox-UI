@@ -362,11 +362,12 @@ async function loadCatalogs() {
       if (!request.signal.aborted) regions.value = value
     }),
     (async () => {
-      const first = await getTags(1, 100, request.signal)
+      // 每页沿用服务端首字母正序，按页码合并标签选项。
+      const loadTagPage = (pageNum: number) =>
+        getTags(pageNum, 100, request.signal, 'NAME_INITIAL', 'ASC')
+      const first = await loadTagPage(1)
       const rest = await Promise.all(
-        Array.from({ length: Math.max(0, first.pages - 1) }, (_, index) =>
-          getTags(index + 2, 100, request.signal),
-        ),
+        Array.from({ length: Math.max(0, first.pages - 1) }, (_, index) => loadTagPage(index + 2)),
       )
       if (!request.signal.aborted)
         tags.value = first.rows.concat(rest.flatMap((result) => result.rows))

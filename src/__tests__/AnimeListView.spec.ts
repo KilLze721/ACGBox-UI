@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import AnimeListView from '@/views/admin/anime/AnimeListView.vue'
 import BookListView from '@/views/admin/book/BookListView.vue'
 import router from '@/router'
+import { notifyCatalogChanged } from '@/utils/catalogChanges'
 
 const animeRow = {
   id: 15,
@@ -28,6 +29,80 @@ afterEach(() => {
 })
 
 describe('动画管理分页查询页面', () => {
+  it.each([
+    ['anime', AnimeListView],
+    ['book', BookListView],
+  ] as const)('%s标签筛选跨页显示首字母正序，刷新保留已选标签', async (kind, view) => {
+    const tags = [
+      { id: 9, name: 'A Note' },
+      { id: 7, name: 'A Notes' },
+      ...Array.from({ length: 98 }, (_, index) => ({
+        id: 200 - index,
+        name: `M 标签 ${200 - index}`,
+      })),
+      { id: 3, name: 'Z Note' },
+      { id: 1, name: '123 Note' },
+    ]
+    const tagQueries: URL[] = []
+    const listQueries: URL[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = new URL(String(input), 'http://localhost')
+        const pageNum = Number(url.searchParams.get('pageNum'))
+        const pageSize = Number(url.searchParams.get('pageSize'))
+        let data: unknown = []
+        if (url.pathname.endsWith('/tags/page')) {
+          tagQueries.push(url)
+          // 模拟服务端按请求参数决定全量顺序，再按页切分。
+          const sorted =
+            url.searchParams.get('sortBy') === 'NAME_INITIAL' &&
+            url.searchParams.get('sortDirection') === 'ASC'
+          const rows = sorted ? tags : [...tags].reverse()
+          data = {
+            pageNum,
+            pageSize,
+            total: tags.length,
+            pages: Math.ceil(tags.length / pageSize),
+            rows: rows.slice((pageNum - 1) * pageSize, pageNum * pageSize),
+          }
+        } else if (url.pathname.endsWith(`/${kind}/page`)) {
+          listQueries.push(url)
+          data = { pageNum, pageSize, total: 0, pages: 0, rows: [] }
+        }
+        return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
+      }),
+    )
+    sessionStorage.setItem('acgbox-user', JSON.stringify({ id: 1, username: 'admin', role: 'ADMIN' }))
+    await router.push(`/admin/${kind}`)
+    const wrapper = mount(view, { global: { plugins: [router] } })
+    await flushPromises()
+
+    await wrapper.get('.multi-select-trigger').trigger('click')
+    const options = () => wrapper.findAll('.tag-dropdown-panel [role="option"]')
+    expect(options().map((option) => option.text())).toEqual(tags.map((tag) => tag.name))
+
+    await wrapper.get('.tag-dropdown-panel input').setValue('note')
+    expect(options().map((option) => option.text())).toEqual([
+      'A Note',
+      'A Notes',
+      'Z Note',
+      '123 Note',
+    ])
+    await options().find((option) => option.text() === 'Z Note')!.trigger('click')
+    notifyCatalogChanged('adaptation')
+    await flushPromises()
+
+    expect(tagQueries.map((query) => query.searchParams.get('pageNum'))).toEqual(['1', '2', '1', '2'])
+    expect(options().find((option) => option.text() === 'Z Note')?.attributes('aria-selected')).toBe(
+      'true',
+    )
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(listQueries[listQueries.length - 1]?.searchParams.get('tagIds')).toBe('3')
+    wrapper.unmount()
+  })
+
   it.each([
     ['anime', AnimeListView],
     ['book', BookListView],

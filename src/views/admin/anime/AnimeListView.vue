@@ -447,11 +447,13 @@ async function loadCatalogs() {
 }
 
 async function getAllTags(signal: AbortSignal) {
-  const firstPage = await getTags(1, 100, signal)
+  // 每页沿用服务端首字母正序，按页码合并标签选项。
+  const loadTagPage = (pageNum: number) => getTags(pageNum, 100, signal, 'NAME_INITIAL', 'ASC')
+  const firstPage = await loadTagPage(1)
   if (firstPage.pages <= 1) return firstPage.rows
 
   const remainingPages = await Promise.all(
-    Array.from({ length: firstPage.pages - 1 }, (_, index) => getTags(index + 2, 100, signal)),
+    Array.from({ length: firstPage.pages - 1 }, (_, index) => loadTagPage(index + 2)),
   )
   return firstPage.rows.concat(remainingPages.flatMap((item) => item.rows))
 }
