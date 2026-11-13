@@ -619,7 +619,7 @@ function safeUrl(value: string | null) {
         <p class="eyebrow">Content Archive / Books</p>
         <h1>书籍管理 <span>BOOK INDEX</span></h1>
         <p class="hero-description">
-          统一编目小说、轻小说、漫画与其他图书，记录原作资料、创作关系和站长个人评分。
+          统一编目小说、轻小说、漫画与其他图书，记录原作资料、创作关系和个人评分。
         </p>
       </div>
       <div class="hero-actions">
