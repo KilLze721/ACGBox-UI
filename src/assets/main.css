@@ -232,6 +232,16 @@ svg {
   transform: rotate(26deg);
 }
 
+/* 侧栏使用透明角色图，保持与折叠栏宽度匹配的标识尺寸。 */
+.brand > img.brand-mark {
+  display: block;
+  object-fit: contain;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .brand-copy {
   min-width: 0;
   line-height: 1.1;

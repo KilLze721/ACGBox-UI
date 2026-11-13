@@ -21,6 +21,7 @@ import {
 } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { logout } from '@/api/auth'
+import brandImage from '@/assets/acgbox-brand-mark.png'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import { clearLogin, getCurrentUser, getToken } from '@/utils/auth'
 import { effectiveDarkTheme, initializeTheme, setThemeMode, themeMode } from '@/utils/preferences'
@@ -575,7 +576,8 @@ function toggleTheme() {
   >
     <aside class="sidebar" aria-label="主导航">
       <RouterLink class="brand" to="/admin/dashboard" aria-label="返回数据概览">
-        <span class="brand-mark" aria-hidden="true">A</span>
+        <!-- 品牌图与文字共用返回数据概览的链接。 -->
+        <img class="brand-mark" :src="brandImage" alt="" width="38" height="38" />
         <span class="brand-copy">
           <span class="brand-name">ACGBox</span>
           <span class="brand-caption">Archive System</span>
