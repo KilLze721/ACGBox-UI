@@ -175,7 +175,8 @@ watch([drawerVisible, modalVisible], ([hasDrawer, hasModal]) => {
 watch(drawerVisible, async (visible) => {
   await nextTick()
   if (visible) drawer.value?.focus()
-  else if (tabActive.value) drawerTrigger?.focus()
+  // 恢复焦点时保留列表滚动位置。
+  else if (tabActive.value) drawerTrigger?.focus({ preventScroll: true })
 })
 watch(
   () => deleteTargets.value.length,
@@ -265,13 +266,17 @@ async function loadPage(pageNum: number) {
       nameSortDirection.value,
     )
     if (controller.signal.aborted) return
+    // 超出末页时等有效分页返回后再替换现有列表。
+    if (!result.rows.length && pageNum > Math.max(result.pages, 1)) {
+      await loadPage(Math.max(result.pages, 1))
+      return
+    }
     page.value = result
     jumpPage.value = String(result.pageNum)
     result.rows.forEach((person) => {
       if (selectedPersons.value.has(person.id)) selectedPersons.value.set(person.id, person)
     })
     if (!appliedName.value) totalPersons.value = result.total
-    if (!result.rows.length && pageNum > 1) await loadPage(Math.max(result.pages, 1))
   } catch (error) {
     if (!controller.signal.aborted)
       listError.value = messageOf(error, '人物档案读取失败，请稍后重试。')
@@ -516,7 +521,7 @@ async function confirmDelete() {
         </div>
       </article>
     </section>
-    <section class="persons-list-card management-list-card" aria-labelledby="personsListTitle">
+    <section class="persons-list-card management-list-card" aria-labelledby="personsListTitle" :aria-busy="listLoading">
       <header class="persons-list-header management-list-header">
         <div>
           <h2 id="personsListTitle">人物档案</h2>
@@ -562,7 +567,8 @@ async function confirmDelete() {
       </div>
       <div class="persons-table-scroll management-table-scroll">
         <table
-          v-if="!listLoading && !listError && page.rows.length"
+          v-if="!listError && page.rows.length"
+          :inert="listLoading"
           class="persons-table management-table"
         >
           <thead>
@@ -687,7 +693,7 @@ async function confirmDelete() {
           </button>
         </div>
       </div>
-      <footer class="persons-pagination management-pagination">
+      <footer class="persons-pagination management-pagination" :inert="listLoading">
         <span>{{ pageSummary }}</span>
         <div class="persons-page-controls management-page-controls">
           <ArchiveSelect

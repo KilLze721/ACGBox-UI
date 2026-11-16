@@ -298,7 +298,7 @@ async function confirmDelete() {
       </article>
     </section>
 
-    <section class="broadcast-list-card management-list-card" aria-labelledby="broadcastListTitle">
+    <section class="broadcast-list-card management-list-card" aria-labelledby="broadcastListTitle" :aria-busy="loading">
       <header class="broadcast-list-header management-list-header">
         <div>
           <h2 id="broadcastListTitle">放送类型词条</h2>
@@ -332,7 +332,8 @@ async function confirmDelete() {
       </form>
       <div class="broadcast-table-scroll management-table-scroll">
         <table
-          v-if="!loading && !listError && filteredTypes.length"
+          v-if="!listError && filteredTypes.length"
+          :inert="loading"
           class="broadcast-table management-table"
         >
           <thead>

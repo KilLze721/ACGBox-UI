@@ -230,11 +230,15 @@ async function loadPage(pageNum: number) {
       nameSortDirection.value,
     )
     if (pageController !== controller) return
+    // 先回到有效分页，避免中间的空结果收起列表。
+    if (result.total > 0 && !result.rows.length && pageNum > 1) {
+      await loadPage(pageNum - 1)
+      return
+    }
     page.value = result
     jumpPage.value = String(result.pageNum)
     selectedIds.value = []
     if (!appliedName.value) totalSeries.value = result.total
-    if (result.total > 0 && result.rows.length === 0 && pageNum > 1) await loadPage(pageNum - 1)
   } catch (error) {
     if (controller.signal.aborted) return
     listError.value = messageOf(error, '系列档案读取失败，请稍后重试。')
@@ -441,7 +445,7 @@ function openRelatedBook(book: BookPageItem) {
       </article>
     </section>
 
-    <section class="series-list-card management-list-card" aria-labelledby="seriesListTitle">
+    <section class="series-list-card management-list-card" aria-labelledby="seriesListTitle" :aria-busy="listLoading">
       <header class="series-list-header management-list-header">
         <div>
           <h2 id="seriesListTitle">系列档案列表</h2>
@@ -483,7 +487,8 @@ function openRelatedBook(book: BookPageItem) {
       </form>
       <div class="series-table-scroll management-table-scroll">
         <table
-          v-if="!listLoading && !listError && page.rows.length"
+          v-if="!listError && page.rows.length"
+          :inert="listLoading"
           class="series-table management-table"
         >
           <thead>
@@ -598,7 +603,7 @@ function openRelatedBook(book: BookPageItem) {
           </button>
         </div>
       </div>
-      <footer class="series-pagination management-pagination">
+      <footer class="series-pagination management-pagination" :inert="listLoading">
         <span>第 {{ firstResult }}–{{ lastResult }} 条，共 {{ page.total }} 条</span>
         <div class="series-page-controls management-page-controls">
           <label class="page-size-wrap management-page-size-wrap">

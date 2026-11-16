@@ -2693,6 +2693,12 @@ html:has(body[data-theme='dark'] .app-shell),
   overflow: auto;
 }
 
+/* 已显示的结果在重新读取期间保留高度，降低对比度提示暂不可操作。 */
+.table-scroll > [inert],
+.management-table-scroll > [inert] {
+  opacity: 0.72;
+}
+
 .anime-table {
   width: 100%;
   min-width: 1240px;

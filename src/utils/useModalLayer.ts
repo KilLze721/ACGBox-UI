@@ -19,7 +19,8 @@ export function useModalLayer(open: MaybeRefOrGetter<boolean>, dismiss: () => vo
       document.documentElement.style.paddingRight = originalScroll.padding
       originalScroll = null
     }
-    if (opener?.isConnected && opener.getClientRects().length) opener.focus()
+    // 恢复键盘焦点时保留关闭前的页面滚动位置。
+    if (opener?.isConnected && opener.getClientRects().length) opener.focus({ preventScroll: true })
   }
   watch(
     () => toValue(open),

@@ -169,11 +169,15 @@ async function loadPage(pageNum: number) {
       nameSortDirection.value,
     )
     if (pageController !== controller) return
+    // 先回到有效分页，避免中间的空结果收起列表。
+    if (result.total > 0 && !result.rows.length && pageNum > 1) {
+      await loadPage(pageNum - 1)
+      return
+    }
     page.value = result
     jumpPage.value = String(result.pageNum)
     selectedIds.value = []
     if (!appliedName.value) totalTags.value = result.total
-    if (result.total > 0 && result.rows.length === 0 && pageNum > 1) await loadPage(pageNum - 1)
   } catch (error) {
     if (controller.signal.aborted) return
     listError.value = messageOf(error, '标签读取失败，请稍后重试。')
@@ -357,7 +361,7 @@ async function confirmDelete() {
       </article>
     </section>
 
-    <section class="tags-list-card management-list-card" aria-labelledby="tagsListTitle">
+    <section class="tags-list-card management-list-card" aria-labelledby="tagsListTitle" :aria-busy="listLoading">
       <header class="tags-list-header management-list-header">
         <div>
           <h2 id="tagsListTitle">标签词条列表</h2>
@@ -403,7 +407,11 @@ async function confirmDelete() {
         </button>
       </form>
       <div class="tags-table-scroll management-table-scroll">
-        <table v-if="!listLoading && !listError && page.rows.length" class="tags-table management-table">
+        <table
+          v-if="!listError && page.rows.length"
+          :inert="listLoading"
+          class="tags-table management-table"
+        >
           <thead>
             <tr>
               <th class="tags-check-cell management-check-cell">
@@ -491,7 +499,7 @@ async function confirmDelete() {
           </button>
         </div>
       </div>
-      <footer class="tags-pagination management-pagination">
+      <footer class="tags-pagination management-pagination" :inert="listLoading">
         <span>第 {{ firstResult }}–{{ lastResult }} 条，共 {{ page.total }} 条</span>
         <div class="tags-page-controls management-page-controls">
           <label class="page-size-wrap management-page-size-wrap"

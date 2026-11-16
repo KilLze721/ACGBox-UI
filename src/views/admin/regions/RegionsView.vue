@@ -271,7 +271,7 @@ async function confirmDelete() {
       </article>
     </section>
 
-    <section class="regions-list-card management-list-card" aria-labelledby="regionsListTitle">
+    <section class="regions-list-card management-list-card" aria-labelledby="regionsListTitle" :aria-busy="loading">
       <header class="regions-list-header management-list-header">
         <div>
           <h2 id="regionsListTitle">地区词条列表</h2>
@@ -305,7 +305,8 @@ async function confirmDelete() {
       </form>
       <div class="regions-table-scroll management-table-scroll">
         <table
-          v-if="!loading && !listError && filteredRegions.length"
+          v-if="!listError && filteredRegions.length"
+          :inert="loading"
           class="regions-table management-table"
         >
           <thead>

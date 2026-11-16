@@ -1279,7 +1279,7 @@ function markCoverBroken(url: string) {
       </form>
     </section>
 
-    <section class="card list-card" aria-labelledby="listTitle">
+    <section class="card list-card" aria-labelledby="listTitle" :aria-busy="loading">
       <div class="list-header">
         <div class="list-title">
           <h2 id="listTitle">动画资料列表</h2>
@@ -1328,8 +1328,9 @@ function markCoverBroken(url: string) {
 
       <div class="table-scroll">
         <table
-          v-if="viewMode === 'table' && !loading && !errorMessage && page.rows.length"
+          v-if="viewMode === 'table' && !errorMessage && page.rows.length"
           class="anime-table"
+          :inert="loading"
         >
           <caption class="sr-only">
             动画资料分页列表
@@ -1489,8 +1490,9 @@ function markCoverBroken(url: string) {
         </table>
 
         <div
-          v-if="viewMode === 'cards' && !loading && !errorMessage && page.rows.length"
+          v-if="viewMode === 'cards' && !errorMessage && page.rows.length"
           class="anime-card-grid"
+          :inert="loading"
         >
           <article v-for="anime in page.rows" :key="anime.id" class="anime-work-card">
             <label class="transfer-card-selection"
@@ -1609,7 +1611,7 @@ function markCoverBroken(url: string) {
 
         <div
           class="skeleton-body"
-          :class="{ visible: loading }"
+          :class="{ visible: loading && !page.rows.length }"
           aria-live="polite"
           aria-label="正在加载动画数据"
         >
@@ -1662,7 +1664,7 @@ function markCoverBroken(url: string) {
         </div>
       </div>
 
-      <div v-if="!loading && !errorMessage && page.total" class="pagination">
+      <div v-if="!errorMessage && page.total" class="pagination" :inert="loading">
         <div class="page-summary">
           第 <strong>{{ resultRange.match(/\d+–\d+/)?.[0] }}</strong> 条，共
           <strong>{{ page.total }}</strong> 条 · {{ page.pageNum }}/{{ page.pages }} 页

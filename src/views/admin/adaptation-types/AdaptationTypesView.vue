@@ -303,6 +303,7 @@ async function confirmDelete() {
     <section
       class="adaptation-list-card management-list-card"
       aria-labelledby="adaptationListTitle"
+      :aria-busy="loading"
     >
       <header class="adaptation-list-header management-list-header">
         <div>
@@ -340,7 +341,8 @@ async function confirmDelete() {
       </form>
       <div class="adaptation-table-scroll management-table-scroll">
         <table
-          v-if="!loading && !listError && filteredTypes.length"
+          v-if="!listError && filteredTypes.length"
+          :inert="loading"
           class="adaptation-table management-table"
         >
           <thead>

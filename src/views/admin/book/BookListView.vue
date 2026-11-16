@@ -979,7 +979,7 @@ function safeUrl(value: string | null) {
         </div>
       </form>
     </section>
-    <section class="card list-card" aria-labelledby="bookListTitle">
+    <section class="card list-card" aria-labelledby="bookListTitle" :aria-busy="loading">
       <div class="list-header">
         <div class="list-title">
           <h2 id="bookListTitle">书籍资料列表</h2>
@@ -1025,7 +1025,7 @@ function safeUrl(value: string | null) {
       </div>
       <div class="table-scroll">
         <div
-          v-if="loading"
+          v-if="loading && !page.rows.length"
           class="skeleton-body visible"
           role="status"
           aria-label="正在加载书籍数据"
@@ -1079,7 +1079,7 @@ function safeUrl(value: string | null) {
             </button>
           </div>
         </div>
-        <table v-else-if="viewMode === 'table'" class="anime-table book-list-table">
+        <table v-else-if="viewMode === 'table'" class="anime-table book-list-table" :inert="loading">
           <caption class="sr-only">
             书籍资料分页列表
           </caption>
@@ -1244,7 +1244,7 @@ function safeUrl(value: string | null) {
             </tr>
           </tbody>
         </table>
-        <div v-else class="book-card-grid">
+        <div v-else class="book-card-grid" :inert="loading">
           <article v-for="book in page.rows" :key="book.id" class="book-work-card">
             <label class="transfer-card-selection"
               ><input v-model="selectedIds" type="checkbox" :value="book.id" />勾选导出</label
@@ -1359,7 +1359,7 @@ function safeUrl(value: string | null) {
           </article>
         </div>
       </div>
-      <footer v-if="!loading && !errorMessage && page.total" class="pagination">
+      <footer v-if="!errorMessage && page.total" class="pagination" :inert="loading">
         <div class="page-summary">
           第 <strong>{{ resultRange.match(/\d+–\d+/)?.[0] }}</strong> 条，共
           <strong>{{ page.total }}</strong> 条 · {{ page.pageNum }}/{{ page.pages }} 页

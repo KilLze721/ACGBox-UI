@@ -368,7 +368,8 @@ function closeDrawer() {
   currentAccount.value = null
   editingField.value = null
   clearPasswords()
-  if (drawerOpener?.isConnected) drawerOpener.focus()
+  // 恢复焦点时保留列表滚动位置。
+  if (drawerOpener?.isConnected) drawerOpener.focus({ preventScroll: true })
 }
 async function openDetail(id: number) {
   if (busy.value) return
@@ -646,7 +647,11 @@ async function submitAction() {
         </div>
       </form>
       <div class="table-scroll management-table-scroll">
-        <table v-if="!loading && !listError && page.rows.length" class="user-table management-table">
+        <table
+          v-if="!listError && page.rows.length"
+          :inert="loading"
+          class="user-table management-table"
+        >
           <thead>
             <tr>
               <th scope="col">账号</th>
@@ -711,7 +716,7 @@ async function submitAction() {
         </table>
       </div>
       <div
-        v-if="loading || listError || !page.rows.length"
+        v-if="listError || !page.rows.length"
         class="empty-state management-list-state"
         :class="{ 'is-error': !!listError }"
         :role="listError ? 'alert' : 'status'"
@@ -751,7 +756,7 @@ async function submitAction() {
           新增用户
         </button>
       </div>
-      <footer class="pagination management-pagination">
+      <footer class="pagination management-pagination" :inert="loading">
         <span class="page-summary"
           >共 {{ page.total }} 条 · 当前 {{ firstResult }}–{{ lastResult }} 条</span
         >

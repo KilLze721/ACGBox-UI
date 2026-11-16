@@ -236,11 +236,15 @@ async function loadPage(pageNum: number) {
       nameSortDirection.value,
     )
     if (pageController !== controller) return
+    // 先回到有效分页，避免中间的空结果收起列表。
+    if (result.total > 0 && !result.rows.length && pageNum > 1) {
+      await loadPage(pageNum - 1)
+      return
+    }
     page.value = result
     jumpPage.value = String(result.pageNum)
     selectedIds.value = []
     if (!appliedName.value) totalCompanies.value = result.total
-    if (result.total > 0 && result.rows.length === 0 && pageNum > 1) await loadPage(pageNum - 1)
   } catch (error) {
     if (!controller.signal.aborted)
       listError.value = messageOf(error, '公司档案读取失败，请稍后重试。')
@@ -513,7 +517,7 @@ async function confirmDelete() {
       </article>
     </section>
 
-    <section class="companies-list-card management-list-card" aria-labelledby="companiesListTitle">
+    <section class="companies-list-card management-list-card" aria-labelledby="companiesListTitle" :aria-busy="listLoading">
       <header class="companies-list-header management-list-header">
         <div>
           <h2 id="companiesListTitle">制作公司档案</h2>
@@ -555,7 +559,8 @@ async function confirmDelete() {
       </form>
       <div class="companies-table-scroll management-table-scroll">
         <table
-          v-if="!listLoading && !listError && page.rows.length"
+          v-if="!listError && page.rows.length"
+          :inert="listLoading"
           class="companies-table management-table"
         >
           <thead>
@@ -674,7 +679,7 @@ async function confirmDelete() {
           </button>
         </div>
       </div>
-      <footer class="companies-pagination management-pagination">
+      <footer class="companies-pagination management-pagination" :inert="listLoading">
         <span>第 {{ firstResult }}–{{ lastResult }} 条，共 {{ page.total }} 条</span>
         <div class="companies-page-controls management-page-controls">
           <label class="page-size-wrap management-page-size-wrap"
