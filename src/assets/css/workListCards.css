@@ -1,3 +1,17 @@
+/* 公开筛选独占一行，保留原有日期与评分分组的对齐。 */
+.work-visibility-filter {
+  grid-column: 1 / -1;
+  width: min(240px, 100%);
+}
+
+/* 两种状态垂直排列，继续使用各自标识的主题配色。 */
+.work-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
 .book-view-toggle,
 .anime-view-toggle {
   display: flex;

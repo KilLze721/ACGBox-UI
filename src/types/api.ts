@@ -187,6 +187,8 @@ export interface SeriesWorksResult {
 
 export interface AnimePageItem {
   id: number
+  // 管理端始终返回计算后的公开状态，书籍列表沿用此字段。
+  isPublic: boolean
   name: string
   aliasNames: string[]
   tags: NamedOption[]
@@ -206,6 +208,8 @@ export interface AnimePageItem {
 
 export interface AnimeDetail {
   id: number
+  // 无独立状态记录的历史作品由后端按公开返回。
+  isPublic: boolean
   name: string
   episodeCount: number | null
   broadcastTypeId: number
@@ -226,6 +230,8 @@ export interface AnimeDetail {
 
 export interface AnimePayload {
   id?: number
+  // 表单明确发送布尔值，保留隐藏状态的 false。
+  isPublic: boolean
   name: string
   episodeCount?: number | null
   broadcastTypeId: number
@@ -252,6 +258,8 @@ export type SortDirection = 'ASC' | 'DESC'
 export interface AnimePageQuery {
   pageNum: number
   pageSize: number
+  // 省略表示全部，false 表示只查隐藏作品。
+  isPublic?: boolean
   keyword?: string
   tagIds?: number[]
   tagMatchMode?: TagMatchMode

@@ -15,6 +15,8 @@ import { deleteBooks, getBookPage, getBookTypes } from '@/api/book'
 import { getAdaptationTypes, getRegions, getTags } from '@/api/catalog'
 import { searchRelatedEntities } from '@/api/relatedEntities'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import WorkVisibilityBadge from '@/components/admin/WorkVisibilityBadge.vue'
+import { workVisibilityOptions } from '@/config/workVisibility'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import WorkDataTransfer from '@/components/admin/WorkDataTransfer.vue'
 import WorkRelationsSummary from '@/components/admin/WorkRelationsSummary.vue'
@@ -44,6 +46,7 @@ const defaults = () => ({
   adaptationTypeId: '',
   regionId: '',
   status: '',
+  isPublic: '',
   publishStartDate: '',
   publishEndDate: '',
   companyId: '',
@@ -203,6 +206,7 @@ type FilterChipKey =
   | 'adaptationTypeId'
   | 'regionId'
   | 'status'
+  | 'isPublic'
   | 'companyId'
   | 'personId'
   | 'publishDate'
@@ -230,6 +234,7 @@ const advancedFilterCount = computed(
   () =>
     [
       filters.status,
+      filters.isPublic,
       filters.bookTypeId,
       filters.adaptationTypeId,
       filters.regionId,
@@ -244,6 +249,8 @@ const activeFilterChips = computed(() => {
   const chips: { key: FilterChipKey; label: string }[] = []
   const nameOf = (options: NamedOption[], id: string) =>
     options.find((option) => String(option.id) === id)?.name || '已选资料'
+  if (current.isPublic !== '')
+    chips.push({ key: 'isPublic', label: '公开展示：' + (current.isPublic === '1' ? '公开' : '隐藏') })
   if (current.keyword) chips.push({ key: 'keyword', label: '名称：' + current.keyword })
   if (current.tagIds.length)
     chips.push({
@@ -412,6 +419,8 @@ function buildQuery(pageNum: number): BookPageQuery {
     adaptationTypeId: id(current.adaptationTypeId),
     regionId: id(current.regionId),
     status: id(current.status),
+    // 空值查询全部，隐藏状态必须作为布尔 false 发送并沿用至导出。
+    isPublic: current.isPublic === '' ? undefined : current.isPublic === '1',
     publishStartDate: current.publishStartDate,
     publishEndDate: current.publishEndDate,
     companyId: id(current.companyId),
@@ -862,6 +871,16 @@ function safeUrl(value: string | null) {
                   :require-explicit-selection="true"
                 />
               </div>
+              <div class="field work-visibility-filter">
+                <label for="bookFilterVisibility">公开展示</label>
+                <ArchiveSelect
+                  id="bookFilterVisibility"
+                  v-model="filters.isPublic"
+                  :options="workVisibilityOptions"
+                  placeholder="全部作品"
+                  label="公开展示筛选"
+                />
+              </div>
               <div class="date-filter-group" :class="{ 'range-enabled': dateRangeEnabled }">
                 <div class="date-filter-head">
                   <div class="date-filter-title">
@@ -1171,9 +1190,12 @@ function safeUrl(value: string | null) {
                 }}</span>
               </td>
               <td class="status-cell">
-                <span class="status-badge" :class="'book-status-' + book.status">{{
-                  bookStatusNames[book.status]
-                }}</span>
+                <div class="work-status-stack">
+                  <span class="status-badge" :class="'book-status-' + book.status">{{
+                    bookStatusNames[book.status]
+                  }}</span>
+                  <WorkVisibilityBadge :is-public="book.isPublic" />
+                </div>
               </td>
               <td class="region-cell">
                 <span class="company-name">{{ book.region?.name || '—' }}</span>
@@ -1277,6 +1299,7 @@ function safeUrl(value: string | null) {
               </div>
             </div>
             <div class="book-card-meta">
+              <WorkVisibilityBadge :is-public="book.isPublic" />
               <span class="status-badge" :class="'book-status-' + book.status">{{
                 bookStatusNames[book.status]
               }}</span

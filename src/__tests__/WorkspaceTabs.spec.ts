@@ -147,6 +147,7 @@ function stubCatalogRequests(
         const isSequel = path.endsWith('/anime/16')
         data = {
           id: isSequel ? 16 : animeRow.id,
+          isPublic: false,
           name: isSequel ? '测试系列续作' : animeRow.name,
           episodeCount: animeRow.episodeCount,
           broadcastTypeId: 1,
@@ -168,6 +169,7 @@ function stubCatalogRequests(
         data = {
           id: 15,
           name: '测试系列原作',
+          isPublic: false,
           bookTypeId: 1,
           adaptationTypeId: 1,
           regionId: 1,
@@ -229,6 +231,8 @@ describe('工作台页面标签', () => {
     await wrapper.find('.anime-table .work-title').trigger('click')
     await flushPromises()
     const series = () => document.querySelector<HTMLElement>('.series-works')!
+    // 两类详情按真实返回值显示隐藏状态，不因跨类型切换改为公开。
+    expect(document.querySelector('.anime-detail-badges .work-visibility-badge')?.textContent?.trim()).toBe('隐藏')
     expect(series().textContent).toContain('测试系列说明')
     expect(series().querySelector('[aria-current]')?.textContent).toContain('测试动画')
     expect(series().textContent).toContain('轻小说')
@@ -255,6 +259,7 @@ describe('工作台页面标签', () => {
       expect(series()?.querySelector('[aria-current]')?.textContent ?? '').toContain('测试系列原作'),
     )
     expect(router.currentRoute.value.path).toBe('/admin/book')
+    expect(document.querySelector('.anime-detail-badges .work-visibility-badge')?.textContent?.trim()).toBe('隐藏')
     const tabCount = wrapper.findAll('.workspace-tab').length
     series().querySelector<HTMLButtonElement>('[aria-label="查看动画详情：测试动画"]')!.click()
     await vi.waitFor(() =>
@@ -498,6 +503,8 @@ describe('工作台页面标签', () => {
     await router.push('/admin/anime/create')
     await flushPromises()
     await wrapper.find('input[placeholder="输入正式名称"]').setValue('未保存作品')
+    // 公开开关与其他草稿字段一起由工作区实例保留。
+    await wrapper.get('[role="switch"][aria-label="公开展示"]').trigger('click')
 
     await wrapper.find('button[aria-label="关闭 新增动画"]').trigger('click')
     await flushPromises()
@@ -513,6 +520,7 @@ describe('工作台页面标签', () => {
     await wrapper.find('button[aria-label="关闭其他页面标签"]').trigger('click')
     await flushPromises()
     expect(wrapper.find('.workspace-tab.active').text()).toContain('新增动画')
+    expect(wrapper.get('[role="switch"][aria-label="公开展示"]').attributes('aria-checked')).toBe('false')
     expect(document.querySelector('.workspace-close-layer')?.textContent).toContain('新增动画')
     document.querySelector<HTMLButtonElement>('.workspace-close-layer .secondary-button')?.click()
     await flushPromises()

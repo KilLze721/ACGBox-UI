@@ -29,6 +29,120 @@ afterEach(() => {
 })
 
 describe('动画管理分页查询页面', () => {
+  // 通过列表查询、翻页、刷新和导出入口验证布尔 false 不会丢失。
+  it.each([
+    ['anime', AnimeListView],
+    ['book', BookListView],
+  ] as const)('%s公开筛选同步表格、卡片、分页与导出条件', async (kind, view) => {
+    const queries: URL[] = []
+    let exported: Record<string, unknown> | undefined
+    let shrinkPage = false
+    const row = {
+      ...animeRow,
+      persons: [],
+      bookType: { id: 1, name: '小说' },
+      publishDate: null,
+      volumeCount: null,
+      chapterCount: null,
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const url = new URL(input, 'http://localhost')
+        let data: unknown = []
+        if (url.pathname === `/api/${kind}/page`) {
+          queries.push(url)
+          const selected = url.searchParams.get('isPublic')
+          const rows = [
+            { ...row, id: 15, name: '公开作品', isPublic: true },
+            { ...row, id: 16, name: '隐藏作品', isPublic: false },
+          ].filter((item) => selected === null || String(item.isPublic) === selected)
+          data = {
+            pageNum: Number(url.searchParams.get('pageNum')),
+            pageSize: 20,
+            total: shrinkPage ? 1 : rows.length * 20,
+            pages: shrinkPage ? 1 : 2,
+            rows: shrinkPage && url.searchParams.get('pageNum') === '2' ? [] : rows,
+          }
+        } else if (url.pathname.endsWith('/tags/page')) {
+          data = { pageNum: 1, pageSize: 100, total: 0, pages: 0, rows: [] }
+        } else if (url.pathname.endsWith('/export')) {
+          exported = JSON.parse(String(init?.body))
+          // 只验证模拟请求，返回明确业务错误，避免测试下载文件。
+          return {
+            ok: true,
+            status: 200,
+            headers: new Headers({ 'Content-Type': 'application/json' }),
+            json: async () => ({ code: 500, message: '模拟导出结束' }),
+          }
+        }
+        return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
+      }),
+    )
+    await router.push(`/admin/${kind}`)
+    const wrapper = mount(view, { attachTo: document.body, global: { plugins: [router] } })
+    await flushPromises()
+    const listQueries = () => queries.filter((url) => url.searchParams.get('pageSize') !== '1')
+    expect(listQueries().slice(-1)[0]?.searchParams.has('isPublic')).toBe(false)
+    expect(
+      wrapper.findAll('.anime-table tbody .work-visibility-badge').map((badge) => badge.text()),
+    ).toEqual(['公开', '隐藏'])
+    const choose = async (name: string) => {
+      await wrapper.get(`#${kind}FilterVisibility`).trigger('click')
+      await wrapper
+        .findAll('.archive-select-menu button')
+        .find((button) => button.text() === name)!
+        .trigger('click')
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+    }
+    await choose('隐藏')
+    expect(listQueries().slice(-1)[0]?.searchParams.get('isPublic')).toBe('false')
+    expect(listQueries().slice(-1)[0]?.searchParams.get('pageNum')).toBe('1')
+    expect(
+      wrapper.findAll('.anime-table tbody .work-visibility-badge').map((badge) => badge.text()),
+    ).toEqual(['隐藏'])
+    await wrapper
+      .findAll('.page-controls button')
+      .find((button) => button.text() === '2')!
+      .trigger('click')
+    await flushPromises()
+    expect(listQueries().slice(-1)[0]?.searchParams.get('pageNum')).toBe('2')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '刷新')!
+      .trigger('click')
+    await flushPromises()
+    expect(listQueries().slice(-1)[0]?.searchParams.get('isPublic')).toBe('false')
+    expect(listQueries().slice(-1)[0]?.searchParams.get('pageNum')).toBe('2')
+    // 作品切换公开状态后，当前分页可能消失，应回退有效页并保留隐藏筛选。
+    shrinkPage = true
+    await wrapper.findAll('button').find((button) => button.text() === '刷新')!.trigger('click')
+    await flushPromises()
+    expect(listQueries().slice(-1)[0]?.searchParams.get('pageNum')).toBe('1')
+    expect(listQueries().slice(-1)[0]?.searchParams.get('isPublic')).toBe('false')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '卡片')!
+      .trigger('click')
+    expect(wrapper.find(`.${kind}-card-meta .work-visibility-badge`).text()).toBe('隐藏')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '导出')!
+      .trigger('click')
+    await flushPromises()
+    document.querySelector<HTMLButtonElement>('.transfer-dialog footer .primary-button')?.click()
+    await flushPromises()
+    expect(exported).toMatchObject({ scope: 'FILTERED', filters: { isPublic: false } })
+    document.querySelector<HTMLButtonElement>('.transfer-dialog footer .secondary-button')?.click()
+    await flushPromises()
+    await choose('公开')
+    expect(listQueries().slice(-1)[0]?.searchParams.get('isPublic')).toBe('true')
+    expect(listQueries().slice(-1)[0]?.searchParams.get('pageNum')).toBe('1')
+    await choose('全部作品')
+    expect(listQueries().slice(-1)[0]?.searchParams.has('isPublic')).toBe(false)
+  })
+
   it.each([
     ['anime', AnimeListView],
     ['book', BookListView],

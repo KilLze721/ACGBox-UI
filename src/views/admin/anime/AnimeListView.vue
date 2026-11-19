@@ -27,6 +27,8 @@ import type {
   TagMatchMode,
 } from '@/types/api'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import WorkVisibilityBadge from '@/components/admin/WorkVisibilityBadge.vue'
+import { workVisibilityOptions } from '@/config/workVisibility'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import WorkDataTransfer from '@/components/admin/WorkDataTransfer.vue'
 import WorkRelationsSummary from '@/components/admin/WorkRelationsSummary.vue'
@@ -52,6 +54,7 @@ interface AnimeFilters {
   broadcastStartDate: string
   broadcastEndDate: string
   status: string
+  isPublic: string
   regionId: string
   companyId: string
   personId: string
@@ -95,6 +98,7 @@ const createDefaultFilters = (): AnimeFilters => ({
   broadcastStartDate: '',
   broadcastEndDate: '',
   status: '',
+  isPublic: '',
   regionId: '',
   companyId: '',
   personId: '',
@@ -214,6 +218,7 @@ const advancedFilterCount = computed(
   () =>
     [
       form.status,
+      form.isPublic,
       form.broadcastTypeId,
       form.adaptationTypeId,
       form.regionId,
@@ -232,6 +237,7 @@ const activeFilterCount = computed(() => {
     [
       filters.keyword,
       filters.status,
+      filters.isPublic,
       filters.broadcastTypeId,
       filters.adaptationTypeId,
       filters.regionId,
@@ -273,6 +279,8 @@ const activeFilterChips = computed(() => {
     const tag = tags.value.find((item) => item.id === id)
     if (tag) chips.push({ key: `tag:${id}`, label: `标签：${tag.name}` })
   })
+  if (filters.isPublic !== '')
+    chips.push({ key: 'isPublic', label: `公开展示：${filters.isPublic === '1' ? '公开' : '隐藏'}` })
   if (filters.status)
     chips.push({ key: 'status', label: `状态：${statusNames[Number(filters.status)]}` })
   if (filters.broadcastTypeId) {
@@ -392,6 +400,8 @@ function createQuery(pageNum: number): AnimePageQuery {
       (appliedDateRangeEnabled.value ? filters.broadcastEndDate : filters.broadcastStartDate) ||
       undefined,
     status: optionalNumber(filters.status),
+    // 空字符串省略筛选，字符串 0 必须转换为 false 并传给接口与导出。
+    isPublic: filters.isPublic === '' ? undefined : filters.isPublic === '1',
     regionId: optionalNumber(filters.regionId),
     companyId: optionalNumber(filters.companyId),
     personId: optionalNumber(filters.personId),
@@ -413,6 +423,12 @@ async function loadPage(pageNum: number) {
 
   try {
     const result = await getAnimePage(createQuery(pageNum), controller.signal)
+    if (controller.signal.aborted) return
+    // 切换公开状态可能使当前页超出末页，先取得有效分页再替换列表。
+    if (pageNum > Math.max(1, result.pages)) {
+      await loadPage(Math.max(1, result.pages))
+      return
+    }
     page.value = result
     selectedIds.value = []
     jumpPage.value = result.pageNum
@@ -790,6 +806,7 @@ async function openLinkedDetail(selectedId?: number) {
         airDate: detail.airDate,
         coverImageUrl: detail.coverImageUrl,
         status: detail.status,
+        isPublic: detail.isPublic,
         region: { id: detail.regionId, name: `#${detail.regionId}` },
         companies: detail.companies.map((company) => ({
           companyId: company.companyId,
@@ -1123,6 +1140,16 @@ function markCoverBroken(url: string) {
                 />
               </div>
 
+              <div class="field work-visibility-filter">
+                <label for="animeFilterVisibility">公开展示</label>
+                <ArchiveSelect
+                  id="animeFilterVisibility"
+                  v-model="form.isPublic"
+                  :options="workVisibilityOptions"
+                  placeholder="全部作品"
+                  label="公开展示筛选"
+                />
+              </div>
               <div class="date-filter-group" :class="{ 'range-enabled': dateRangeEnabled }">
                 <div class="date-filter-head">
                   <div class="date-filter-title">
@@ -1422,9 +1449,12 @@ function markCoverBroken(url: string) {
                 }}</span>
               </td>
               <td class="status-cell">
-                <span class="status-badge" :class="`status-${anime.status}`">{{
-                  statusNames[anime.status] || '未知'
-                }}</span>
+                <div class="work-status-stack">
+                  <span class="status-badge" :class="`status-${anime.status}`">{{
+                    statusNames[anime.status] || '未知'
+                  }}</span>
+                  <WorkVisibilityBadge :is-public="anime.isPublic" />
+                </div>
               </td>
               <td class="region-cell">
                 <span class="company-name">{{ anime.region?.name || '—' }}</span>
@@ -1528,6 +1558,7 @@ function markCoverBroken(url: string) {
               </div>
             </div>
             <div class="anime-card-meta">
+              <WorkVisibilityBadge :is-public="anime.isPublic" />
               <span class="status-badge" :class="`status-${anime.status}`">{{
                 statusNames[anime.status] || '未知'
               }}</span>

@@ -26,6 +26,8 @@ async function save() {
 async function render(mode: 'create' | 'edit' = 'edit', deferSave = false) {
   const original: AnimeDetail = {
     id: 15,
+    // 排序回归沿用公开作品详情的新响应契约。
+    isPublic: true,
     name: '排序测试动画',
     broadcastTypeId: 1,
     adaptationTypeId: 2,

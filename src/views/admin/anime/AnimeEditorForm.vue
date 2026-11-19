@@ -65,6 +65,7 @@ interface AnimeForm {
   adaptationTypeId: string
   regionId: string
   status: string
+  isPublic: boolean
   airDate: string
   episodeCount: string
   personalRatingScore: string
@@ -141,6 +142,8 @@ function createDefaultForm(): AnimeForm {
     adaptationTypeId: '',
     regionId: '',
     status: props.mode === 'create' ? '' : '1',
+    // 默认公开同时兼容缺少开关的旧新增表单。
+    isPublic: true,
     airDate: '',
     episodeCount: '',
     personalRatingScore: '',
@@ -189,6 +192,8 @@ function applyAnime(
     adaptationTypeId: String(anime.adaptationTypeId),
     regionId: String(anime.regionId),
     status: String(anime.status),
+    // 使用空值兼容历史数据，显式隐藏状态必须保留。
+    isPublic: anime.isPublic ?? true,
     airDate: anime.airDate ?? '',
     episodeCount: anime.episodeCount === null ? '' : String(anime.episodeCount),
     personalRatingScore:
@@ -587,6 +592,7 @@ function buildPayload(): AnimePayload {
     airDate: normalizeAirDate(form.airDate),
     coverImageUrl: form.coverImageUrl.trim() || null,
     status: Number(form.status),
+    isPublic: form.isPublic,
     description: form.description.trim() || null,
     aliasNames: form.aliasNames.map((alias) => alias.trim()).filter(Boolean),
     persons: form.persons
@@ -804,6 +810,23 @@ async function confirmAction() {
               :show-placeholder-option="false"
             />
             <small v-if="errors.status" class="field-error">{{ errors.status }}</small>
+          </div>
+          <!-- 开关纳入表单快照，标签切换及未保存保护沿用现有机制。 -->
+          <div class="field full">
+            <div class="anime-switch-row">
+              <span><strong>公开展示</strong><small>{{ form.isPublic ? '公开' : '隐藏' }}</small></span>
+              <button
+                class="anime-switch"
+                type="button"
+                role="switch"
+                aria-label="公开展示"
+                :aria-checked="form.isPublic"
+                :disabled="busy"
+                @click="form.isPublic = !form.isPublic"
+              >
+                <span></span>
+              </button>
+            </div>
           </div>
           <div class="field" :class="{ 'has-error': errors.airDate }">
             <span>开始放送日期</span>

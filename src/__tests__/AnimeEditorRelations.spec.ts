@@ -107,6 +107,124 @@ async function addCompanyRow() {
 }
 
 describe('新增和修改动画的关联资料', () => {
+  // 验证真实表单入口的公开默认值、历史数据、隐藏保存与失败重试。
+  it.each([
+    ['anime', 'create', undefined, AnimeEditorForm],
+    ['book', 'create', undefined, BookEditorForm],
+    ['anime', 'edit', false, AnimeEditorForm],
+    ['book', 'edit', false, BookEditorForm],
+    ['anime', 'edit', undefined, AnimeEditorForm],
+    ['book', 'edit', undefined, BookEditorForm],
+  ] as const)(
+    '%s %s（原状态 %s）保留公开开关与保存失败的输入',
+    async (kind, mode, isPublic, view) => {
+      const sent: Record<string, unknown>[] = []
+      let failNextSave = false
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: string, init?: RequestInit) => {
+          const path = new URL(input, 'http://localhost').pathname
+          let data: unknown = []
+          if (/\/(broadcast-type|book-type|adaptation-type|region)\/list$/.test(path)) {
+            data = [{ id: 1, name: '测试选项' }]
+          } else if (path.endsWith('/tags/page')) {
+            data = { pageNum: 1, pageSize: 100, total: 0, pages: 0, rows: [] }
+          } else if (path.endsWith(`/${kind}/15`)) {
+            data = {
+              id: 15,
+              name: '已有作品',
+              isPublic,
+              status: 1,
+              broadcastTypeId: 1,
+              bookTypeId: 1,
+              adaptationTypeId: 1,
+              regionId: 1,
+              airDate: null,
+              publishDate: null,
+              episodeCount: null,
+              volumeCount: null,
+              chapterCount: null,
+              personalRatingScore: null,
+              coverImageUrl: null,
+              description: null,
+              aliasNames: [],
+              tagIds: [],
+              persons: [],
+              companies: [],
+              externalLinks: [],
+              seriesId: null,
+            }
+          } else if (path.endsWith(`/${kind}/${mode === 'create' ? 'create' : 'update'}`)) {
+            const payload = JSON.parse(String(init?.body)) as Record<string, unknown>
+            sent.push(payload)
+            if (failNextSave) {
+              failNextSave = false
+              return {
+                ok: true,
+                status: 200,
+                json: async () => ({ code: 500, message: '本次保存失败' }),
+              }
+            }
+            data = { ...payload, id: 15 }
+          }
+          return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
+        }),
+      )
+      await router.push(`/admin/${kind}${mode === 'create' ? '/create' : ''}`)
+      wrapper = mount(view, {
+        props: { mode, animeId: 15, bookId: 15 },
+        attachTo: document.body,
+        global: { plugins: [router] },
+      })
+      await flushPromises()
+      const toggle = () => wrapper!.get('button[role="switch"][aria-label="公开展示"]')
+      expect(toggle().attributes('aria-checked')).toBe(String(isPublic ?? true))
+      expect(
+        (wrapper.vm as unknown as { getCloseState: () => { dirty: boolean } }).getCloseState()
+          .dirty,
+      ).toBe(false)
+      if (mode === 'create') {
+        await wrapper.get('input[placeholder="输入正式名称"]').setValue('新建作品')
+        for (const suffix of [
+          kind === 'anime' ? 'BroadcastType' : 'BookType',
+          'AdaptationType',
+          'Region',
+          'Status',
+        ]) {
+          await selectArchiveOption(`#${kind}${suffix}`)
+        }
+      }
+      const save = async () => {
+        await wrapper!.get('form').trigger('submit')
+        await flushPromises()
+        const confirm = document.querySelector<HTMLButtonElement>(
+          '.anime-confirm-actions .primary-button',
+        )
+        expect(confirm).not.toBeNull()
+        confirm!.click()
+        await flushPromises()
+      }
+      await save()
+      expect(sent[sent.length - 1]?.isPublic).toBe(isPublic ?? true)
+      if (isPublic !== false) await toggle().trigger('click')
+      await wrapper.get('input[placeholder="输入正式名称"]').setValue('隐藏作品的新名称')
+      failNextSave = true
+      await save()
+      expect(wrapper.get('.anime-save-error[role="alert"]').text()).toBe('本次保存失败')
+      expect(toggle().attributes('aria-checked')).toBe('false')
+      expect(
+        (wrapper.vm as unknown as { getCloseState: () => { dirty: boolean } }).getCloseState()
+          .dirty,
+      ).toBe(true)
+      await save()
+      expect(sent[sent.length - 1]).toMatchObject({ name: '隐藏作品的新名称', isPublic: false })
+      expect(
+        (wrapper.vm as unknown as { getCloseState: () => { dirty: boolean } }).getCloseState()
+          .dirty,
+      ).toBe(false)
+    },
+  )
+
   it.each([
     ['anime', AnimeEditorForm],
     ['book', BookEditorForm],

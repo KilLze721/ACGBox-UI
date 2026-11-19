@@ -17,6 +17,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getAnimeDetail } from '@/api/anime'
 import { getCompanyById } from '@/api/catalog'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import WorkVisibilityBadge from '@/components/admin/WorkVisibilityBadge.vue'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import SeriesWorks from '@/components/admin/SeriesWorks.vue'
 import AnimeEditorForm from './AnimeEditorForm.vue'
@@ -277,6 +278,7 @@ function getSafeExternalUrl(value: string) {
                   {{ detail.aliasNames?.join('　·　') || '暂无别名' }}
                 </p>
                 <div class="anime-detail-badges">
+                  <WorkVisibilityBadge :is-public="detail.isPublic" />
                   <span class="status-badge" :class="`status-${detail.status}`">{{
                     statusNames[detail.status] || '未知状态'
                   }}</span>

@@ -15,6 +15,7 @@ import { getBookDetail, getBookTypes } from '@/api/book'
 import { getAdaptationTypes, getCompanyById, getRegions } from '@/api/catalog'
 import { getTagById } from '@/api/tags'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import WorkVisibilityBadge from '@/components/admin/WorkVisibilityBadge.vue'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import SeriesWorks from '@/components/admin/SeriesWorks.vue'
 import BookEditorForm from './BookEditorForm.vue'
@@ -224,6 +225,7 @@ function safeUrl(value: string) {
                   {{ detail.aliasNames.join('　·　') || '暂无别名' }}
                 </p>
                 <div class="anime-detail-badges">
+                  <WorkVisibilityBadge :is-public="detail.isPublic" />
                   <span class="anime-detail-badge">{{ bookStatusNames[detail.status] }}</span
                   ><span class="anime-detail-badge">{{ nameOf(bookTypes, detail.bookTypeId) }}</span
                   ><strong class="anime-detail-rating">{{
