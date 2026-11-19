@@ -27,7 +27,6 @@ import type {
   TagMatchMode,
 } from '@/types/api'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
-import WorkVisibilityBadge from '@/components/admin/WorkVisibilityBadge.vue'
 import { updateWorkVisibility } from '@/api/workVisibility'
 import { workVisibilityOptions } from '@/config/workVisibility'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
@@ -1136,6 +1135,16 @@ function markCoverBroken(url: string) {
                 />
               </div>
 
+              <div class="field work-visibility-filter">
+                <label for="animeFilterVisibility">公开展示</label>
+                <ArchiveSelect
+                  id="animeFilterVisibility"
+                  v-model="form.isPublic"
+                  :options="workVisibilityOptions"
+                  placeholder="全部作品"
+                  label="公开展示筛选"
+                />
+              </div>
               <div
                 class="field advanced-company-field"
                 :class="{ 'has-error': validationMessage.includes('公司或人物') }"
@@ -1159,16 +1168,6 @@ function markCoverBroken(url: string) {
                 />
               </div>
 
-              <div class="field work-visibility-filter">
-                <label for="animeFilterVisibility">公开展示</label>
-                <ArchiveSelect
-                  id="animeFilterVisibility"
-                  v-model="form.isPublic"
-                  :options="workVisibilityOptions"
-                  placeholder="全部作品"
-                  label="公开展示筛选"
-                />
-              </div>
               <div class="date-filter-group" :class="{ 'range-enabled': dateRangeEnabled }">
                 <div class="date-filter-head">
                   <div class="date-filter-title">
@@ -1588,7 +1587,6 @@ function markCoverBroken(url: string) {
               </div>
             </div>
             <div class="anime-card-meta">
-              <WorkVisibilityBadge :is-public="anime.isPublic" />
               <span class="status-badge" :class="`status-${anime.status}`">{{
                 statusNames[anime.status] || '未知'
               }}</span>
@@ -1641,32 +1639,48 @@ function markCoverBroken(url: string) {
                 ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
               >
             </div>
-            <div class="anime-card-actions">
-              <button
-                class="ghost-button"
-                type="button"
-                :aria-label="`查看 ${anime.name}`"
-                @click="openCrudDrawer('detail', anime)"
-              >
-                <AdminIcon name="view" />查看
-              </button>
-              <button
-                class="ghost-button"
-                type="button"
-                :aria-label="`编辑 ${anime.name}`"
-                @click="openCrudDrawer('edit', anime)"
-              >
-                <AdminIcon name="edit" />编辑
-              </button>
-              <button
-                class="ghost-button"
-                type="button"
-                :aria-label="`删除 ${anime.name}`"
-                @click="openDeleteModal(anime)"
-              >
-                <AdminIcon name="delete" />删除
-              </button>
-            </div>
+            <!-- 公开设置与操作按钮集中于卡片底部，保持不同内容长度下的对齐。 -->
+            <footer class="work-card-footer">
+              <div class="work-card-visibility">
+                <span>{{ visibilitySaving === anime.id ? '正在保存…' : '公开展示' }}</span>
+                <button
+                  class="work-visibility-toggle"
+                  type="button"
+                  role="switch"
+                  :aria-label="`${anime.name}公开展示`"
+                  :aria-checked="anime.isPublic ?? true"
+                  :aria-busy="visibilitySaving === anime.id"
+                  :disabled="visibilitySaving !== null || loading"
+                  @click="toggleWorkVisibility(anime)"
+                ><span></span></button>
+              </div>
+              <div class="anime-card-actions">
+                <button
+                  class="ghost-button"
+                  type="button"
+                  :aria-label="`查看 ${anime.name}`"
+                  @click="openCrudDrawer('detail', anime)"
+                >
+                  <AdminIcon name="view" />查看
+                </button>
+                <button
+                  class="ghost-button"
+                  type="button"
+                  :aria-label="`编辑 ${anime.name}`"
+                  @click="openCrudDrawer('edit', anime)"
+                >
+                  <AdminIcon name="edit" />编辑
+                </button>
+                <button
+                  class="ghost-button"
+                  type="button"
+                  :aria-label="`删除 ${anime.name}`"
+                  @click="openDeleteModal(anime)"
+                >
+                  <AdminIcon name="delete" />删除
+                </button>
+              </div>
+            </footer>
           </article>
         </div>
 

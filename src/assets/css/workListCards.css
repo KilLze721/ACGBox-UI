@@ -38,10 +38,21 @@
   cursor: not-allowed;
 }
 
-/* 公开筛选独占一行，保留原有日期与评分分组的对齐。 */
-.work-visibility-filter {
-  grid-column: 1 / -1;
-  width: min(240px, 100%);
+/* 分类、公开筛选与关联搜索同排，日期和评分各占半行。 */
+.anime-management-page .advanced-grid {
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  row-gap: 16px;
+}
+.anime-management-page .advanced-grid > .field {
+  grid-column: span 2;
+  min-width: 0;
+}
+.anime-management-page .advanced-grid > .advanced-company-field {
+  grid-column: span 4;
+}
+.anime-management-page .advanced-grid > .date-filter-group,
+.anime-management-page .advanced-grid > .rating-filter-group {
+  grid-column: span 7;
 }
 
 .book-view-toggle,
@@ -99,6 +110,7 @@
 .anime-card-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 10px;
   margin: 14px 0 10px;
@@ -108,18 +120,32 @@
   gap: 6px;
   margin-top: 12px;
 }
-.book-card-actions,
-.anime-card-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 5px;
+.work-card-footer {
+  display: grid;
+  gap: 12px;
   padding-top: 12px;
   margin-top: auto;
   border-top: 1px solid var(--line);
 }
+.work-card-visibility {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 650;
+}
+.book-card-actions,
+.anime-card-actions {
+  display: flex;
+  gap: 8px;
+}
 .book-card-actions .ghost-button,
 .anime-card-actions .ghost-button {
-  min-height: 28px;
+  flex: 1;
+  justify-content: center;
+  min-height: 32px;
   padding: 0 8px;
   font-size: 10px;
 }
@@ -162,6 +188,19 @@
   margin: 12px 0;
 }
 @media (max-width: 1240px) {
+  .anime-management-page .advanced-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .anime-management-page .advanced-grid > .field {
+    grid-column: span 1;
+  }
+  .anime-management-page .advanced-grid > .advanced-company-field {
+    grid-column: span 3;
+  }
+  .anime-management-page .advanced-grid > .date-filter-group,
+  .anime-management-page .advanced-grid > .rating-filter-group {
+    grid-column: span 2;
+  }
   .anime-management-page .list-header {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -171,7 +210,25 @@
     flex-wrap: wrap;
   }
 }
+@media (max-width: 760px) {
+  .anime-management-page .advanced-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .anime-management-page .advanced-grid > .advanced-company-field {
+    grid-column: span 1;
+  }
+  .anime-management-page .advanced-grid > .date-filter-group,
+  .anime-management-page .advanced-grid > .rating-filter-group {
+    grid-column: 1 / -1;
+  }
+}
 @media (max-width: 620px) {
+  .anime-management-page .advanced-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .anime-management-page .advanced-grid > .field {
+    grid-column: 1 / -1;
+  }
   .book-card-grid,
   .anime-card-grid {
     grid-template-columns: minmax(0, 1fr);

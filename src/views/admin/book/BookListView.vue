@@ -15,7 +15,6 @@ import { deleteBooks, getBookPage, getBookTypes } from '@/api/book'
 import { getAdaptationTypes, getRegions, getTags } from '@/api/catalog'
 import { searchRelatedEntities } from '@/api/relatedEntities'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
-import WorkVisibilityBadge from '@/components/admin/WorkVisibilityBadge.vue'
 import { updateWorkVisibility } from '@/api/workVisibility'
 import { workVisibilityOptions } from '@/config/workVisibility'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
@@ -874,6 +873,16 @@ function safeUrl(value: string | null) {
                   label="地区筛选"
                 />
               </div>
+              <div class="field work-visibility-filter">
+                <label for="bookFilterVisibility">公开展示</label>
+                <ArchiveSelect
+                  id="bookFilterVisibility"
+                  v-model="filters.isPublic"
+                  :options="workVisibilityOptions"
+                  placeholder="全部作品"
+                  label="公开展示筛选"
+                />
+              </div>
               <div class="field advanced-company-field">
                 <label for="bookFilterCompany"
                   >关联公司 / 人物 <span class="field-label-note">输入后联想</span></label
@@ -888,16 +897,6 @@ function safeUrl(value: string | null) {
                   :search-on-input-only="true"
                   :show-option-description="true"
                   :require-explicit-selection="true"
-                />
-              </div>
-              <div class="field work-visibility-filter">
-                <label for="bookFilterVisibility">公开展示</label>
-                <ArchiveSelect
-                  id="bookFilterVisibility"
-                  v-model="filters.isPublic"
-                  :options="workVisibilityOptions"
-                  placeholder="全部作品"
-                  label="公开展示筛选"
                 />
               </div>
               <div class="date-filter-group" :class="{ 'range-enabled': dateRangeEnabled }">
@@ -1329,7 +1328,6 @@ function safeUrl(value: string | null) {
               </div>
             </div>
             <div class="book-card-meta">
-              <WorkVisibilityBadge :is-public="book.isPublic" />
               <span class="status-badge" :class="'book-status-' + book.status">{{
                 bookStatusNames[book.status]
               }}</span
@@ -1385,30 +1383,46 @@ function safeUrl(value: string | null) {
                 ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
               >
             </div>
-            <div class="book-card-actions">
-              <button
-                class="ghost-button"
-                type="button"
-                :aria-label="'查看 ' + book.name"
-                @click="openDrawer('detail', book.id)"
-              >
-                <AdminIcon name="view" />查看</button
-              ><button
-                class="ghost-button"
-                type="button"
-                :aria-label="'编辑 ' + book.name"
-                @click="openDrawer('edit', book.id)"
-              >
-                <AdminIcon name="edit" />编辑</button
-              ><button
-                class="ghost-button"
-                type="button"
-                :aria-label="'删除 ' + book.name"
-                @click="openDelete(book)"
-              >
-                <AdminIcon name="delete" />删除
-              </button>
-            </div>
+            <!-- 公开设置与操作按钮集中于卡片底部，保持不同内容长度下的对齐。 -->
+            <footer class="work-card-footer">
+              <div class="work-card-visibility">
+                <span>{{ visibilitySaving === book.id ? '正在保存…' : '公开展示' }}</span>
+                <button
+                  class="work-visibility-toggle"
+                  type="button"
+                  role="switch"
+                  :aria-label="`${book.name}公开展示`"
+                  :aria-checked="book.isPublic ?? true"
+                  :aria-busy="visibilitySaving === book.id"
+                  :disabled="visibilitySaving !== null || loading"
+                  @click="toggleWorkVisibility(book)"
+                ><span></span></button>
+              </div>
+              <div class="book-card-actions">
+                <button
+                  class="ghost-button"
+                  type="button"
+                  :aria-label="'查看 ' + book.name"
+                  @click="openDrawer('detail', book.id)"
+                >
+                  <AdminIcon name="view" />查看</button
+                ><button
+                  class="ghost-button"
+                  type="button"
+                  :aria-label="'编辑 ' + book.name"
+                  @click="openDrawer('edit', book.id)"
+                >
+                  <AdminIcon name="edit" />编辑</button
+                ><button
+                  class="ghost-button"
+                  type="button"
+                  :aria-label="'删除 ' + book.name"
+                  @click="openDelete(book)"
+                >
+                  <AdminIcon name="delete" />删除
+                </button>
+              </div>
+            </footer>
           </article>
         </div>
       </div>

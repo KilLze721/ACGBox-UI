@@ -31,9 +31,11 @@ afterEach(() => {
 describe('动画管理分页查询页面', () => {
   // 快速公开开关必须保留详情中的完整关联，接口失败时不提前改变显示状态。
   it.each([
-    ['anime', AnimeListView],
-    ['book', BookListView],
-  ] as const)('%s列表公开开关保存关联资料并支持失败后重试', async (kind, view) => {
+    ['anime', '表格', AnimeListView],
+    ['book', '表格', BookListView],
+    ['anime', '卡片', AnimeListView],
+    ['book', '卡片', BookListView],
+  ] as const)('%s %s公开开关保存关联资料并支持失败后重试', async (kind, mode, view) => {
     let isPublic = true
     let fail = true
     let payload: Record<string, unknown> | undefined
@@ -75,6 +77,7 @@ describe('动画管理分页查询页面', () => {
             rows: [
               {
                 ...animeRow,
+                persons: detail.persons,
                 isPublic,
                 bookType: { id: 1, name: '小说' },
                 publishDate: null,
@@ -103,13 +106,17 @@ describe('动画管理分页查询页面', () => {
     await router.push(`/admin/${kind}`)
     const wrapper = mount(view, { global: { plugins: [router] } })
     await flushPromises()
-    const toggle = () => wrapper.get('.visibility-cell [role="switch"]')
+    const toggle = () => wrapper.get('.work-visibility-toggle')
     expect(
       wrapper
         .findAll('thead th')
         .slice(-3)
         .map((cell) => cell.text()),
     ).toEqual(['外部链接', '公开展示', '操作'])
+    if (mode === '卡片') {
+      await wrapper.findAll('button').find((button) => button.text() === '卡片')!.trigger('click')
+      expect(wrapper.find('.work-card-footer .work-visibility-toggle').exists()).toBe(true)
+    }
     await toggle().trigger('click')
     await flushPromises()
     expect(toggle().attributes('aria-checked')).toBe('true')
@@ -227,7 +234,7 @@ describe('动画管理分页查询页面', () => {
       .findAll('button')
       .find((button) => button.text() === '卡片')!
       .trigger('click')
-    expect(wrapper.find(`.${kind}-card-meta .work-visibility-badge`).text()).toBe('隐藏')
+    expect(wrapper.get('.work-card-footer [role="switch"]').attributes('aria-checked')).toBe('false')
     await wrapper
       .findAll('button')
       .find((button) => button.text() === '导出')!
