@@ -184,9 +184,11 @@ describe('动画管理分页查询页面', () => {
     await flushPromises()
     const listQueries = () => queries.filter((url) => url.searchParams.get('pageSize') !== '1')
     expect(listQueries().slice(-1)[0]?.searchParams.has('isPublic')).toBe(false)
+    // 状态列不再重复展示公开标识，公开状态继续由独立开关表达。
+    expect(wrapper.find('.status-cell .work-visibility-badge').exists()).toBe(false)
     expect(
-      wrapper.findAll('.anime-table tbody .work-visibility-badge').map((badge) => badge.text()),
-    ).toEqual(['公开', '隐藏'])
+      wrapper.findAll('tbody .visibility-cell [role="switch"]').map((toggle) => toggle.attributes('aria-checked')),
+    ).toEqual(['true', 'false'])
     const choose = async (name: string) => {
       await wrapper.get(`#${kind}FilterVisibility`).trigger('click')
       await wrapper
@@ -200,8 +202,8 @@ describe('动画管理分页查询页面', () => {
     expect(listQueries().slice(-1)[0]?.searchParams.get('isPublic')).toBe('false')
     expect(listQueries().slice(-1)[0]?.searchParams.get('pageNum')).toBe('1')
     expect(
-      wrapper.findAll('.anime-table tbody .work-visibility-badge').map((badge) => badge.text()),
-    ).toEqual(['隐藏'])
+      wrapper.findAll('tbody .visibility-cell [role="switch"]').map((toggle) => toggle.attributes('aria-checked')),
+    ).toEqual(['false'])
     await wrapper
       .findAll('.page-controls button')
       .find((button) => button.text() === '2')!

@@ -1210,12 +1210,10 @@ function safeUrl(value: string | null) {
                 }}</span>
               </td>
               <td class="status-cell">
-                <div class="work-status-stack">
-                  <span class="status-badge" :class="'book-status-' + book.status">{{
-                    bookStatusNames[book.status]
-                  }}</span>
-                  <WorkVisibilityBadge :is-public="book.isPublic" />
-                </div>
+                <!-- 公开状态由独立开关列显示，此列仅保留作品状态。 -->
+                <span class="status-badge" :class="'book-status-' + book.status">{{
+                  bookStatusNames[book.status]
+                }}</span>
               </td>
               <td class="region-cell">
                 <span class="company-name">{{ book.region?.name || '—' }}</span>

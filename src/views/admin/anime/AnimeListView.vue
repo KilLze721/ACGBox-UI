@@ -1469,12 +1469,10 @@ function markCoverBroken(url: string) {
                 }}</span>
               </td>
               <td class="status-cell">
-                <div class="work-status-stack">
-                  <span class="status-badge" :class="`status-${anime.status}`">{{
-                    statusNames[anime.status] || '未知'
-                  }}</span>
-                  <WorkVisibilityBadge :is-public="anime.isPublic" />
-                </div>
+                <!-- 公开状态由独立开关列显示，此列仅保留作品状态。 -->
+                <span class="status-badge" :class="`status-${anime.status}`">{{
+                  statusNames[anime.status] || '未知'
+                }}</span>
               </td>
               <td class="region-cell">
                 <span class="company-name">{{ anime.region?.name || '—' }}</span>
