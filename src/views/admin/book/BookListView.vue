@@ -16,6 +16,7 @@ import { getAdaptationTypes, getRegions, getTags } from '@/api/catalog'
 import { searchRelatedEntities } from '@/api/relatedEntities'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import WorkVisibilityBadge from '@/components/admin/WorkVisibilityBadge.vue'
+import { updateWorkVisibility } from '@/api/workVisibility'
 import { workVisibilityOptions } from '@/config/workVisibility'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import WorkDataTransfer from '@/components/admin/WorkDataTransfer.vue'
@@ -95,6 +96,8 @@ const page = ref<PageResult<BookPageItem>>({
   rows: [],
 })
 const pageSizeOptions = pageSizeValues.map((id) => ({ id, name: `${id} 条` }))
+// 快速保存期间阻止重复切换，并由工作区识别提交状态。
+const visibilitySaving = ref<number | null>(null)
 const pageSizeModel = computed({
   get: () => String(pageSize.value),
   set: (value: string) => {
@@ -163,7 +166,7 @@ function getCloseState() {
   const transfer = transferPanel.value?.getCloseState()
   return {
     dirty: state.dirty || !!transfer?.dirty,
-    submitting: state.submitting || deleting.value || !!transfer?.submitting,
+    submitting: state.submitting || deleting.value || !!transfer?.submitting || visibilitySaving.value !== null,
   }
 }
 defineExpose({ getCloseState, openBookDetail: (id: number) => openDrawer('detail', id) })
@@ -606,6 +609,22 @@ async function confirmDelete() {
     deleting.value = false
   }
 }
+// 保存成功后沿用当前查询条件刷新，失败保持开关原值。
+async function toggleWorkVisibility(row: BookPageItem) {
+  if (visibilitySaving.value !== null || loading.value) return
+  visibilitySaving.value = row.id
+  try {
+    const saved = await updateWorkVisibility('BOOK', row.id, !(row.isPublic ?? true))
+    row.isPublic = saved.isPublic
+    showToast(`“${row.name}”已设为${saved.isPublic ? '公开' : '隐藏'}。`)
+    await loadPage(page.value.pageNum)
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : '公开状态保存失败，请重试。')
+  } finally {
+    visibilitySaving.value = null
+  }
+}
+
 function handleSaved() {
   drawerMode.value = null
   showToast('书籍修改已保存。')
@@ -1125,6 +1144,7 @@ function safeUrl(value: string | null) {
               <th class="book-relation-cell" scope="col">创作人员 / 关联公司</th>
               <th class="rating-cell" scope="col">个人评分</th>
               <th class="external-cell" scope="col">外部链接</th>
+              <th class="visibility-cell" scope="col">公开展示</th>
               <th class="action-cell" scope="col">操作</th>
             </tr>
           </thead>
@@ -1233,6 +1253,18 @@ function safeUrl(value: string | null) {
                     >—</span
                   >
                 </div>
+              </td>
+              <td class="visibility-cell">
+                <button
+                  class="work-visibility-toggle"
+                  type="button"
+                  role="switch"
+                  :aria-label="`${book.name}公开展示`"
+                  :aria-checked="book.isPublic ?? true"
+                  :aria-busy="visibilitySaving === book.id"
+                  :disabled="visibilitySaving !== null || loading"
+                  @click="toggleWorkVisibility(book)"
+                ><span></span></button>
               </td>
               <td class="action-cell">
                 <div class="row-actions">

@@ -374,6 +374,12 @@
   margin-top: 7px;
   border-top: 1px solid var(--line);
 }
+/* 独立公开设置卡片位于基础资料之前，移除原有分隔线和重复留白。 */
+.anime-visibility-settings .anime-switch-row {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
 .anime-switch-row strong,
 .anime-switch-row small {
   display: block;

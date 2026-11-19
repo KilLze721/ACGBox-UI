@@ -739,6 +739,24 @@ async function confirmAction() {
         </div>
       </header>
 
+      <!-- 公开设置独立于基础资料，继续纳入未保存检查。 -->
+      <section class="anime-editor-card anime-visibility-settings" aria-label="公开展示设置">
+        <div class="anime-switch-row">
+          <span><strong>公开展示</strong><small>{{ form.isPublic ? '公开' : '隐藏' }}</small></span>
+          <button
+            class="anime-switch"
+            type="button"
+            role="switch"
+            aria-label="公开展示"
+            :aria-checked="form.isPublic"
+            :disabled="busy"
+            @click="form.isPublic = !form.isPublic"
+          >
+            <span></span>
+          </button>
+        </div>
+      </section>
+
       <section class="anime-editor-card">
         <div class="anime-editor-section-head">
           <div>
@@ -810,23 +828,6 @@ async function confirmAction() {
               :show-placeholder-option="false"
             />
             <small v-if="errors.status" class="field-error">{{ errors.status }}</small>
-          </div>
-          <!-- 开关纳入表单快照，标签切换及未保存保护沿用现有机制。 -->
-          <div class="field full">
-            <div class="anime-switch-row">
-              <span><strong>公开展示</strong><small>{{ form.isPublic ? '公开' : '隐藏' }}</small></span>
-              <button
-                class="anime-switch"
-                type="button"
-                role="switch"
-                aria-label="公开展示"
-                :aria-checked="form.isPublic"
-                :disabled="busy"
-                @click="form.isPublic = !form.isPublic"
-              >
-                <span></span>
-              </button>
-            </div>
           </div>
           <div class="field" :class="{ 'has-error': errors.airDate }">
             <span>开始放送日期</span>

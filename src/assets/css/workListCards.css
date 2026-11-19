@@ -1,3 +1,39 @@
+/* 列表公开开关沿用表单的尺寸与主题反馈。 */
+.visibility-cell {
+  width: 82px;
+}
+.work-visibility-toggle {
+  width: 38px;
+  height: 22px;
+  padding: 2px;
+  background: var(--line-strong);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+}
+.work-visibility-toggle span {
+  display: block;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 140ms ease;
+}
+.work-visibility-toggle[aria-checked='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.work-visibility-toggle[aria-checked='true'] span {
+  transform: translateX(16px);
+}
+.work-visibility-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.work-visibility-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* 公开筛选独占一行，保留原有日期与评分分组的对齐。 */
 .work-visibility-filter {
   grid-column: 1 / -1;

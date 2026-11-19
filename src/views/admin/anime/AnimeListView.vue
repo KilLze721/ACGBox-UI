@@ -28,6 +28,7 @@ import type {
 } from '@/types/api'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import WorkVisibilityBadge from '@/components/admin/WorkVisibilityBadge.vue'
+import { updateWorkVisibility } from '@/api/workVisibility'
 import { workVisibilityOptions } from '@/config/workVisibility'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import WorkDataTransfer from '@/components/admin/WorkDataTransfer.vue'
@@ -127,6 +128,8 @@ const pageSize = ref(
     10,
   ),
 )
+// 快速保存期间阻止重复切换，并由工作区识别提交状态。
+const visibilitySaving = ref<number | null>(null)
 const pageSizeModel = computed({
   get: () => String(pageSize.value),
   set: (value: string) => {
@@ -181,7 +184,7 @@ function getCloseState() {
   const transfer = transferPanel.value?.getCloseState()
   return {
     dirty: state.dirty || !!transfer?.dirty,
-    submitting: state.submitting || !!transfer?.submitting,
+    submitting: state.submitting || !!transfer?.submitting || visibilitySaving.value !== null,
   }
 }
 
@@ -836,6 +839,22 @@ function closeCrudDrawer() {
   drawerMode.value = null
 }
 
+// 保存成功后沿用当前查询条件刷新，失败保持开关原值。
+async function toggleWorkVisibility(row: AnimePageItem) {
+  if (visibilitySaving.value !== null || loading.value) return
+  visibilitySaving.value = row.id
+  try {
+    const saved = await updateWorkVisibility('ANIME', row.id, !(row.isPublic ?? true))
+    row.isPublic = saved.isPublic
+    showToast('保存成功', `“${row.name}”已设为${saved.isPublic ? '公开' : '隐藏'}。`)
+    await loadPage(page.value.pageNum)
+  } catch (error) {
+    showToast('保存失败', error instanceof Error ? error.message : '公开状态保存失败，请重试。', 'error')
+  } finally {
+    visibilitySaving.value = null
+  }
+}
+
 async function handleAnimeSaved(anime: { id: number; name: string }) {
   closeCrudDrawer()
   showToast('保存成功', `“${anime.name}”的动画资料已更新。`)
@@ -1385,6 +1404,7 @@ function markCoverBroken(url: string) {
               <th class="company-cell" scope="col">创作人员 / 制作公司</th>
               <th class="rating-cell" scope="col">个人评分</th>
               <th class="external-cell" scope="col">外部链接</th>
+              <th class="visibility-cell" scope="col">公开展示</th>
               <th class="action-cell" scope="col">操作</th>
             </tr>
           </thead>
@@ -1483,6 +1503,18 @@ function markCoverBroken(url: string) {
                     ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
                   ><span v-if="!anime.externalLinks.length" class="empty-value">—</span>
                 </div>
+              </td>
+              <td class="visibility-cell">
+                <button
+                  class="work-visibility-toggle"
+                  type="button"
+                  role="switch"
+                  :aria-label="`${anime.name}公开展示`"
+                  :aria-checked="anime.isPublic ?? true"
+                  :aria-busy="visibilitySaving === anime.id"
+                  :disabled="visibilitySaving !== null || loading"
+                  @click="toggleWorkVisibility(anime)"
+                ><span></span></button>
               </td>
               <td class="action-cell">
                 <div class="row-actions">

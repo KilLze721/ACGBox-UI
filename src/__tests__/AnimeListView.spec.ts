@@ -29,6 +29,106 @@ afterEach(() => {
 })
 
 describe('动画管理分页查询页面', () => {
+  // 快速公开开关必须保留详情中的完整关联，接口失败时不提前改变显示状态。
+  it.each([
+    ['anime', AnimeListView],
+    ['book', BookListView],
+  ] as const)('%s列表公开开关保存关联资料并支持失败后重试', async (kind, view) => {
+    let isPublic = true
+    let fail = true
+    let payload: Record<string, unknown> | undefined
+    const detail = {
+      id: 15,
+      name: animeRow.name,
+      isPublic: true,
+      status: 3,
+      broadcastTypeId: 1,
+      bookTypeId: 1,
+      adaptationTypeId: 2,
+      regionId: 1,
+      episodeCount: 28,
+      airDate: '2023-09-29',
+      publishDate: null,
+      volumeCount: 3,
+      chapterCount: null,
+      personalRatingScore: 8,
+      coverImageUrl: null,
+      description: '原简介',
+      aliasNames: ['原别名'],
+      tagIds: [18],
+      seriesId: 7,
+      persons: [{ personId: 2, personName: '人员', role: '监督', sortOrder: 3 }],
+      companies: [{ companyId: 5, role: '制作', sortOrder: 2 }],
+      externalLinks: [{ title: '官网', url: 'https://example.com', sortOrder: 1 }],
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const url = new URL(input, 'http://localhost')
+        let data: unknown = []
+        if (url.pathname === `/api/${kind}/page`) {
+          data = {
+            pageNum: 1,
+            pageSize: 20,
+            total: 1,
+            pages: 1,
+            rows: [
+              {
+                ...animeRow,
+                isPublic,
+                bookType: { id: 1, name: '小说' },
+                publishDate: null,
+                volumeCount: 3,
+                chapterCount: null,
+              },
+            ],
+          }
+        } else if (url.pathname === `/api/${kind}/15`) data = detail
+        else if (url.pathname === `/api/${kind}/update`) {
+          payload = JSON.parse(String(init?.body))
+          if (fail)
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({ code: 500, message: '保存失败，请重试' }),
+            }
+          isPublic = false
+          data = { ...detail, isPublic }
+        } else if (url.pathname.endsWith('/tags/page')) {
+          data = { pageNum: 1, pageSize: 100, total: 0, pages: 0, rows: [] }
+        }
+        return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
+      }),
+    )
+    await router.push(`/admin/${kind}`)
+    const wrapper = mount(view, { global: { plugins: [router] } })
+    await flushPromises()
+    const toggle = () => wrapper.get('.visibility-cell [role="switch"]')
+    expect(
+      wrapper
+        .findAll('thead th')
+        .slice(-3)
+        .map((cell) => cell.text()),
+    ).toEqual(['外部链接', '公开展示', '操作'])
+    await toggle().trigger('click')
+    await flushPromises()
+    expect(toggle().attributes('aria-checked')).toBe('true')
+    fail = false
+    await toggle().trigger('click')
+    await flushPromises()
+    expect(toggle().attributes('aria-checked')).toBe('false')
+    expect(payload).toMatchObject({
+      isPublic: false,
+      description: '原简介',
+      aliasNames: ['原别名'],
+      tagIds: [18],
+      seriesId: 7,
+      persons: [{ personId: 2, role: '监督', sortOrder: 3 }],
+      companies: detail.companies,
+      externalLinks: detail.externalLinks,
+    })
+  })
+
   // 通过列表查询、翻页、刷新和导出入口验证布尔 false 不会丢失。
   it.each([
     ['anime', AnimeListView],
