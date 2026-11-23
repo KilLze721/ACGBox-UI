@@ -909,6 +909,14 @@ async function confirmDelete() {
           <footer class="persons-drawer-footer">
             <span>{{ drawerMode === 'detail' ? '创作人员档案' : '姓名必填，简介可选。' }}</span>
             <div>
+              <button
+                class="secondary-button"
+                type="button"
+                :disabled="saving"
+                @click="closeDrawer"
+              >
+                {{ drawerMode === 'detail' ? '关闭' : '取消' }}
+              </button>
               <!-- 详情删除复用列表的确认流程，每次只提交当前档案。 -->
               <button
                 v-if="drawerMode === 'detail'"
@@ -917,16 +925,9 @@ async function confirmDelete() {
                 :disabled="!currentPerson || drawerLoading || deleting"
                 @click="currentPerson && openDelete([currentPerson])"
               >
-                <AdminIcon name="delete" />删除
+                删除
               </button>
               <button
-                class="secondary-button"
-                type="button"
-                :disabled="saving"
-                @click="closeDrawer"
-              >
-                {{ drawerMode === 'detail' ? '关闭' : '取消' }}</button
-              ><button
                 v-if="drawerMode === 'detail'"
                 class="primary-button"
                 type="button"
