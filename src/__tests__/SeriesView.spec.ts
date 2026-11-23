@@ -107,7 +107,7 @@ describe('系列管理页面', () => {
     document.body.querySelector<HTMLButtonElement>('.series-drawer .related-anime-name')!.click()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/anime'))
     expect(router.currentRoute.value.query.keyword).toBe(linkedAnime.name)
-    expect(router.currentRoute.value.query.detail).toBeUndefined()
+    expect(router.currentRoute.value.query.detail).toBe(String(linkedAnime.id))
     wrapper.unmount()
   })
 

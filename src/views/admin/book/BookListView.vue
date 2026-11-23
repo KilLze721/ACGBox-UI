@@ -28,6 +28,7 @@ import { bookStatusNames, bookStatusOptions } from '@/config/bookFormOptions'
 import { isBookReference, parseBookDateFilter, parseBookInteger } from '@/utils/bookForm'
 import { pageSizeValues, readPreferences, resolvePageSize } from '@/utils/preferences'
 import { useCatalogRefresh } from '@/utils/catalogChanges'
+import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPosition'
 import { useModalLayer } from '@/utils/useModalLayer'
 import type { NamedOption, PageResult } from '@/types/api'
 import type { BookDetail, BookPageItem, BookPageQuery, BookSortField } from '@/types/book'
@@ -37,6 +38,9 @@ const route = useRoute(),
   ownerFullPath = route.fullPath
 const active = ref(true),
   visible = computed(() => active.value && route.fullPath === ownerFullPath)
+const { listRoot, linkedRowId, revealLinkedRow } = useLinkedListPosition(() => visible.value)
+const linkedDetailId = ref<number>()
+let loadedBook: BookDetail | undefined
 const initialKeyword = typeof route.query.keyword === 'string' ? route.query.keyword : ''
 const defaults = () => ({
   keyword: '',
@@ -168,7 +172,7 @@ function getCloseState() {
     submitting: state.submitting || deleting.value || !!transfer?.submitting || visibilitySaving.value !== null,
   }
 }
-defineExpose({ getCloseState, openBookDetail: (id: number) => openDrawer('detail', id) })
+defineExpose({ getCloseState, openBookDetail: openLinkedDetail })
 onMounted(() => {
   document.addEventListener('pointerdown', closeTagDropdown, true)
   void refreshCatalogs()
@@ -176,7 +180,7 @@ onMounted(() => {
   void loadPage(1)
   if (route.query.detail !== undefined) {
     const id = Number(route.query.detail)
-    if (isBookReference(id)) openDrawer('detail', id)
+    if (isBookReference(id)) openLinkedDetail(id)
     else validationMessage.value = '书籍标识无效，无法打开详情。'
   }
 })
@@ -185,7 +189,7 @@ onActivated(() => {
   if (activated) {
     void loadPage(page.value.pageNum)
     if (route.query.from === 'data-quality' && !drawerMode.value)
-      openDrawer('detail', Number(route.query.detail))
+      openLinkedDetail(Number(route.query.detail))
   }
   activated = true
 })
@@ -433,14 +437,15 @@ function buildQuery(pageNum: number): BookPageQuery {
     sortDirection: current.sortDirection,
   }
 }
-async function loadPage(pageNum: number) {
+async function loadPage(pageNum: number, targetId?: number) {
   pageController?.abort()
   const request = new AbortController()
   pageController = request
   loading.value = true
   errorMessage.value = ''
   try {
-    const result = await getBookPage(buildQuery(pageNum), request.signal)
+    const read = (page: number) => getBookPage(buildQuery(page), request.signal)
+    const result = await findLinkedPage(pageNum, read, request.signal, targetId)
     if (request.signal.aborted) return
     if (result.pages === 0 && pageNum > 1) {
       void loadPage(1)
@@ -558,18 +563,48 @@ function protect(action: () => void) {
   if (state.dirty) pending.value = action
   else action()
 }
-function openDrawer(mode: 'detail' | 'edit', id: number) {
+function openDrawer(mode: 'detail' | 'edit', id: number, locate = false) {
   if (!isBookReference(id)) return
   protect(() => {
+    if (drawerMode.value !== mode || drawerId.value !== id) loadedBook = undefined
+    linkedDetailId.value = locate ? id : undefined
     drawerId.value = id
     drawerMode.value = mode
+    if (locate && loadedBook) void locateDetailRow(loadedBook)
   })
 }
+
+function openLinkedDetail(id: number) {
+  openDrawer('detail', id, true)
+}
+
+// 复用抽屉已读取的书名，在现有列表找不到目标时按名称翻页。
+async function locateDetailRow(book: BookDetail) {
+  loadedBook = book
+  if (!visible.value || linkedDetailId.value !== book.id) return
+  if (loading.value || !page.value.rows.some((row) => row.id === book.id)) {
+    const linkedFilters = {
+      ...defaults(),
+      keyword: book.name,
+      sortBy: applied.value.sortBy,
+      sortDirection: applied.value.sortDirection,
+    }
+    Object.assign(filters, linkedFilters)
+    applied.value = linkedFilters
+    validationMessage.value = ''
+    dateRangeEnabled.value = ratingRangeEnabled.value = false
+    await loadPage(1, book.id)
+  }
+  if (visible.value && linkedDetailId.value === book.id) await revealLinkedRow(book.id)
+}
+
 function closeDrawer() {
   // 抽屉内部已完成取消确认，此处只处理最终关闭，避免重复询问放弃修改。
   if (getCloseState().submitting) return
   drawerMode.value = null
   drawerId.value = undefined
+  linkedDetailId.value = undefined
+  loadedBook = undefined
 }
 function discardAndContinue() {
   const action = pending.value
@@ -1016,7 +1051,7 @@ function safeUrl(value: string | null) {
         </div>
       </form>
     </section>
-    <section class="card list-card" aria-labelledby="bookListTitle" :aria-busy="loading">
+    <section ref="listRoot" class="card list-card" aria-labelledby="bookListTitle" :aria-busy="loading">
       <div class="list-header">
         <div class="list-title">
           <h2 id="bookListTitle">书籍资料列表</h2>
@@ -1033,7 +1068,7 @@ function safeUrl(value: string | null) {
             :selected-ids="selectedIds"
             :summary="activeFilterChips.map((chip) => chip.label).join('；')"
             @completed="refreshPage()"
-            @detail="openDrawer('detail', $event)"
+            @detail="openLinkedDetail"
           />
           <div class="sort-summary">
             <span>当前排序</span><strong>{{ sortSummary }}</strong>
@@ -1148,7 +1183,12 @@ function safeUrl(value: string | null) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="book in page.rows" :key="book.id">
+            <tr
+              v-for="book in page.rows"
+              :key="book.id"
+              :data-work-row="book.id"
+              :data-linked-row-selected="linkedRowId === book.id ? true : undefined"
+            >
               <td class="transfer-selection">
                 <input
                   v-model="selectedIds"
@@ -1296,7 +1336,13 @@ function safeUrl(value: string | null) {
           </tbody>
         </table>
         <div v-else class="book-card-grid" :inert="loading">
-          <article v-for="book in page.rows" :key="book.id" class="book-work-card">
+          <article
+            v-for="book in page.rows"
+            :key="book.id"
+            class="book-work-card"
+            :data-work-row="book.id"
+            :data-linked-row-selected="linkedRowId === book.id ? true : undefined"
+          >
             <label class="transfer-card-selection"
               ><input v-model="selectedIds" type="checkbox" :value="book.id" />勾选导出</label
             >
@@ -1502,9 +1548,10 @@ function safeUrl(value: string | null) {
       ref="drawer"
       :mode="drawerMode"
       :book-id="drawerId"
+      @loaded="locateDetailRow"
       @close="closeDrawer"
       @edit="openDrawer('edit', drawerId!)"
-      @select-book="openDrawer('detail', $event)"
+      @select-book="openLinkedDetail"
       @saved="handleSaved"
       @delete="openDelete($event)"
     />

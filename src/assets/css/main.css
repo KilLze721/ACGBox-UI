@@ -2741,6 +2741,20 @@ html:has(body[data-theme='dark'] .app-shell),
   box-shadow: inset 3px 0 var(--accent);
 }
 
+/* 从关联详情返回时，用当前主题的强调色标记目标行或卡片。 */
+tr[data-linked-row-selected] > td {
+  background: var(--accent-soft);
+}
+
+tr[data-linked-row-selected] > td:first-child {
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+article[data-linked-row-selected] {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .anime-table tbody tr:last-child td {
   border-bottom: 0;
 }

@@ -67,7 +67,7 @@ function defaults(targetType: DataQualityTarget): DataQualityQuery {
     keyword: '',
     ruleCodes: isWorkTarget(targetType)
       ? rules.map(({ code }) => code).filter((code) => code !== sameNameRule.code)
-      : [sameNameRule.code],
+      : archiveRules.map(({ code }) => code),
     matchMode: 'ANY',
     pageNum: 1,
     pageSize: resolvePageSize(pageSizeValues, 20),
@@ -386,7 +386,11 @@ onDeactivated(() => request?.abort())
                     class="secondary-button quality-link"
                     :to="{
                       path: targets[row.targetType].path,
-                      query: { detail: row.targetId, from: 'data-quality' },
+                      query: {
+                        detail: row.targetId,
+                        [isWorkTarget(row.targetType) ? 'keyword' : 'name']: row.name,
+                        from: 'data-quality',
+                      },
                     }"
                   >
                     {{ isWorkTarget(row.targetType) ? '查看并补充' : '查看详情' }}

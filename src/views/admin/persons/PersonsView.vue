@@ -34,14 +34,20 @@ import { useRelatedBook } from '@/utils/relatedBook'
 import type { BookPageItem } from '@/types/book'
 import { useRelatedAnime } from '@/utils/relatedAnime'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
+import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPosition'
 import type { AnimePageItem, PageResult, Person, SortDirection } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
 const route = useRoute()
 const ownerFullPath = route.fullPath
+const { listRoot, linkedRowId, revealLinkedRow } = useLinkedListPosition(
+  () => route.fullPath === ownerFullPath,
+)
 const router = useRouter()
 const navigateLinkedContent =
-  inject<(path: '/admin/anime', keyword: string) => Promise<void>>('navigateLinkedContent')
+  inject<(path: '/admin/anime', keyword: string, detailId: number) => Promise<void>>(
+    'navigateLinkedContent',
+  )
 const relatedAnime = useRelatedAnime()
 const relatedBook = useRelatedBook()
 const relatedType = ref<'anime' | 'book'>('anime')
@@ -249,7 +255,7 @@ async function loadTotal() {
     if (!controller.signal.aborted) totalPersons.value = null
   }
 }
-async function loadPage(pageNum: number) {
+async function loadPage(pageNum: number, targetId?: number) {
   pageController?.abort()
   const controller = new AbortController()
   pageController = controller
@@ -257,14 +263,15 @@ async function loadPage(pageNum: number) {
   listError.value = ''
   jumpError.value = ''
   try {
-    const result = await getPersonsPage(
-      pageNum,
+    const read = (page: number) => getPersonsPage(
+      page,
       pageSize.value,
       appliedName.value,
       controller.signal,
       'NAME_INITIAL',
       nameSortDirection.value,
     )
+    const result = await findLinkedPage(pageNum, read, controller.signal, targetId)
     if (controller.signal.aborted) return
     // 超出末页时等有效分页返回后再替换现有列表。
     if (!result.rows.length && pageNum > Math.max(result.pages, 1)) {
@@ -349,12 +356,21 @@ function requestDrawer(mode: DrawerMode, id?: number) {
     void openDrawer(mode, id)
   })
 }
+// 优先定位当前页；目标不在当前结果时，按详情名称查找对应 ID。
+async function locateDetailRow(id: number, name: string, signal: AbortSignal) {
+  if (!page.value.rows.some((row) => row.id === id)) {
+    searchName.value = appliedName.value = name
+    await loadPage(1, id)
+  }
+  if (!signal.aborted) await revealLinkedRow(id)
+}
+
 function openLinkedDetail() {
   const id = Number(route.query.detail)
   if (route.fullPath === ownerFullPath && Number.isInteger(id) && id > 0)
-    requestDrawer('detail', id)
+    protectChanges(() => void openDrawer('detail', id, true))
 }
-async function openDrawer(mode: DrawerMode, id?: number) {
+async function openDrawer(mode: DrawerMode, id?: number, locate = false) {
   if (saving.value || deleting.value) return
   if (drawerMode.value === null) drawerTrigger = document.activeElement as HTMLElement | null
   drawerController?.abort()
@@ -376,6 +392,7 @@ async function openDrawer(mode: DrawerMode, id?: number) {
     const person = await getPersonById(id, controller.signal)
     if (controller.signal.aborted) return
     currentPerson.value = person
+    if (locate) void locateDetailRow(person.id, person.name, controller.signal)
     form.name = person.name
     form.description = person.description ?? ''
     initialFormState.value = JSON.stringify(form)
@@ -400,8 +417,8 @@ function personRoles(anime: AnimePageItem) {
 }
 function openRelatedAnime(anime: AnimePageItem) {
   finishCloseDrawer()
-  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', anime.name)
-  else void router.push({ path: '/admin/anime', query: { keyword: anime.name } })
+  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', anime.name, anime.id)
+  else void router.push({ path: '/admin/anime', query: { keyword: anime.name, detail: anime.id } })
 }
 function bookRoles(book: BookPageItem) {
   return book.persons.filter(person => person.personId === currentPerson.value?.id).map(person => person.role).join('、') || '未注明职责'
@@ -484,7 +501,7 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <section class="persons-management management-cards">
+  <section ref="listRoot" class="persons-management management-cards">
     <section class="persons-hero management-hero">
       <div class="management-hero-copy">
         <p class="persons-eyebrow management-eyebrow">CONTENT ARCHIVE / PEOPLE INDEX</p>
@@ -590,6 +607,8 @@ async function confirmDelete() {
             <tr
               v-for="person in page.rows"
               :key="person.id"
+              :data-work-row="person.id"
+              :data-linked-row-selected="linkedRowId === person.id ? true : undefined"
               :class="{ selected: selectedPersons.has(person.id) }"
             >
               <td class="management-check-cell">

@@ -6,6 +6,7 @@
 import {
   computed,
   inject,
+  nextTick,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -39,10 +40,14 @@ import { searchRelatedEntities } from '@/api/relatedEntities'
 import { getArchiveDateBound, validateArchiveDate } from '@/utils/archiveDate'
 import { pageSizeValues, readPreferences, resolvePageSize } from '@/utils/preferences'
 import { useCatalogRefresh } from '@/utils/catalogChanges'
+import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPosition'
 import AnimeCrudDrawer from './AnimeCrudDrawer.vue'
 
 const route = inject(routeLocationKey, null)
 const ownerFullPath = route?.fullPath ?? ''
+const { listRoot, linkedRowId, revealLinkedRow } = useLinkedListPosition(
+  () => route?.fullPath === ownerFullPath,
+)
 const initialKeyword = typeof route?.query.keyword === 'string' ? route.query.keyword.trim() : ''
 
 interface AnimeFilters {
@@ -416,7 +421,7 @@ function createQuery(pageNum: number): AnimePageQuery {
   }
 }
 
-async function loadPage(pageNum: number) {
+async function loadPage(pageNum: number, targetId?: number) {
   pageController?.abort()
   const controller = new AbortController()
   pageController = controller
@@ -424,7 +429,8 @@ async function loadPage(pageNum: number) {
   errorMessage.value = ''
 
   try {
-    const result = await getAnimePage(createQuery(pageNum), controller.signal)
+    const read = (page: number) => getAnimePage(createQuery(page), controller.signal)
+    const result = await findLinkedPage(pageNum, read, controller.signal, targetId)
     if (controller.signal.aborted) return
     // 切换公开状态可能使当前页超出末页，先取得有效分页再替换列表。
     if (pageNum > Math.max(1, result.pages)) {
@@ -775,27 +781,43 @@ async function openLinkedDetail(selectedId?: number) {
   const id = selectedId ?? Number(route.query.detail)
   if (!Number.isInteger(id) || id <= 0 || route.fullPath !== ownerFullPath) return
   if (selectedId === undefined && route.query.from === 'data-quality' && drawerMode.value) return
-  const cachedRow = page.value.rows.find((row) => row.id === id)
-  if (cachedRow) {
-    openCrudDrawer('detail', cachedRow)
-    return
-  }
   // 连续打开或关闭关联详情时取消旧查询，已读到的详情交给抽屉直接使用。
   linkedDetailController?.abort()
   const request = new AbortController()
   linkedDetailController = request
   try {
-    const detail = await getAnimeDetail(id, request.signal)
-    if (request.signal.aborted) return
-    let anime: AnimePageItem | undefined
-    try {
-      anime = (
-        await getAnimePage({ pageNum: 1, pageSize: 20, keyword: detail.name }, request.signal)
-      ).rows.find((row) => row.id === id)
-    } catch {
-      /* 详情接口成功时仍可展示基础资料。 */
+    // 先卸载旧抽屉，让它恢复旧滚动位置后再定位新的作品。
+    if (drawerMode.value === 'detail' && drawerAnime.value?.id !== id) {
+      drawerMode.value = null
+      await nextTick()
     }
-    if (request.signal.aborted) return
+    if (request.signal.aborted || route.fullPath !== ownerFullPath) return
+    const cachedRow = page.value.rows.find((row) => row.id === id)
+    if (cachedRow) {
+      await revealLinkedRow(id)
+      if (!request.signal.aborted && route.fullPath === ownerFullPath)
+        openCrudDrawer('detail', cachedRow)
+      return
+    }
+    const detail = await getAnimeDetail(id, request.signal)
+    if (request.signal.aborted || route.fullPath !== ownerFullPath) return
+    // 当前页没有目标时，用作品名称重新检索并保留列表的排序。
+    if (!page.value.rows.some((row) => row.id === id)) {
+      const filters = {
+        ...createDefaultFilters(),
+        keyword: detail.name,
+        sortBy: appliedFilters.value.sortBy,
+        sortDirection: appliedFilters.value.sortDirection,
+      }
+      Object.assign(form, filters)
+      appliedFilters.value = filters
+      validationMessage.value = ''
+      dateRangeEnabled.value = appliedDateRangeEnabled.value = false
+      ratingRangeEnabled.value = appliedRatingRangeEnabled.value = false
+      await loadPage(1, id)
+    }
+    if (request.signal.aborted || route.fullPath !== ownerFullPath) return
+    let anime = page.value.rows.find((row) => row.id === id)
     if (!anime) {
       anime = {
         id: detail.id,
@@ -825,7 +847,8 @@ async function openLinkedDetail(selectedId?: number) {
             : { id: detail.seriesId, name: `#${detail.seriesId}`, description: null },
       }
     }
-    if (route.fullPath === ownerFullPath)
+    await revealLinkedRow(id)
+    if (!request.signal.aborted && route.fullPath === ownerFullPath)
       openCrudDrawer('detail', anime, detail)
   } catch (error) {
     if (!request.signal.aborted && route.fullPath === ownerFullPath)
@@ -1324,7 +1347,7 @@ function markCoverBroken(url: string) {
       </form>
     </section>
 
-    <section class="card list-card" aria-labelledby="listTitle" :aria-busy="loading">
+    <section ref="listRoot" class="card list-card" aria-labelledby="listTitle" :aria-busy="loading">
       <div class="list-header">
         <div class="list-title">
           <h2 id="listTitle">动画资料列表</h2>
@@ -1408,7 +1431,12 @@ function markCoverBroken(url: string) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="anime in page.rows" :key="anime.id">
+            <tr
+              v-for="anime in page.rows"
+              :key="anime.id"
+              :data-work-row="anime.id"
+              :data-linked-row-selected="linkedRowId === anime.id ? true : undefined"
+            >
               <td class="transfer-selection">
                 <input
                   v-model="selectedIds"
@@ -1553,7 +1581,13 @@ function markCoverBroken(url: string) {
           class="anime-card-grid"
           :inert="loading"
         >
-          <article v-for="anime in page.rows" :key="anime.id" class="anime-work-card">
+          <article
+            v-for="anime in page.rows"
+            :key="anime.id"
+            class="anime-work-card"
+            :data-work-row="anime.id"
+            :data-linked-row-selected="linkedRowId === anime.id ? true : undefined"
+          >
             <label class="transfer-card-selection"
               ><input v-model="selectedIds" type="checkbox" :value="anime.id" />勾选导出</label
             >

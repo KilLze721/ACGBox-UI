@@ -28,6 +28,7 @@ const props = defineProps<{ mode: 'detail' | 'edit'; bookId: number }>()
 const emit = defineEmits<{
   close: []
   saved: [book: BookDetail]
+  loaded: [book: BookDetail]
   edit: []
   delete: [book: BookDetail]
   selectBook: [id: number]
@@ -76,6 +77,7 @@ async function loadDetail() {
     const value = await getBookDetail(props.bookId, request.signal)
     if (request.signal.aborted) return
     detail.value = value
+    emit('loaded', value)
     void loadRelations(value, request.signal)
   } catch (error) {
     if (!request.signal.aborted)

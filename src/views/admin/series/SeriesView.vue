@@ -5,6 +5,7 @@
  */
 import '@/assets/css/adminManagementCards.css'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
+import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPosition'
 import {
   computed,
   inject,
@@ -50,9 +51,12 @@ const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
 const router = useRouter()
 const route = useRoute()
 const ownerFullPath = route.fullPath
+const { listRoot, linkedRowId, revealLinkedRow } = useLinkedListPosition(
+  () => route.fullPath === ownerFullPath,
+)
 const navigateLinkedContent =
-  inject<(path: '/admin/anime' | '/admin/series', keyword: string) => Promise<void>>(
-    'navigateLinkedContent'
+  inject<(path: '/admin/anime', keyword: string, detailId: number) => Promise<void>>(
+    'navigateLinkedContent',
   )
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<SeriesSummary>>({
@@ -214,21 +218,22 @@ async function loadTotal() {
     return
   }
 }
-async function loadPage(pageNum: number) {
+async function loadPage(pageNum: number, targetId?: number) {
   pageController?.abort()
   const controller = new AbortController()
   pageController = controller
   listLoading.value = true
   listError.value = ''
   try {
-    const result = await getSeriesPage(
-      pageNum,
+    const read = (page: number) => getSeriesPage(
+      page,
       pageSize.value,
       controller.signal,
       appliedName.value,
       'NAME_INITIAL',
       nameSortDirection.value,
     )
+    const result = await findLinkedPage(pageNum, read, controller.signal, targetId)
     if (pageController !== controller) return
     // 先回到有效分页，避免中间的空结果收起列表。
     if (result.total > 0 && !result.rows.length && pageNum > 1) {
@@ -301,7 +306,7 @@ function closeDrawer() {
   currentSeries.value = null
   drawerError.value = ''
 }
-async function openDrawer(mode: DrawerMode, row?: SeriesSummary | number) {
+async function openDrawer(mode: DrawerMode, row?: SeriesSummary | number, locate = false) {
   drawerController?.abort()
   relatedAnime.cancel()
   relatedBook.cancel()
@@ -325,6 +330,7 @@ async function openDrawer(mode: DrawerMode, row?: SeriesSummary | number) {
     const detail = await getSeriesById(typeof row === 'number' ? row : row.id, controller.signal)
     if (controller.signal.aborted) return
     currentSeries.value = detail
+    if (locate) void locateDetailRow(detail.id, detail.name, controller.signal)
     form.name = detail.name
     form.description = detail.description ?? ''
     if (mode === 'detail') {
@@ -340,10 +346,19 @@ async function openDrawer(mode: DrawerMode, row?: SeriesSummary | number) {
     if (!controller.signal.aborted) drawerLoading.value = false
   }
 }
+// 优先定位当前页；目标不在当前结果时，按详情名称查找对应 ID。
+async function locateDetailRow(id: number, name: string, signal: AbortSignal) {
+  if (!page.value.rows.some((row) => row.id === id)) {
+    searchName.value = appliedName.value = name
+    await loadPage(1, id)
+  }
+  if (!signal.aborted) await revealLinkedRow(id)
+}
+
 function openLinkedDetail() {
   const id = Number(route.query.detail)
   if (!Number.isInteger(id) || id <= 0 || route.fullPath !== ownerFullPath) return
-  void openDrawer('detail', id)
+  void openDrawer('detail', id, true)
 }
 async function saveSeries() {
   nameError.value = form.name.trim() ? '' : '请填写系列名称。'
@@ -396,8 +411,8 @@ async function confirmDelete() {
 }
 function openRelatedWork(work: AnimePageItem) {
   closeDrawer()
-  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', work.name)
-  else void router.push({ path: '/admin/anime', query: { keyword: work.name } })
+  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', work.name, work.id)
+  else void router.push({ path: '/admin/anime', query: { keyword: work.name, detail: work.id } })
 }
 function openRelatedBook(book: BookPageItem) {
   closeDrawer()
@@ -407,7 +422,7 @@ function openRelatedBook(book: BookPageItem) {
 </script>
 
 <template>
-  <section class="series-management management-cards">
+  <section ref="listRoot" class="series-management management-cards">
     <section class="series-hero management-hero">
       <div class="series-hero-copy management-hero-copy">
         <p class="series-eyebrow management-eyebrow">CONTENT ARCHIVE / SERIES INDEX</p>
@@ -507,7 +522,12 @@ function openRelatedBook(book: BookPageItem) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in page.rows" :key="row.id">
+            <tr
+              v-for="row in page.rows"
+              :key="row.id"
+              :data-work-row="row.id"
+              :data-linked-row-selected="linkedRowId === row.id ? true : undefined"
+            >
               <td class="series-check-cell management-check-cell">
                 <input
                   type="checkbox"

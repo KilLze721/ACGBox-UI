@@ -5,6 +5,7 @@
  */
 import '@/assets/css/adminManagementCards.css'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
+import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPosition'
 import {
   computed,
   inject,
@@ -57,11 +58,14 @@ const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
 }))
 const route = useRoute()
 const ownerFullPath = route.fullPath
+const { listRoot, linkedRowId, revealLinkedRow } = useLinkedListPosition(
+  () => route.fullPath === ownerFullPath,
+)
 const router = useRouter()
 const navigateLinkedContent =
-  inject<
-    (path: '/admin/anime' | '/admin/series' | '/admin/companies', keyword: string) => Promise<void>
-  >('navigateLinkedContent')
+  inject<(path: '/admin/anime', keyword: string, detailId: number) => Promise<void>>(
+    'navigateLinkedContent',
+  )
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<CompanyOption>>({
   pageNum: 1,
@@ -220,21 +224,22 @@ async function loadTotal() {
     totalCompanies.value = null
   }
 }
-async function loadPage(pageNum: number) {
+async function loadPage(pageNum: number, targetId?: number) {
   pageController?.abort()
   const controller = new AbortController()
   pageController = controller
   listLoading.value = true
   listError.value = ''
   try {
-    const result = await getCompanies(
+    const read = (page: number) => getCompanies(
       appliedName.value,
       pageSize.value,
       controller.signal,
-      pageNum,
+      page,
       'NAME_INITIAL',
       nameSortDirection.value,
     )
+    const result = await findLinkedPage(pageNum, read, controller.signal, targetId)
     if (pageController !== controller) return
     // 先回到有效分页，避免中间的空结果收起列表。
     if (result.total > 0 && !result.rows.length && pageNum > 1) {
@@ -310,12 +315,21 @@ function closeDrawer() {
   currentCompany.value = null
   drawerError.value = ''
 }
+// 优先定位当前页；目标不在当前结果时，按详情名称查找对应 ID。
+async function locateDetailRow(id: number, name: string, signal: AbortSignal) {
+  if (!page.value.rows.some((row) => row.id === id)) {
+    searchName.value = appliedName.value = name
+    await loadPage(1, id)
+  }
+  if (!signal.aborted) await revealLinkedRow(id)
+}
+
 function openLinkedDetail() {
   const id = Number(route.query.detail)
   if (route.fullPath === ownerFullPath && Number.isInteger(id) && id > 0)
-    void openDrawer('detail', id)
+    void openDrawer('detail', id, true)
 }
-async function openDrawer(mode: DrawerMode, row?: CompanyOption | number) {
+async function openDrawer(mode: DrawerMode, row?: CompanyOption | number, locate = false) {
   drawerController?.abort()
   relatedController?.abort()
   relatedBook.cancel()
@@ -348,6 +362,7 @@ async function openDrawer(mode: DrawerMode, row?: CompanyOption | number) {
     const company = await getCompanyById(typeof row === 'number' ? row : row.id, controller.signal)
     if (controller.signal.aborted) return
     currentCompany.value = company
+    if (locate) void locateDetailRow(company.id, company.name, controller.signal)
     form.name = company.name
     form.description = company.description ?? ''
     initialFormState.value = JSON.stringify(form)
@@ -409,8 +424,8 @@ function changeRelatedPageSize(value: string) {
 
 function openRelatedAnime(anime: AnimePageItem) {
   closeDrawer()
-  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', anime.name)
-  else void router.push({ path: '/admin/anime', query: { keyword: anime.name } })
+  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', anime.name, anime.id)
+  else void router.push({ path: '/admin/anime', query: { keyword: anime.name, detail: anime.id } })
 }
 function bookRoles(book: BookPageItem) {
   return book.companies.filter(company => company.companyId === currentCompany.value?.id).map(company => company.role).filter(Boolean).join('、') || '未注明职责'
@@ -481,7 +496,7 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <section class="companies-management management-cards">
+  <section ref="listRoot" class="companies-management management-cards">
     <section class="companies-hero management-hero">
       <div class="companies-hero-copy management-hero-copy">
         <p class="companies-eyebrow management-eyebrow">CONTENT ARCHIVE / STUDIO INDEX</p>
@@ -579,7 +594,12 @@ async function confirmDelete() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in page.rows" :key="row.id">
+            <tr
+              v-for="row in page.rows"
+              :key="row.id"
+              :data-work-row="row.id"
+              :data-linked-row-selected="linkedRowId === row.id ? true : undefined"
+            >
               <td class="companies-check-cell management-check-cell">
                 <input
                   type="checkbox"

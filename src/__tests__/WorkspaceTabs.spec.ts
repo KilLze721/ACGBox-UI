@@ -132,14 +132,38 @@ function stubCatalogRequests(
       } else if (withSeries && path.endsWith('/series/7')) {
         data = { id: 7, name: '测试动画系列', description: '测试系列说明' }
       } else if (withSeries && path.endsWith('/series/page')) {
-        const matches =
-          !url.searchParams.get('name') || '测试动画系列'.includes(url.searchParams.get('name')!)
+        const name = url.searchParams.get('name')
+        const matches = !name || '测试动画系列'.includes(name)
+        const pageNum = Number(url.searchParams.get('pageNum'))
+        // 模拟按名称搜索后前一页存在同名档案，目标位于第二页。
+        const id = name && pageNum === 1 ? 6 : 7
+        data = {
+          pageNum,
+          pageSize: Number(url.searchParams.get('pageSize')),
+          total: matches ? (name ? 2 : 1) : 0,
+          pages: matches ? (name ? 2 : 1) : 0,
+          rows: matches ? [{ id, name: '测试动画系列', description: '测试系列说明' }] : [],
+        }
+      } else if (withSeries && path.endsWith('/book/page')) {
+        const name = '测试系列原作'
+        const keyword = url.searchParams.get('keyword')
+        const matches = !keyword || name.includes(keyword)
         data = {
           pageNum: 1,
           pageSize: Number(url.searchParams.get('pageSize')),
           total: matches ? 1 : 0,
           pages: matches ? 1 : 0,
-          rows: matches ? [{ id: 7, name: '测试动画系列', description: '测试系列说明' }] : [],
+          rows: matches
+            ? [{
+                ...animeRow,
+                name,
+                bookType: { id: 1, name: '轻小说' },
+                publishDate: '2025-05-01',
+                volumeCount: null,
+                chapterCount: null,
+                persons: [],
+              }]
+            : [],
         }
       } else if (path.endsWith('/page')) {
         data = { pageNum: 1, pageSize: 10, total: 0, pages: 0, rows: [] }
@@ -205,7 +229,7 @@ function seriesWorksQueries() {
 
 describe('工作台页面标签', () => {
   // 在实际工作台路由验证档案规则、接口组合参数和只命中无引用的结果。
-  it('质检可对人物、公司和系列检查无引用，并保持同名默认及分页条件', async () => {
+  it('人物、公司和系列质检默认同时检查同名和无引用，支持调整规则及翻页', async () => {
     const queries: URLSearchParams[] = []
     vi.stubGlobal(
       'fetch',
@@ -280,11 +304,10 @@ describe('工作台页面标签', () => {
       await switchTarget(label!)
       expect(lastQuery()).toMatchObject({
         targetType,
-        ruleCodes: 'SAME_NAME_REVIEW',
+        ruleCodes: 'SAME_NAME_REVIEW,UNREFERENCED',
         matchMode: 'ANY',
       })
       await rule('SAME_NAME_REVIEW').setValue(false)
-      await rule('UNREFERENCED').setValue(true)
       await check()
       expect(lastQuery()).toMatchObject({
         targetType,
@@ -383,6 +406,11 @@ describe('工作台页面标签', () => {
       expect(series()?.querySelector('[aria-current]')?.textContent ?? '').toContain('测试系列原作'),
     )
     expect(router.currentRoute.value.path).toBe('/admin/book')
+    await vi.waitFor(() =>
+      expect(wrapper.get('.book-management-page [data-linked-row-selected]').text()).toContain(
+        '测试系列原作',
+      ),
+    )
     expect(document.querySelector('.anime-detail-badges .work-visibility-badge')?.textContent?.trim()).toBe('隐藏')
     const tabCount = wrapper.findAll('.workspace-tab').length
     series().querySelector<HTMLButtonElement>('[aria-label="查看动画详情：测试动画"]')!.click()
@@ -425,8 +453,22 @@ describe('工作台页面标签', () => {
     wrapper.unmount()
   })
 
-  it('关联内容在当前标签内切换管理列表并立即按名称搜索', async () => {
+  it('关联内容在当前标签打开详情并定位到另一页的同名系列', async ({ onTestFinished }) => {
     stubCatalogRequests(true, true)
+    // DOM 测试环境没有实际滚动，记录浏览器会滚动到的元素。
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
+    const scrolledRows: string[] = []
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      value(this: Element) {
+        const id = this.getAttribute('data-work-row')
+        if (id) scrolledRows.push(id)
+      },
+    })
+    onTestFinished(() => {
+      if (scrollDescriptor) Object.defineProperty(Element.prototype, 'scrollIntoView', scrollDescriptor)
+      else Reflect.deleteProperty(Element.prototype, 'scrollIntoView')
+    })
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
 
@@ -442,7 +484,7 @@ describe('工作台页面标签', () => {
     expect(wrapper.find('.workspace-tab.active').element).toBe(workspaceTab)
     expect(wrapper.find('.workspace-tab.active').text()).toContain('系列管理')
     expect(router.currentRoute.value.query.name).toBe('测试动画系列')
-    expect(router.currentRoute.value.query.detail).toBeUndefined()
+    expect(router.currentRoute.value.query.detail).toBe('7')
     expect((wrapper.find('.series-search input').element as HTMLInputElement).value).toBe(
       '测试动画系列',
     )
@@ -457,10 +499,16 @@ describe('工作台页面标签', () => {
         )
       }),
     ).toBe(true)
-    expect(document.querySelector('.series-drawer')).toBeNull()
-
-    await wrapper.find('.series-row-name').trigger('click')
-    await flushPromises()
+    await vi.waitFor(() =>
+      expect(wrapper.get('[data-linked-row-selected]').attributes('data-work-row')).toBe('7'),
+    )
+    expect(
+      fetchMock.mock.calls.some(([input]) => {
+        const url = new URL(String(input), 'http://localhost')
+        return url.pathname.endsWith('/series/page') && url.searchParams.get('pageNum') === '2'
+      }),
+    ).toBe(true)
+    expect(document.querySelector('.series-drawer')?.textContent).toContain('测试系列说明')
     document.querySelector<HTMLButtonElement>('.series-drawer .related-anime-name')!.click()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/anime'))
     await flushPromises()
@@ -469,7 +517,9 @@ describe('工作台页面标签', () => {
     expect(wrapper.find('.workspace-tab.active').element).toBe(workspaceTab)
     expect(wrapper.find('.workspace-tab.active').text()).toContain('动画管理')
     expect(router.currentRoute.value.query.keyword).toBe('测试动画')
-    expect(router.currentRoute.value.query.detail).toBeUndefined()
+    expect(router.currentRoute.value.query.detail).toBe('15')
+    expect(wrapper.get('[data-linked-row-selected]').text()).toContain('测试动画')
+    expect(scrolledRows).toEqual(['7', '15'])
     expect(
       (wrapper.find('input[placeholder="输入动画名称、别名或系列"]').element as HTMLInputElement)
         .value,
@@ -518,8 +568,7 @@ describe('工作台页面标签', () => {
       }),
     ).toBe(true)
 
-    await wrapper.find('.companies-row-name').trigger('click')
-    await flushPromises()
+    expect(wrapper.get('[data-linked-row-selected]').text()).toContain('测试公司')
     document
       .querySelector<HTMLButtonElement>('.companies-association-anime .related-anime-name')!
       .click()

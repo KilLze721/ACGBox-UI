@@ -36,7 +36,8 @@ const navigateLinkedContent =
   inject<
     (
       path: '/admin/anime' | '/admin/series' | '/admin/companies' | '/admin/persons',
-      keyword: string
+      keyword: string,
+      detailId: number
     ) => Promise<void>
   >('navigateLinkedContent')
 const openBookDetail = inject<((id: number) => Promise<void>) | null>('openBookDetail', null)
@@ -152,11 +153,13 @@ function openEdit() {
   emit('edit')
 }
 
-// 系列名称沿用动画详情原有的名称搜索跳转。
+// 用系列名称检索，并用详情中的 ID 区分同名系列。
 async function openSeriesDetail(seriesName: string) {
+  const id = detail.value?.seriesId
+  if (id == null) return
   emit('close')
-  if (navigateLinkedContent) await navigateLinkedContent('/admin/series', seriesName)
-  else await router.push({ path: '/admin/series', query: { name: seriesName } })
+  if (navigateLinkedContent) await navigateLinkedContent('/admin/series', seriesName, id)
+  else await router.push({ path: '/admin/series', query: { name: seriesName, detail: id } })
 }
 
 // 同类型作品直接交给当前列表打开，跨类型复用目标列表标签。
@@ -189,14 +192,14 @@ async function openCompanyDetail(companyId: number) {
     }
   }
   emit('close')
-  if (navigateLinkedContent) await navigateLinkedContent('/admin/companies', companyName)
-  else await router.push({ path: '/admin/companies', query: { name: companyName } })
+  if (navigateLinkedContent) await navigateLinkedContent('/admin/companies', companyName, companyId)
+  else await router.push({ path: '/admin/companies', query: { name: companyName, detail: companyId } })
 }
 
-async function openPersonDetail(personName: string) {
+async function openPersonDetail(personName: string, personId: number) {
   emit('close')
-  if (navigateLinkedContent) await navigateLinkedContent('/admin/persons', personName)
-  else await router.push({ path: '/admin/persons', query: { name: personName } })
+  if (navigateLinkedContent) await navigateLinkedContent('/admin/persons', personName, personId)
+  else await router.push({ path: '/admin/persons', query: { name: personName, detail: personId } })
 }
 
 function requestClose() {
@@ -390,7 +393,7 @@ function getSafeExternalUrl(value: string) {
                       class="anime-detail-series-link"
                       type="button"
                       :aria-label="`搜索创作人员：${person.personName}`"
-                      @click="openPersonDetail(person.personName)"
+                      @click="openPersonDetail(person.personName, person.personId)"
                     >
                       {{ person.personName }}<i>{{ person.role }}</i>
                     </button>

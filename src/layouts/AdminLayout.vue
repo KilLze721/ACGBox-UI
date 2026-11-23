@@ -327,15 +327,17 @@ function getTabWrapper(component: VNode) {
   return wrapper
 }
 
-// 关联内容在当前标签内替换路由，并携带目标名称供列表初始化搜索。
+// 关联内容在当前标签内替换路由，名称用于检索，ID 用于打开并定位对应详情。
 async function navigateLinkedContent(
   path: '/admin/anime' | '/admin/series' | '/admin/companies' | '/admin/persons',
-  keyword: string
+  keyword: string,
+  detailId: number
 ) {
   const tab = activeTab.value
   if (!tab?.closable) return
   const query = {
     [path === '/admin/anime' ? 'keyword' : 'name']: keyword.trim(),
+    detail: String(detailId),
     __workspaceTab: tab.id,
   }
   const target = router.resolve({ path, query })
@@ -467,7 +469,7 @@ async function openBookDetail(id: number) {
   if (!tab) { await router.push({ path: '/admin/book', query: { detail: String(id) } }); return }
   await activateTab(tab)
   await nextTick()
-  pageInstances.get(tab.id)?.openBookDetail?.(id)
+  if (route.fullPath === tab.fullPath) pageInstances.get(tab.id)?.openBookDetail?.(id)
 }
 
 async function returnToBookList(createFullPath: string) {
