@@ -764,6 +764,16 @@ function openRelatedBook(book: BookPageItem) {
           <footer class="series-drawer-footer">
             <span>{{ drawerMode === 'detail' ? '系列档案' : '名称必填' }}</span>
             <div>
+              <!-- 详情删除复用列表的确认流程，每次只提交当前档案。 -->
+              <button
+                v-if="drawerMode === 'detail'"
+                class="secondary-button"
+                type="button"
+                :disabled="!currentSeries || drawerLoading || deleting"
+                @click="currentSeries && openDelete([currentSeries])"
+              >
+                <AdminIcon name="delete" />删除
+              </button>
               <button class="secondary-button" type="button" @click="closeDrawer">
                 {{ drawerMode === 'detail' ? '关闭' : '取消' }}</button
               ><button

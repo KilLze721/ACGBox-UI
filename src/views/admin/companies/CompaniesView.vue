@@ -959,6 +959,16 @@ async function confirmDelete() {
           <footer class="companies-drawer-footer">
             <span>{{ drawerMode === 'detail' ? '制作公司档案' : '公司名称必填 · 简介可选' }}</span>
             <div>
+              <!-- 详情删除复用列表的确认流程，每次只提交当前档案。 -->
+              <button
+                v-if="drawerMode === 'detail'"
+                class="secondary-button"
+                type="button"
+                :disabled="!currentCompany || drawerLoading || deleting"
+                @click="currentCompany && openDelete([currentCompany])"
+              >
+                <AdminIcon name="delete" />删除
+              </button>
               <button class="secondary-button" type="button" @click="closeDrawer">
                 {{ drawerMode === 'detail' ? '关闭' : '取消' }}</button
               ><button

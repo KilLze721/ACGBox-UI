@@ -228,6 +228,66 @@ function seriesWorksQueries() {
 }
 
 describe('工作台页面标签', () => {
+  it.each([
+    ['系列', 'series'],
+    ['公司', 'companies'],
+    ['人物', 'persons'],
+  ])('可在%s详情中确认删除当前档案', async (label, path) => {
+    const target = { id: 17, name: `待删除${label}`, description: null }
+    const other = { id: 21, name: `保留${label}`, description: null }
+    let archives = [target, other]
+    const deleteRequests: number[][] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string, options?: RequestInit) => {
+        const url = new URL(input, 'http://localhost')
+        let data: unknown = []
+        if (url.pathname.endsWith('/page')) {
+          const rows = url.pathname === `/api/${path}/page` ? archives : []
+          data = { rows, total: rows.length, pageNum: 1, pageSize: 20, pages: 1 }
+        } else if (url.pathname === `/api/${path}/${target.id}`) {
+          data = target
+        } else if (url.pathname === `/api/${path}/delete`) {
+          const ids: number[] = JSON.parse(String(options?.body))
+          deleteRequests.push(ids)
+          archives = archives.filter(({ id }) => !ids.includes(id))
+          data = null
+        }
+        return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
+      }),
+    )
+    sessionStorage.setItem('acgbox-user', JSON.stringify({ id: 1, username: 'admin', role: 'ADMIN' }))
+    await router.push(`/admin/${path}`)
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+    await vi.dynamicImportSettled()
+    await flushPromises()
+    await wrapper
+      .findAll('button.management-row-name')
+      .find((button) => button.text() === target.name)!
+      .trigger('click')
+    await flushPromises()
+
+    // 从详情操作区进入确认弹窗，确认范围仅包含当前打开的档案。
+    const deleteButton = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(`.${path}-drawer-footer button`),
+    ).find((button) => button.textContent?.trim() === '删除')!
+    expect(deleteButton.disabled).toBe(false)
+    deleteButton.click()
+    await flushPromises()
+    const dialog = document.querySelector('[role="dialog"][aria-labelledby$="DeleteTitle"]')!
+    expect(dialog.textContent).toContain(target.name)
+    expect(dialog.textContent).not.toContain(other.name)
+    expect(deleteRequests).toEqual([])
+    dialog.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click()
+    dialog.querySelector<HTMLButtonElement>('button.danger-button')!.click()
+    await flushPromises()
+    expect(deleteRequests).toEqual([[target.id]])
+    expect(document.body.querySelector(`.${path}-drawer-footer`)).toBeNull()
+    expect(wrapper.text()).toContain(other.name)
+    expect(wrapper.text()).not.toContain(target.name)
+    wrapper.unmount()
+  })
+
   // 在实际工作台路由验证档案规则、接口组合参数和只命中无引用的结果。
   it('人物、公司和系列质检默认同时检查同名和无引用，支持调整规则及翻页', async () => {
     const queries: URLSearchParams[] = []
