@@ -15,6 +15,8 @@ import type {
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
 
 const sameNameRule = { code: 'SAME_NAME_REVIEW', label: '同名待核对' } as const
+// 档案类型支持同名与无引用组合，作品类型继续使用原有规则。
+const archiveRules = [sameNameRule, { code: 'UNREFERENCED', label: '无引用' }] as const
 const rules: Array<{ code: DataQualityRule; label: string }> = [
   { code: 'MISSING_COVER', label: '缺封面' },
   { code: 'MISSING_DESCRIPTION', label: '缺简介' },
@@ -81,15 +83,15 @@ const nameDrafts = {
 }
 const applied = ref(defaults('ANIME'))
 const isPerson = computed(() => applied.value.targetType === 'PERSON')
-const sameNameOnly = computed(() => !isWorkTarget(applied.value.targetType))
+const isArchiveTarget = computed(() => !isWorkTarget(applied.value.targetType))
 function draftFor(targetType: DataQualityTarget) {
   return targetType === 'ANIME' || targetType === 'BOOK' ? workDraft : nameDrafts[targetType]
 }
 const draft = computed(() => draftFor(applied.value.targetType).value)
-const visibleRules = computed(() => (sameNameOnly.value ? [sameNameRule] : rules))
+const visibleRules = computed(() => (isArchiveTarget.value ? archiveRules : rules))
 const resultTarget = computed(() => targets[applied.value.targetType])
 const countLabel = computed(() =>
-  isPerson.value ? '人数' : sameNameOnly.value ? '记录数' : '作品数',
+  isPerson.value ? '人数' : isArchiveTarget.value ? '记录数' : '作品数',
 )
 const result = ref<DataQualityPage>()
 const loading = ref(true)
@@ -150,7 +152,9 @@ async function checkPage(pageNum = applied.value.pageNum) {
 }
 function apply(targetType = draft.value.targetType) {
   const next = draftFor(targetType).value
-  if (!next.ruleCodes.length && sameNameOnly.value) next.ruleCodes = defaults(targetType).ruleCodes
+  // 切换类型时恢复空草稿的默认规则，当前类型主动检查时仍提示至少勾选一项。
+  if (targetType !== applied.value.targetType && !next.ruleCodes.length)
+    next.ruleCodes = defaults(targetType).ruleCodes
   if (!next.ruleCodes.length) {
     validation.value = '请至少选择一项规则。'
     return
@@ -167,7 +171,7 @@ function apply(targetType = draft.value.targetType) {
   void checkPage()
 }
 function reset() {
-  const targetType = sameNameOnly.value ? applied.value.targetType : 'ANIME'
+  const targetType = isArchiveTarget.value ? applied.value.targetType : 'ANIME'
   draftFor(targetType).value = defaults(targetType)
   applied.value = defaults(targetType)
   validation.value = ''
@@ -185,7 +189,7 @@ onDeactivated(() => request?.abort())
       <div class="management-hero-copy">
         <p class="management-eyebrow">CONTENT ARCHIVE / QUALITY REVIEW</p>
         <h1>数据质量检查</h1>
-        <p>检查作品资料缺漏，核对同名记录。</p>
+        <p>检查作品资料缺漏，核对同名与无引用档案。</p>
       </div>
       <span class="quality-hero-mark" aria-hidden="true"><AdminIcon name="check" /></span>
     </header>
@@ -197,7 +201,7 @@ onDeactivated(() => request?.abort())
           <h2>检查条件</h2>
         </div>
       </div>
-      <div class="quality-filters" :class="{ 'quality-person-filters': sameNameOnly }">
+      <div class="quality-filters">
         <fieldset>
           <legend>内容类型</legend>
           <div class="segmented-control">
@@ -227,7 +231,7 @@ onDeactivated(() => request?.abort())
             />
           </div>
         </div>
-        <fieldset v-if="!sameNameOnly">
+        <fieldset>
           <legend>命中方式</legend>
           <div class="quality-options quality-match">
             <label><input v-model="draft.matchMode" type="radio" value="ANY" /> 满足任一项</label>
@@ -246,7 +250,6 @@ onDeactivated(() => request?.abort())
               v-model="draft.ruleCodes"
               type="checkbox"
               :value="rule.code"
-              :disabled="sameNameOnly"
               @change="validation = ''"
             />
             <span>{{ rule.label }}</span>
@@ -275,7 +278,7 @@ onDeactivated(() => request?.abort())
         <dd>{{ result.total }}</dd>
       </dl>
       <div class="quality-counts">
-        <h2>分项命中 <small v-if="!sameNameOnly">同一作品可命中多项</small></h2>
+        <h2>分项命中 <small>同一{{ isArchiveTarget ? '档案' : '作品' }}可命中多项</small></h2>
         <dl v-for="rule in visibleRules" :key="rule.code">
           <dt>{{ rule.label }}</dt>
           <dd>{{ result.summary.ruleCounts[rule.code] ?? '—' }}</dd>
@@ -312,18 +315,20 @@ onDeactivated(() => request?.abort())
       <div v-else-if="!result?.rows.length" class="quality-state">
         <span class="quality-state-mark" aria-hidden="true"><AdminIcon name="check" /></span>
         <strong>{{
-          sameNameOnly
-            ? `当前条件下未发现同名${resultTarget.label}`
+          isArchiveTarget
+            ? applied.ruleCodes.length === 1 && applied.ruleCodes[0] === sameNameRule.code
+              ? `当前条件下未发现同名${resultTarget.label}`
+              : `当前条件下未发现符合规则的${resultTarget.label}档案`
             : '当前条件下未发现待补充或待核对的作品'
         }}</strong>
-        <p v-if="!sameNameOnly">可以调整检查规则或作品名称后再检查。</p>
+        <p>可以调整检查规则或{{ resultTarget.searchLabel }}后再检查。</p>
       </div>
       <template v-else>
         <div class="quality-table-wrap">
           <table class="anime-table quality-table">
             <thead>
               <tr>
-                <th scope="col">{{ sameNameOnly ? resultTarget.label : '作品' }}</th>
+                <th scope="col">{{ isArchiveTarget ? resultTarget.label : '作品' }}</th>
                 <th scope="col">命中项</th>
                 <th scope="col">更新时间</th>
                 <th scope="col">操作</th>
@@ -334,7 +339,9 @@ onDeactivated(() => request?.abort())
                 <td>
                   <div v-if="!isWorkTarget(row.targetType)" class="quality-person">
                     <strong>{{ row.name }}</strong>
-                    <small v-if="row.targetType === 'PERSON'" class="quality-id"
+                    <small
+                      v-if="row.targetType === 'PERSON' && row.issues.some(({ code }) => code === sameNameRule.code)"
+                      class="quality-id"
                       >ID {{ row.targetId }}</small
                     >
                     <ArchiveDescription :text="row.description" />
@@ -491,9 +498,6 @@ onDeactivated(() => request?.abort())
   align-items: end;
   gap: 16px;
   margin-top: 16px;
-}
-.quality-person-filters {
-  grid-template-columns: auto minmax(180px, 1fr);
 }
 .quality-panel fieldset {
   padding: 0;

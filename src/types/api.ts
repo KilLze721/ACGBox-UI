@@ -104,6 +104,8 @@ export type DataQualityRule =
   | 'MISSING_TAG'
   | 'MISSING_DATE'
   | 'SAME_NAME_REVIEW'
+  // 人物、公司、系列档案的无引用检查。
+  | 'UNREFERENCED'
 
 export interface DataQualityQuery {
   targetType: DataQualityTarget

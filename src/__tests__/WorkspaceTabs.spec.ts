@@ -204,6 +204,130 @@ function seriesWorksQueries() {
 }
 
 describe('工作台页面标签', () => {
+  // 在实际工作台路由验证档案规则、接口组合参数和只命中无引用的结果。
+  it('质检可对人物、公司和系列检查无引用，并保持同名默认及分页条件', async () => {
+    const queries: URLSearchParams[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = new URL(String(input), 'http://localhost')
+        let data: unknown = []
+        if (url.pathname === '/api/data-quality/page') {
+          const params = url.searchParams
+          queries.push(params)
+          const targetType = params.get('targetType')
+          const codes = params.get('ruleCodes')?.split(',') ?? []
+          const duplicate = codes.includes('SAME_NAME_REVIEW')
+          const archive = ['PERSON', 'COMPANY', 'SERIES'].includes(targetType ?? '')
+          data = {
+            pageNum: Number(params.get('pageNum')),
+            pageSize: Number(params.get('pageSize')),
+            pages: archive ? 2 : 0,
+            total: archive ? 25 : 0,
+            checkedAt: null,
+            summary: { scopeTotal: 40, ruleCounts: { SAME_NAME_REVIEW: 25, UNREFERENCED: 30 } },
+            rows: archive
+              ? [
+                  {
+                    targetType,
+                    targetId: 17,
+                    name: '测试档案',
+                    description: null,
+                    updatedAt: null,
+                    duplicateCount: duplicate ? 2 : null,
+                    issues: codes.map((code) => ({
+                      code,
+                      message: code === 'UNREFERENCED' ? '无引用' : '同名待核对',
+                    })),
+                  },
+                ]
+              : [],
+          }
+        }
+        return { ok: true, status: 200, json: async () => ({ code: 200, data }) }
+      }),
+    )
+    sessionStorage.setItem(
+      'acgbox-user',
+      JSON.stringify({ id: 1, username: 'admin', role: 'ADMIN' }),
+    )
+    await router.push('/admin/data-quality')
+    const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
+    await vi.dynamicImportSettled()
+    await flushPromises()
+    const lastQuery = () => Object.fromEntries(queries.slice(-1)[0]!)
+    const rule = (code: string) => wrapper.get(`input[type="checkbox"][value="${code}"]`)
+    const switchTarget = async (label: string) => {
+      await wrapper
+        .get('.quality-filters')
+        .findAll('.segmented-control button')
+        .find((button) => button.text() === label)!
+        .trigger('click')
+      await flushPromises()
+    }
+    const check = async () => {
+      await wrapper.get('.quality-panel').trigger('submit')
+      await flushPromises()
+    }
+    expect(lastQuery().targetType).toBe('ANIME')
+    expect(wrapper.find('input[value="UNREFERENCED"]').exists()).toBe(false)
+
+    for (const [targetType, label] of [
+      ['PERSON', '人物'],
+      ['COMPANY', '公司'],
+      ['SERIES', '系列'],
+    ]) {
+      await switchTarget(label!)
+      expect(lastQuery()).toMatchObject({
+        targetType,
+        ruleCodes: 'SAME_NAME_REVIEW',
+        matchMode: 'ANY',
+      })
+      await rule('SAME_NAME_REVIEW').setValue(false)
+      await rule('UNREFERENCED').setValue(true)
+      await check()
+      expect(lastQuery()).toMatchObject({
+        targetType,
+        ruleCodes: 'UNREFERENCED',
+        matchMode: 'ANY',
+        pageNum: '1',
+      })
+      expect(wrapper.get('.quality-issues').text()).toBe('无引用')
+      expect(wrapper.find('.quality-person .quality-id').exists()).toBe(false)
+      expect(
+        wrapper
+          .get('.quality-counts')
+          .findAll('dl')
+          .map((count) => count.text()),
+      ).toEqual(['同名待核对25', '无引用30'])
+    }
+    await rule('SAME_NAME_REVIEW').setValue(true)
+    await wrapper.get('input[value="ALL"]').setValue(true)
+    await wrapper.get('#qualityKeyword').setValue(' 测试 ')
+    await check()
+    expect(lastQuery()).toMatchObject({
+      targetType: 'SERIES',
+      keyword: '测试',
+      matchMode: 'ALL',
+      pageNum: '1',
+    })
+    expect(lastQuery().ruleCodes?.split(',').sort()).toEqual(['SAME_NAME_REVIEW', 'UNREFERENCED'])
+    expect(
+      wrapper
+        .get('.quality-issues')
+        .findAll('span')
+        .map((issue) => issue.text()),
+    ).toEqual(['无引用', '同名待核对 · 2 个'])
+    await wrapper.get('button[aria-label="下一页"]').trigger('click')
+    await flushPromises()
+    expect(lastQuery()).toMatchObject({ keyword: '测试', matchMode: 'ALL', pageNum: '2' })
+
+    await switchTarget('书籍')
+    expect(lastQuery().targetType).toBe('BOOK')
+    expect(lastQuery().ruleCodes).not.toContain('UNREFERENCED')
+    expect(wrapper.find('input[value="UNREFERENCED"]').exists()).toBe(false)
+  })
+
   it('点击动画列表名称在当前页面打开详情抽屉', async () => {
     stubCatalogRequests(true)
     await router.push('/admin/dashboard')
