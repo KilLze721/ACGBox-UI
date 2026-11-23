@@ -9,6 +9,7 @@ import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPositio
 import {
   computed,
   inject,
+  nextTick,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -101,6 +102,7 @@ const nameError = ref('')
 const initialFormState = ref('')
 const saving = ref(false)
 const deleteTargets = ref<SeriesSummary[]>([])
+const deleteDialog = ref<HTMLElement>()
 const deleteConfirmed = ref(false)
 const deleteError = ref('')
 const deleting = ref(false)
@@ -109,6 +111,7 @@ const toast = ref<{ message: string; error: boolean } | null>(null)
 let pageController: AbortController | undefined
 let drawerController: AbortController | undefined
 let toastTimer: number | undefined
+let deleteTrigger: HTMLElement | null = null
 let previousBodyOverflow: string | undefined
 let previousHtmlOverflow: string | undefined
 
@@ -381,11 +384,21 @@ async function saveSeries() {
 }
 function openDelete(targets: SeriesSummary[]) {
   if (!targets.length) return
-  closeDrawer()
+  // 从详情发起时保留抽屉，取消确认后可以继续查看当前档案。
+  deleteTrigger = document.activeElement as HTMLElement | null
+  if (drawerMode.value !== 'detail') closeDrawer()
   deleteTargets.value = targets
   deleteConfirmed.value = false
   deleteError.value = ''
 }
+watch(
+  () => deleteTargets.value.length,
+  async (count) => {
+    await nextTick()
+    if (tabActive.value)
+      (count ? deleteDialog.value : deleteTrigger)?.focus({ preventScroll: true })
+  },
+)
 function closeDelete() {
   if (!deleting.value) deleteTargets.value = []
 }
@@ -397,11 +410,12 @@ async function confirmDelete() {
   if (!deleteTargets.value.length || deleting.value) return
   deleting.value = true
   deleteError.value = ''
-  const count = deleteTargets.value.length
+  const ids = deleteTargets.value.map((row) => row.id)
   try {
-    await deleteSeries(deleteTargets.value.map((row) => row.id))
+    await deleteSeries(ids)
+    if (ids.some((id) => id === currentSeries.value?.id)) closeDrawer()
     deleteTargets.value = []
-    showToast(`已删除 ${count} 个系列。`)
+    showToast(`已删除 ${ids.length} 个系列。`)
     await Promise.all([loadPage(page.value.pageNum), loadTotal()])
   } catch (error) {
     deleteError.value = messageOf(error, '删除失败，请稍后重试。')
@@ -681,7 +695,8 @@ function openRelatedBook(book: BookPageItem) {
         <aside
           class="series-drawer"
           role="dialog"
-          aria-modal="true"
+          :aria-modal="!deleteTargets.length"
+          :inert="deleteTargets.length > 0"
           :aria-label="
             drawerMode === 'create' ? '新增系列' : drawerMode === 'edit' ? '编辑系列' : '系列详情'
           "
@@ -804,8 +819,9 @@ function openRelatedBook(book: BookPageItem) {
         aria-modal="true"
         aria-labelledby="seriesDeleteTitle"
         @click.self="closeDelete"
+        @keydown.esc.stop.prevent="closeDelete"
       >
-        <div class="series-dialog">
+        <div ref="deleteDialog" class="series-dialog" tabindex="-1">
           <span class="series-dialog-mark"><AdminIcon name="delete" /></span>
           <h2 id="seriesDeleteTitle">确认删除系列？</h2>
           <p>删除后无法通过页面撤销。请核对以下系列。</p>

@@ -232,11 +232,12 @@ describe('工作台页面标签', () => {
     ['系列', 'series'],
     ['公司', 'companies'],
     ['人物', 'persons'],
-  ])('可在%s详情中确认删除当前档案', async (label, path) => {
+  ])('%s详情在取消或删除失败后保留，删除成功后关闭', async (label, path) => {
     const target = { id: 17, name: `待删除${label}`, description: null }
     const other = { id: 21, name: `保留${label}`, description: null }
     let archives = [target, other]
     const deleteRequests: number[][] = []
+    let rejectDelete = true
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string, options?: RequestInit) => {
@@ -250,6 +251,13 @@ describe('工作台页面标签', () => {
         } else if (url.pathname === `/api/${path}/delete`) {
           const ids: number[] = JSON.parse(String(options?.body))
           deleteRequests.push(ids)
+          if (rejectDelete) {
+            return {
+              ok: true,
+              status: 200,
+              json: async () => ({ code: 409, message: '该档案仍被作品引用' }),
+            }
+          }
           archives = archives.filter(({ id }) => !ids.includes(id))
           data = null
         }
@@ -271,17 +279,40 @@ describe('工作台页面标签', () => {
     const deleteButton = Array.from(
       document.querySelectorAll<HTMLButtonElement>(`.${path}-drawer-footer button`),
     ).find((button) => button.textContent?.trim() === '删除')!
+    const drawer = document.querySelector(`.${path}-drawer`)!
+    const getDialog = () =>
+      document.querySelector('[role="dialog"][aria-labelledby$="DeleteTitle"]')!
     expect(deleteButton.disabled).toBe(false)
+    deleteButton.focus()
     deleteButton.click()
     await flushPromises()
-    const dialog = document.querySelector('[role="dialog"][aria-labelledby$="DeleteTitle"]')!
+    expect(document.querySelector(`.${path}-drawer`)).toBe(drawer)
+    expect(getDialog().contains(document.activeElement)).toBe(true)
+    getDialog().querySelector<HTMLButtonElement>('button.secondary-button')!.click()
+    await flushPromises()
+    expect(getDialog()).toBeNull()
+    expect(document.querySelector(`.${path}-drawer`)).toBe(drawer)
+    expect(document.activeElement).toBe(deleteButton)
+    expect(deleteRequests).toEqual([])
+
+    deleteButton.click()
+    await flushPromises()
+    const dialog = getDialog()
     expect(dialog.textContent).toContain(target.name)
     expect(dialog.textContent).not.toContain(other.name)
-    expect(deleteRequests).toEqual([])
     dialog.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click()
-    dialog.querySelector<HTMLButtonElement>('button.danger-button')!.click()
+    const confirmButton = dialog.querySelector<HTMLButtonElement>('button.danger-button')!
+    confirmButton.click()
     await flushPromises()
+    expect(getDialog().textContent).toContain('该档案仍被作品引用')
+    expect(document.querySelector(`.${path}-drawer`)).toBe(drawer)
     expect(deleteRequests).toEqual([[target.id]])
+
+    rejectDelete = false
+    confirmButton.click()
+    await flushPromises()
+    expect(deleteRequests).toEqual([[target.id], [target.id]])
+    expect(getDialog()).toBeNull()
     expect(document.body.querySelector(`.${path}-drawer-footer`)).toBeNull()
     expect(wrapper.text()).toContain(other.name)
     expect(wrapper.text()).not.toContain(target.name)

@@ -9,6 +9,7 @@ import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPositio
 import {
   computed,
   inject,
+  nextTick,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -115,6 +116,7 @@ const relatedSortDirection = ref<SortDirection>('DESC')
 const relatedLoading = ref(false)
 const relatedError = ref('')
 const deleteTargets = ref<CompanyOption[]>([])
+const deleteDialog = ref<HTMLElement>()
 const deleteConfirmed = ref(false)
 const deleteError = ref('')
 const deleting = ref(false)
@@ -124,6 +126,7 @@ let pageController: AbortController | undefined
 let drawerController: AbortController | undefined
 let relatedController: AbortController | undefined
 let toastTimer: number | undefined
+let deleteTrigger: HTMLElement | null = null
 let previousBodyOverflow: string | undefined
 let previousHtmlOverflow: string | undefined
 
@@ -465,11 +468,21 @@ async function saveCompany() {
 }
 function openDelete(targets: CompanyOption[]) {
   if (!targets.length) return
-  closeDrawer()
+  // 从详情发起时保留抽屉，取消确认后可以继续查看当前档案。
+  deleteTrigger = document.activeElement as HTMLElement | null
+  if (drawerMode.value !== 'detail') closeDrawer()
   deleteTargets.value = targets
   deleteConfirmed.value = false
   deleteError.value = ''
 }
+watch(
+  () => deleteTargets.value.length,
+  async (count) => {
+    await nextTick()
+    if (tabActive.value)
+      (count ? deleteDialog.value : deleteTrigger)?.focus({ preventScroll: true })
+  },
+)
 function closeDelete() {
   if (!deleting.value) deleteTargets.value = []
 }
@@ -481,11 +494,12 @@ async function confirmDelete() {
   if (!deleteTargets.value.length || deleting.value) return
   deleting.value = true
   deleteError.value = ''
-  const count = deleteTargets.value.length
+  const ids = deleteTargets.value.map((row) => row.id)
   try {
-    await deleteCompanies(deleteTargets.value.map((row) => row.id))
+    await deleteCompanies(ids)
+    if (ids.some((id) => id === currentCompany.value?.id)) closeDrawer()
     deleteTargets.value = []
-    showToast(`已删除 ${count} 家公司。`)
+    showToast(`已删除 ${ids.length} 家公司。`)
     await Promise.all([loadPage(page.value.pageNum), loadTotal()])
   } catch (error) {
     deleteError.value = messageOf(error, '删除失败，请稍后重试。')
@@ -759,7 +773,8 @@ async function confirmDelete() {
         <aside
           class="companies-drawer"
           role="dialog"
-          aria-modal="true"
+          :aria-modal="!deleteTargets.length"
+          :inert="deleteTargets.length > 0"
           :aria-label="
             drawerMode === 'create' ? '新增公司' : drawerMode === 'edit' ? '编辑公司' : '公司详情'
           "
@@ -999,8 +1014,9 @@ async function confirmDelete() {
         aria-modal="true"
         aria-labelledby="companiesDeleteTitle"
         @click.self="closeDelete"
+        @keydown.esc.stop.prevent="closeDelete"
       >
-        <div class="companies-dialog">
+        <div ref="deleteDialog" class="companies-dialog" tabindex="-1">
           <span class="companies-dialog-mark"><AdminIcon name="delete" /></span>
           <h2 id="companiesDeleteTitle">确认删除公司？</h2>
           <p>删除后无法通过页面撤销。请核对以下公司。</p>

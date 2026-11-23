@@ -189,7 +189,7 @@ watch(
   async (count) => {
     await nextTick()
     if (count && tabActive.value) deleteDialog.value?.focus()
-    else if (tabActive.value) deleteTrigger?.focus()
+    else if (tabActive.value) deleteTrigger?.focus({ preventScroll: true })
   }
 )
 watch(discardAction, async (action) => {
@@ -465,10 +465,12 @@ async function savePerson() {
 function openDelete(targets: Person[]) {
   if (!targets.length || saving.value || deleting.value) return
   protectChanges(() => {
-    deleteTrigger = drawerMode.value
-      ? drawerTrigger
-      : (document.activeElement as HTMLElement | null)
-    finishCloseDrawer()
+    // 弹窗叠在详情上，取消时把焦点交还给原来的删除入口。
+    deleteTrigger =
+      drawerMode.value && drawerMode.value !== 'detail'
+        ? drawerTrigger
+        : (document.activeElement as HTMLElement | null)
+    if (drawerMode.value !== 'detail') finishCloseDrawer()
     deleteTargets.value = [...targets]
     deleteConfirmed.value = false
     deleteError.value = ''
@@ -488,6 +490,7 @@ async function confirmDelete() {
   try {
     const ids = deleteTargets.value.map((person) => person.id)
     await deletePersons(ids)
+    if (ids.some((id) => id === currentPerson.value?.id)) finishCloseDrawer()
     ids.forEach((id) => selectedPersons.value.delete(id))
     deleteTargets.value = []
     showToast(`已删除 ${ids.length} 位人物。`)
@@ -784,7 +787,8 @@ async function confirmDelete() {
           class="persons-drawer"
           :class="{ 'persons-detail-drawer': drawerMode === 'detail' }"
           role="dialog"
-          aria-modal="true"
+          :aria-modal="!deleteTargets.length"
+          :inert="deleteTargets.length > 0"
           aria-labelledby="personDrawerTitle"
           tabindex="-1"
           @keydown="handleDialogKey($event, closeDrawer)"
