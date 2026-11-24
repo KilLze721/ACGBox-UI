@@ -5,10 +5,9 @@
  */
 import '@/assets/css/adminManagementCards.css'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
-import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPosition'
+import { findLinkedPage, useLinkedContentNavigation, useLinkedListPosition } from '@/utils/linkedListPosition'
 import {
   computed,
-  inject,
   nextTick,
   onActivated,
   onBeforeUnmount,
@@ -18,7 +17,7 @@ import {
   ref,
   watch,
 } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { getAnimePage } from '@/api/anime'
 import {
   createCompany,
@@ -48,7 +47,6 @@ import type {
 type DrawerMode = 'create' | 'edit' | 'detail'
 const relatedBook = useRelatedBook()
 const relatedType = ref<'anime' | 'book'>('anime')
-const openBookDetail = inject<(id: number) => Promise<void>>('openBookDetail')
 watch(relatedType, (value) => {
   if (drawerMode.value !== 'detail' || drawerLoading.value || !currentCompany.value) return
   if (value === 'book') { relatedController?.abort(); relatedLoading.value = false; void relatedBook.resume() }
@@ -63,11 +61,7 @@ const ownerFullPath = route.fullPath
 const { listRoot, linkedRowId, revealLinkedRow } = useLinkedListPosition(
   () => route.fullPath === ownerFullPath,
 )
-const router = useRouter()
-const navigateLinkedContent =
-  inject<(path: '/admin/anime', keyword: string, detailId: number) => Promise<void>>(
-    'navigateLinkedContent',
-  )
+const navigateLinkedContent = useLinkedContentNavigation()
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<CompanyOption>>({
   pageNum: 1,
@@ -427,17 +421,13 @@ function changeRelatedPageSize(value: string) {
 }
 
 function openRelatedAnime(anime: AnimePageItem) {
-  closeDrawer()
-  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', anime.name, anime.id)
-  else void router.push({ path: '/admin/anime', query: { keyword: anime.name, detail: anime.id } })
+  void navigateLinkedContent('/admin/anime', anime.name, anime.id)
 }
 function bookRoles(book: BookPageItem) {
   return book.companies.filter(company => company.companyId === currentCompany.value?.id).map(company => company.role).filter(Boolean).join('、') || '未注明职责'
 }
 function openRelatedBook(book: BookPageItem) {
-  closeDrawer()
-  if (openBookDetail) void openBookDetail(book.id)
-  else void router.push({ path: '/admin/book', query: { detail: String(book.id) } })
+  void navigateLinkedContent('/admin/book', book.name, book.id)
 }
 async function saveCompany() {
   const name = form.name.trim()

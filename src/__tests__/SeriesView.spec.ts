@@ -105,6 +105,7 @@ describe('系列管理页面', () => {
       document.body.querySelector('.series-drawer .related-anime-name')?.textContent,
     ).toContain(linkedAnime.name)
     document.body.querySelector<HTMLButtonElement>('.series-drawer .related-anime-name')!.click()
+    await vi.dynamicImportSettled()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/anime'))
     expect(router.currentRoute.value.query.keyword).toBe(linkedAnime.name)
     expect(router.currentRoute.value.query.detail).toBe(String(linkedAnime.id))

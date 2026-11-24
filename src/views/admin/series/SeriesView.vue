@@ -5,10 +5,9 @@
  */
 import '@/assets/css/adminManagementCards.css'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
-import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPosition'
+import { findLinkedPage, useLinkedContentNavigation, useLinkedListPosition } from '@/utils/linkedListPosition'
 import {
   computed,
-  inject,
   nextTick,
   onActivated,
   onBeforeUnmount,
@@ -18,7 +17,7 @@ import {
   ref,
   watch,
 } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import {
   createSeries,
   deleteSeries,
@@ -50,16 +49,12 @@ const pageSizeOptions: NamedOption[] = pageSizeValues.map((value) => ({
   name: `${value} 条`,
 }))
 
-const router = useRouter()
 const route = useRoute()
 const ownerFullPath = route.fullPath
 const { listRoot, linkedRowId, revealLinkedRow } = useLinkedListPosition(
   () => route.fullPath === ownerFullPath,
 )
-const navigateLinkedContent =
-  inject<(path: '/admin/anime', keyword: string, detailId: number) => Promise<void>>(
-    'navigateLinkedContent',
-  )
+const navigateLinkedContent = useLinkedContentNavigation()
 const initialName = typeof route.query.name === 'string' ? route.query.name.trim() : ''
 const page = ref<PageResult<SeriesSummary>>({
   pageNum: 1,
@@ -92,7 +87,6 @@ const drawerError = ref('')
 const relatedAnime = useRelatedAnime()
 const relatedBook = useRelatedBook()
 const relatedType = ref<'anime' | 'book'>('anime')
-const openBookDetail = inject<(id: number) => Promise<void>>('openBookDetail')
 watch(relatedType, (value) => {
   if (drawerMode.value !== 'detail' || drawerLoading.value || !currentSeries.value) return
   if (value === 'book') { relatedAnime.suspend(); void relatedBook.resume() }
@@ -425,14 +419,10 @@ async function confirmDelete() {
   }
 }
 function openRelatedWork(work: AnimePageItem) {
-  closeDrawer()
-  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', work.name, work.id)
-  else void router.push({ path: '/admin/anime', query: { keyword: work.name, detail: work.id } })
+  void navigateLinkedContent('/admin/anime', work.name, work.id)
 }
 function openRelatedBook(book: BookPageItem) {
-  closeDrawer()
-  if (openBookDetail) void openBookDetail(book.id)
-  else void router.push({ path: '/admin/book', query: { detail: String(book.id) } })
+  void navigateLinkedContent('/admin/book', book.name, book.id)
 }
 </script>
 

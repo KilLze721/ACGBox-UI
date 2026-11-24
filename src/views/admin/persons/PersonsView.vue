@@ -6,7 +6,6 @@
 import '@/assets/css/adminManagementCards.css'
 import {
   computed,
-  inject,
   nextTick,
   onActivated,
   onBeforeUnmount,
@@ -16,7 +15,7 @@ import {
   ref,
   watch,
 } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import {
   createPerson,
   deletePersons,
@@ -35,7 +34,7 @@ import { useRelatedBook } from '@/utils/relatedBook'
 import type { BookPageItem } from '@/types/book'
 import { useRelatedAnime } from '@/utils/relatedAnime'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
-import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPosition'
+import { findLinkedPage, useLinkedContentNavigation, useLinkedListPosition } from '@/utils/linkedListPosition'
 import type { AnimePageItem, PageResult, Person, SortDirection } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit' | 'detail'
@@ -44,15 +43,10 @@ const ownerFullPath = route.fullPath
 const { listRoot, linkedRowId, revealLinkedRow } = useLinkedListPosition(
   () => route.fullPath === ownerFullPath,
 )
-const router = useRouter()
-const navigateLinkedContent =
-  inject<(path: '/admin/anime', keyword: string, detailId: number) => Promise<void>>(
-    'navigateLinkedContent',
-  )
+const navigateLinkedContent = useLinkedContentNavigation()
 const relatedAnime = useRelatedAnime()
 const relatedBook = useRelatedBook()
 const relatedType = ref<'anime' | 'book'>('anime')
-const openBookDetail = inject<(id: number) => Promise<void>>('openBookDetail')
 watch(relatedType, (value) => {
   if (drawerMode.value !== 'detail' || drawerLoading.value || !currentPerson.value) return
   if (value === 'book') { relatedAnime.suspend(); void relatedBook.resume() }
@@ -417,17 +411,13 @@ function personRoles(anime: AnimePageItem) {
   )
 }
 function openRelatedAnime(anime: AnimePageItem) {
-  finishCloseDrawer()
-  if (navigateLinkedContent) void navigateLinkedContent('/admin/anime', anime.name, anime.id)
-  else void router.push({ path: '/admin/anime', query: { keyword: anime.name, detail: anime.id } })
+  void navigateLinkedContent('/admin/anime', anime.name, anime.id)
 }
 function bookRoles(book: BookPageItem) {
   return book.persons.filter(person => person.personId === currentPerson.value?.id).map(person => person.role).join('、') || '未注明职责'
 }
 function openRelatedBook(book: BookPageItem) {
-  finishCloseDrawer()
-  if (openBookDetail) void openBookDetail(book.id)
-  else void router.push({ path: '/admin/book', query: { detail: String(book.id) } })
+  void navigateLinkedContent('/admin/book', book.name, book.id)
 }
 async function savePerson() {
   if (saving.value || drawerLoading.value || (drawerMode.value === 'edit' && !currentPerson.value))

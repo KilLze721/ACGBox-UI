@@ -2,15 +2,13 @@
 /** 书籍详情及编辑抽屉：复用动画抽屉样式，关联资料加载失败不会清空基础详情。 */
 import {
   computed,
-  inject,
-  nextTick,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
   onMounted,
   ref,
 } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { getBookDetail, getBookTypes } from '@/api/book'
 import { getAdaptationTypes, getCompanyById, getRegions } from '@/api/catalog'
 import { getTagById } from '@/api/tags'
@@ -21,6 +19,7 @@ import SeriesWorks from '@/components/admin/SeriesWorks.vue'
 import BookEditorForm from './BookEditorForm.vue'
 import { bookStatusNames } from '@/config/bookFormOptions'
 import { useModalLayer } from '@/utils/useModalLayer'
+import { useLinkedContentNavigation, type LinkedContentPath } from '@/utils/linkedListPosition'
 import type { NamedOption, SeriesWork } from '@/types/api'
 import type { BookDetail } from '@/types/book'
 
@@ -31,12 +30,10 @@ const emit = defineEmits<{
   loaded: [book: BookDetail]
   edit: []
   delete: [book: BookDetail]
-  selectBook: [id: number]
 }>()
 const route = useRoute(),
-  router = useRouter(),
   ownerFullPath = route.fullPath
-const openAnimeDetail = inject<((id: number) => Promise<void>) | null>('openAnimeDetail', null)
+const navigateLinkedContent = useLinkedContentNavigation()
 const active = ref(true)
 const visible = computed(() => active.value && route.fullPath === ownerFullPath)
 const detail = ref<BookDetail | null>(null)
@@ -122,26 +119,18 @@ function requestClose() {
   if (props.mode === 'edit') editorForm.value?.requestCancel()
   else emit('close')
 }
-async function openReference(path: string, name: string, id: number) {
-  // 先关闭当前模态层，再打开关联资料，保留书籍列表的筛选和分页。
-  emit('close')
-  await nextTick()
-  await router.push({ path, query: { name, detail: String(id) } })
+function openReference(path: LinkedContentPath, name: string, id: number) {
+  // 新标签承载关联详情，原书籍抽屉随原标签保留。
+  return navigateLinkedContent(path, name, id)
 }
 // 系列简介与作品由同一个接口返回，保留系列名称原有的详情跳转。
 function openSeriesDetail(name: string) {
   const id = detail.value?.seriesId
   if (id != null) void openReference('/admin/series', name, id)
 }
-// 同类型作品直接在书籍列表中切换详情，动画交给动画管理页打开。
+// 动画与书籍统一按各自列表路由打开。
 function openSeriesWork(work: SeriesWork) {
-  if (work.workType === 'BOOK') {
-    emit('selectBook', work.workId)
-    return
-  }
-  emit('close')
-  if (openAnimeDetail) void openAnimeDetail(work.workId)
-  else void router.push({ name: 'admin-anime-detail', params: { id: work.workId } })
+  void openReference(work.workType === 'ANIME' ? '/admin/anime' : '/admin/book', work.name, work.workId)
 }
 function safeUrl(value: string) {
   try {

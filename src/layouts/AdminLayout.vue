@@ -19,12 +19,13 @@ import {
   type ComponentPublicInstance,
   type VNode,
 } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter, type LocationQueryRaw } from 'vue-router'
 import { logout } from '@/api/auth'
 import brandImage from '@/assets/img/acgbox-brand-mark.png'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import { clearLogin, getCurrentUser, getToken } from '@/utils/auth'
 import { effectiveDarkTheme, initializeTheme, setThemeMode, themeMode } from '@/utils/preferences'
+import { linkedContentQuery, type NavigateLinkedContent } from '@/utils/linkedListPosition'
 
 interface WorkspaceTab {
   id: string
@@ -44,8 +45,6 @@ interface TabCloseState {
 
 interface CloseAwarePage {
   getCloseState?: () => TabCloseState
-  openAnimeDetail?: (id: number) => Promise<void>
-  openBookDetail?: (id: number) => void
 }
 
 interface PendingTabClose {
@@ -87,8 +86,6 @@ const pageWrappers = new Map<string, Component>()
 const pageInstances = new Map<string, CloseAwarePage>()
 const tabSession = Date.now().toString(36)
 let tabSequence = 0
-let pageRevision = 0
-let linkedNavigation: { tabId: string; fullPath: string } | null = null
 
 const menuItems = computed(() =>
   router
@@ -142,11 +139,13 @@ const canCloseOtherTabs = computed(() =>
   workspaceTabs.value.some((tab) => tab.closable && tab.id !== activeTabId.value)
 )
 
+const navigateLinkedContent: NavigateLinkedContent = async (path, keyword, detailId, from) => {
+  await openWorkspacePage(path, linkedContentQuery(path, keyword, detailId, from))
+}
+
 provide('returnToAnimeList', returnToAnimeList)
 provide('navigateLinkedContent', navigateLinkedContent)
 provide('returnToBookList', returnToBookList)
-provide('openAnimeDetail', openAnimeDetail)
-provide('openBookDetail', openBookDetail)
 
 watch(
   () => route.fullPath,
@@ -235,35 +234,6 @@ function openCurrentRouteTab() {
     return
   }
 
-  if (linkedNavigation?.fullPath === route.fullPath) {
-    const tab = workspaceTabs.value.find((item) => item.id === linkedNavigation?.tabId)
-    linkedNavigation = null
-    if (tab) {
-      const ordinal =
-        Math.max(
-          0,
-          ...workspaceTabs.value
-            .filter((item) => item.id !== tab.id && item.path === route.path)
-            .map((item) => item.ordinal)
-        ) + 1
-      pageWrappers.delete(tab.id)
-      pageInstances.delete(tab.id)
-      tab.path = route.path
-      tab.fullPath = route.fullPath
-      tab.title = `${route.meta.title}${ordinal > 1 ? `(${ordinal})` : ''}`
-      tab.icon = getCurrentRouteIcon()
-      tab.ordinal = ordinal
-      tab.cacheName = `WorkspaceTab-${tab.id}-${++pageRevision}`
-      activeTabId.value = tab.id
-      if (tab.path === '/admin/anime') lastAnimeTabId.value = tab.id
-      else if (lastAnimeTabId.value === tab.id) lastAnimeTabId.value = null
-      if (tab.path === '/admin/book') lastBookTabId.value = tab.id
-      else if (lastBookTabId.value === tab.id) lastBookTabId.value = null
-      void scrollActiveTabIntoView()
-      return
-    }
-  }
-
   let tab = workspaceTabs.value.find((item) => item.fullPath === route.fullPath)
   if (!tab) {
     const ordinal =
@@ -327,27 +297,10 @@ function getTabWrapper(component: VNode) {
   return wrapper
 }
 
-// 关联内容在当前标签内替换路由，名称用于检索，ID 用于打开并定位对应详情。
-async function navigateLinkedContent(
-  path: '/admin/anime' | '/admin/series' | '/admin/companies' | '/admin/persons',
-  keyword: string,
-  detailId: number
-) {
-  const tab = activeTab.value
-  if (!tab?.closable) return
-  const query = {
-    [path === '/admin/anime' ? 'keyword' : 'name']: keyword.trim(),
-    detail: String(detailId),
-    __workspaceTab: tab.id,
-  }
-  const target = router.resolve({ path, query })
-  linkedNavigation = { tabId: tab.id, fullPath: target.fullPath }
-  try {
-    await router.replace(target)
-  } finally {
-    if (linkedNavigation?.fullPath === target.fullPath && route.fullPath !== target.fullPath)
-      linkedNavigation = null
-  }
+// 同一路由也能新开工作区标签，原标签保留自己的列表与详情实例。
+function openWorkspacePage(path: string, query: LocationQueryRaw = {}) {
+  const id = `tab-${tabSession}-${++tabSequence}`
+  return router.push({ path, query: { ...query, __workspaceTab: id } })
 }
 
 // 左侧菜单重复进入普通页面时创建新标签，数据概览始终复用固定首页。
@@ -361,9 +314,7 @@ function openMenuPage(path: string) {
     void router.push(path)
     return
   }
-  const id = `tab-${tabSession}-${++tabSequence}`
-  // 同一路由通过内部查询参数区分标签实例和浏览器历史记录。
-  void router.push({ path, query: { __workspaceTab: id } })
+  void openWorkspacePage(path)
 }
 
 async function scrollActiveTabIntoView() {
@@ -444,32 +395,6 @@ async function returnToAnimeList(createFullPath: string) {
 
   if (pendingTabClose.value?.ids.includes(createTab.id)) pendingTabClose.value = null
   await finishClosingTabs([createTab.id], null)
-}
-
-// 系列内的动画按 ID 打开，优先复用已有列表。编辑中的列表保留草稿。
-async function openAnimeDetail(id: number) {
-  const tab =
-    workspaceTabs.value.find(
-      (item) => item.id === lastAnimeTabId.value && item.path === '/admin/anime',
-    ) ?? workspaceTabs.value.find((item) => item.path === '/admin/anime')
-  const state = tab && getCloseState(tab)
-  if (!tab || state?.dirty || state?.submitting) {
-    await router.push({ name: 'admin-anime-detail', params: { id } })
-    return
-  }
-  await activateTab(tab)
-  await nextTick()
-  if (route.fullPath === tab.fullPath) await pageInstances.get(tab.id)?.openAnimeDetail?.(id)
-}
-
-// 书籍关联按标识打开详情，复用已有列表实例与筛选状态，由列表自行保护未保存表单。
-async function openBookDetail(id: number) {
-  const tab = workspaceTabs.value.find(item => item.id === lastBookTabId.value && item.path === '/admin/book')
-    ?? workspaceTabs.value.find(item => item.path === '/admin/book')
-  if (!tab) { await router.push({ path: '/admin/book', query: { detail: String(id) } }); return }
-  await activateTab(tab)
-  await nextTick()
-  if (route.fullPath === tab.fullPath) pageInstances.get(tab.id)?.openBookDetail?.(id)
 }
 
 async function returnToBookList(createFullPath: string) {

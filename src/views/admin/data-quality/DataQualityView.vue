@@ -10,10 +10,12 @@ import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import type {
   DataQualityPage,
   DataQualityQuery,
+  DataQualityRow,
   DataQualityRule,
   DataQualityTarget,
 } from '@/types/api'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
+import { linkedContentQuery, useLinkedContentNavigation } from '@/utils/linkedListPosition'
 
 const sameNameRule = { code: 'SAME_NAME_REVIEW', label: '同名待核对' } as const
 // 档案类型支持同名与无引用组合，作品类型继续使用原有规则。
@@ -57,6 +59,14 @@ const targets = {
     unit: '个',
     searchLabel: '系列名称',
   },
+} as const
+const navigateLinkedContent = useLinkedContentNavigation()
+
+// 普通点击新开工作区标签，浏览器的 Ctrl/Command 点击仍按原生链接处理。
+function openQualityDetail(event: MouseEvent, row: DataQualityRow) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+  event.preventDefault()
+  void navigateLinkedContent(targets[row.targetType].path, row.name, row.targetId, 'data-quality')
 }
 function isWorkTarget(targetType: DataQualityTarget) {
   return targetType === 'ANIME' || targetType === 'BOOK'
@@ -384,18 +394,17 @@ onDeactivated(() => request?.abort())
                 <td>{{ formatDate(row.updatedAt) }}</td>
                 <td>
                   <RouterLink
-                    class="secondary-button quality-link"
                     :to="{
                       path: targets[row.targetType].path,
-                      query: {
-                        detail: row.targetId,
-                        [isWorkTarget(row.targetType) ? 'keyword' : 'name']: row.name,
-                        from: 'data-quality',
-                      },
+                      query: linkedContentQuery(targets[row.targetType].path, row.name, row.targetId, 'data-quality'),
                     }"
+                    custom
+                    v-slot="{ href }"
                   >
-                    {{ isWorkTarget(row.targetType) ? '查看并补充' : '查看详情' }}
-                    <AdminIcon name="right" />
+                    <a :href="href" class="secondary-button quality-link" @click="openQualityDetail($event, row)">
+                      {{ isWorkTarget(row.targetType) ? '查看并补充' : '查看详情' }}
+                      <AdminIcon name="right" />
+                    </a>
                   </RouterLink>
                 </td>
               </tr>

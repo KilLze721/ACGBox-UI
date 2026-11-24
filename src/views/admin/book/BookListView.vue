@@ -29,7 +29,7 @@ import { bookStatusNames, bookStatusOptions } from '@/config/bookFormOptions'
 import { isBookReference, parseBookDateFilter, parseBookInteger } from '@/utils/bookForm'
 import { pageSizeValues, readPreferences, resolvePageSize } from '@/utils/preferences'
 import { useCatalogRefresh } from '@/utils/catalogChanges'
-import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPosition'
+import { findLinkedPage, useLinkedContentNavigation, useLinkedListPosition } from '@/utils/linkedListPosition'
 import { useModalLayer } from '@/utils/useModalLayer'
 import type { NamedOption, PageResult } from '@/types/api'
 import type { BookDetail, BookPageItem, BookPageQuery, BookSortField } from '@/types/book'
@@ -37,6 +37,7 @@ import type { BookDetail, BookPageItem, BookPageQuery, BookSortField } from '@/t
 const route = useRoute(),
   router = useRouter(),
   ownerFullPath = route.fullPath
+const navigateLinkedContent = useLinkedContentNavigation()
 const active = ref(true),
   visible = computed(() => active.value && route.fullPath === ownerFullPath)
 const { listRoot, linkedRowId, revealLinkedRow } = useLinkedListPosition(() => visible.value)
@@ -173,7 +174,7 @@ function getCloseState() {
     submitting: state.submitting || deleting.value || !!transfer?.submitting || visibilitySaving.value !== null,
   }
 }
-defineExpose({ getCloseState, openBookDetail: openLinkedDetail })
+defineExpose({ getCloseState })
 onMounted(() => {
   document.addEventListener('pointerdown', closeTagDropdown, true)
   void refreshCatalogs()
@@ -1069,7 +1070,7 @@ function safeUrl(value: string | null) {
             :selected-ids="selectedIds"
             :summary="activeFilterChips.map((chip) => chip.label).join('；')"
             @completed="refreshPage()"
-            @detail="openLinkedDetail"
+            @detail="navigateLinkedContent('/admin/book', '', $event)"
           />
           <div class="sort-summary">
             <span>当前排序</span><strong>{{ sortSummary }}</strong>
@@ -1560,7 +1561,6 @@ function safeUrl(value: string | null) {
       @loaded="locateDetailRow"
       @close="closeDrawer"
       @edit="openDrawer('edit', drawerId!)"
-      @select-book="openLinkedDetail"
       @saved="handleSaved"
       @delete="openDelete($event)"
     />

@@ -5,7 +5,6 @@
  */
 import {
   computed,
-  inject,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -13,13 +12,14 @@ import {
   ref,
   watch,
 } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { getAnimeDetail } from '@/api/anime'
 import { getCompanyById } from '@/api/catalog'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
 import WorkVisibilityBadge from '@/components/admin/WorkVisibilityBadge.vue'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
 import SeriesWorks from '@/components/admin/SeriesWorks.vue'
+import { useLinkedContentNavigation } from '@/utils/linkedListPosition'
 import AnimeEditorForm from './AnimeEditorForm.vue'
 import type { AnimeDetail, AnimePageItem, SeriesWork } from '@/types/api'
 
@@ -31,16 +31,7 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
-const router = useRouter()
-const navigateLinkedContent =
-  inject<
-    (
-      path: '/admin/anime' | '/admin/series' | '/admin/companies' | '/admin/persons',
-      keyword: string,
-      detailId: number
-    ) => Promise<void>
-  >('navigateLinkedContent')
-const openBookDetail = inject<((id: number) => Promise<void>) | null>('openBookDetail', null)
+const navigateLinkedContent = useLinkedContentNavigation()
 const ownerFullPath = route.fullPath
 const visible = computed(() => route.fullPath === ownerFullPath)
 
@@ -49,7 +40,6 @@ const emit = defineEmits<{
   saved: [anime: AnimeDetail]
   edit: []
   delete: [anime: AnimePageItem]
-  selectAnime: [id: number]
 }>()
 
 const detail = ref<AnimeDetail | null>(null)
@@ -83,7 +73,7 @@ const statusNames: Record<number, string> = {
 }
 
 function lockPageScroll() {
-  if (scrollLockState) return
+  if (!visible.value || scrollLockState) return
   const html = document.documentElement
   const body = document.body
   const scrollbarWidth = window.innerWidth - html.clientWidth
@@ -131,10 +121,10 @@ onMounted(async () => {
 
 onActivated(lockPageScroll)
 onDeactivated(restorePageScroll)
+// 标签切换先释放旧抽屉的滚动锁，避免新抽屉把旧锁当成页面初始状态。
 watch(visible, (active) => {
-  if (active) lockPageScroll()
-  else restorePageScroll()
-})
+  if (!active) restorePageScroll()
+}, { flush: 'sync' })
 
 onBeforeUnmount(() => {
   controller?.abort()
@@ -157,20 +147,12 @@ function openEdit() {
 async function openSeriesDetail(seriesName: string) {
   const id = detail.value?.seriesId
   if (id == null) return
-  emit('close')
-  if (navigateLinkedContent) await navigateLinkedContent('/admin/series', seriesName, id)
-  else await router.push({ path: '/admin/series', query: { name: seriesName, detail: id } })
+  await navigateLinkedContent('/admin/series', seriesName, id)
 }
 
-// 同类型作品直接交给当前列表打开，跨类型复用目标列表标签。
+// 系列中的动画或书籍都从新标签打开，保留当前作品详情。
 function openSeriesWork(work: SeriesWork) {
-  if (work.workType === 'ANIME') {
-    emit('selectAnime', work.workId)
-    return
-  }
-  emit('close')
-  if (openBookDetail) void openBookDetail(work.workId)
-  else void router.push({ name: 'admin-book-detail', params: { id: work.workId } })
+  void navigateLinkedContent(work.workType === 'ANIME' ? '/admin/anime' : '/admin/book', work.name, work.workId)
 }
 
 async function openCompanyDetail(companyId: number) {
@@ -191,15 +173,11 @@ async function openCompanyDetail(companyId: number) {
       companyLinkLoading.value = null
     }
   }
-  emit('close')
-  if (navigateLinkedContent) await navigateLinkedContent('/admin/companies', companyName, companyId)
-  else await router.push({ path: '/admin/companies', query: { name: companyName, detail: companyId } })
+  if (visible.value) await navigateLinkedContent('/admin/companies', companyName, companyId)
 }
 
 async function openPersonDetail(personName: string, personId: number) {
-  emit('close')
-  if (navigateLinkedContent) await navigateLinkedContent('/admin/persons', personName, personId)
-  else await router.push({ path: '/admin/persons', query: { name: personName, detail: personId } })
+  await navigateLinkedContent('/admin/persons', personName, personId)
 }
 
 function requestClose() {

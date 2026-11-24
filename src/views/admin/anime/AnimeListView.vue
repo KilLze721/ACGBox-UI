@@ -6,7 +6,6 @@
 import {
   computed,
   inject,
-  nextTick,
   onActivated,
   onBeforeUnmount,
   onDeactivated,
@@ -41,10 +40,11 @@ import { searchRelatedEntities } from '@/api/relatedEntities'
 import { getArchiveDateBound, validateArchiveDate } from '@/utils/archiveDate'
 import { pageSizeValues, readPreferences, resolvePageSize } from '@/utils/preferences'
 import { useCatalogRefresh } from '@/utils/catalogChanges'
-import { findLinkedPage, useLinkedListPosition } from '@/utils/linkedListPosition'
+import { findLinkedPage, useLinkedContentNavigation, useLinkedListPosition } from '@/utils/linkedListPosition'
 import AnimeCrudDrawer from './AnimeCrudDrawer.vue'
 
 const route = inject(routeLocationKey, null)
+const navigateLinkedContent = useLinkedContentNavigation()
 const ownerFullPath = route?.fullPath ?? ''
 const { listRoot, linkedRowId, revealLinkedRow } = useLinkedListPosition(
   () => route?.fullPath === ownerFullPath,
@@ -193,7 +193,7 @@ function getCloseState() {
   }
 }
 
-defineExpose({ getCloseState, openAnimeDetail: openLinkedDetail })
+defineExpose({ getCloseState })
 const drawerAnime = ref<AnimePageItem | null>(null)
 const drawerInitialDetail = ref<AnimeDetail>()
 const toast = ref<{ title: string; message: string; type: 'success' | 'error' } | null>(null)
@@ -777,22 +777,16 @@ function openCrudDrawer(mode: 'detail' | 'edit', anime: AnimePageItem, detail?: 
   drawerMode.value = mode
 }
 
-async function openLinkedDetail(selectedId?: number) {
+async function openLinkedDetail() {
   if (!route) return
-  const id = selectedId ?? Number(route.query.detail)
+  const id = Number(route.query.detail)
   if (!Number.isInteger(id) || id <= 0 || route.fullPath !== ownerFullPath) return
-  if (selectedId === undefined && route.query.from === 'data-quality' && drawerMode.value) return
+  if (drawerMode.value) return
   // 连续打开或关闭关联详情时取消旧查询，已读到的详情交给抽屉直接使用。
   linkedDetailController?.abort()
   const request = new AbortController()
   linkedDetailController = request
   try {
-    // 先卸载旧抽屉，让它恢复旧滚动位置后再定位新的作品。
-    if (drawerMode.value === 'detail' && drawerAnime.value?.id !== id) {
-      drawerMode.value = null
-      await nextTick()
-    }
-    if (request.signal.aborted || route.fullPath !== ownerFullPath) return
     const cachedRow = page.value.rows.find((row) => row.id === id)
     if (cachedRow) {
       await revealLinkedRow(id)
@@ -1365,7 +1359,7 @@ function markCoverBroken(url: string) {
             :selected-ids="selectedIds"
             :summary="activeFilterChips.map((chip) => chip.label).join('；')"
             @completed="refreshPage()"
-            @detail="openLinkedDetail($event)"
+            @detail="navigateLinkedContent('/admin/anime', '', $event)"
           />
           <div class="sort-summary">
             <span>当前排序</span><strong>{{ sortSummary }}</strong
@@ -1856,7 +1850,6 @@ function markCoverBroken(url: string) {
       @close="closeCrudDrawer"
       @saved="handleAnimeSaved"
       @edit="openCrudDrawer('edit', drawerAnime)"
-      @select-anime="openLinkedDetail"
       @delete="handleDrawerDelete"
     />
 

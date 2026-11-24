@@ -50,13 +50,16 @@ function stubCatalogRequests(
         const seriesRow = withSeries
           ? { ...animeRow, series: { id: 7, name: '测试动画系列', description: null } }
           : animeRow
-        const row = withCompany
+        const baseRow = withCompany
           ? {
               ...seriesRow,
               companies: [{ companyId: 5, companyName: '测试公司', role: '动画制作' }],
             }
           : seriesRow
         const keyword = url.searchParams.get('keyword')
+        const row = withSeries && keyword === '测试系列续作'
+          ? { ...baseRow, id: 16, name: '测试系列续作' }
+          : baseRow
         const matches =
           withAnime &&
           (!keyword || row.name.includes(keyword) || row.series?.name.includes(keyword))
@@ -460,17 +463,23 @@ describe('工作台页面标签', () => {
     wrapper.unmount()
   })
 
-  it('动画和书籍详情展示混合系列作品，支持翻页和同 ID 跨类型切换', async () => {
+  it('系列作品在新标签打开，返回原动画标签时仍能查看原详情', async () => {
     stubCatalogRequests(true, true)
     sessionStorage.setItem('acgbox-user', JSON.stringify({ id: 1, username: 'admin', role: 'ADMIN' }))
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
     await openAnimeList(wrapper)
+    const originalTab = wrapper.get('.workspace-tab.active')
+    const originalPath = router.currentRoute.value.fullPath
     await wrapper.find('.anime-table .work-title').trigger('click')
     await flushPromises()
-    const series = () => document.querySelector<HTMLElement>('.series-works')!
+    // 已打开的旧抽屉随标签缓存，查询当前可见抽屉。
+    const drawer = () => document.querySelector<HTMLElement>(
+      '.anime-crud-backdrop:not([style*="display: none"]) .anime-crud-drawer',
+    )
+    const series = () => drawer()?.querySelector<HTMLElement>('.series-works')!
     // 两类详情按真实返回值显示隐藏状态，不因跨类型切换改为公开。
-    expect(document.querySelector('.anime-detail-badges .work-visibility-badge')?.textContent?.trim()).toBe('隐藏')
+    expect(drawer()?.querySelector('.anime-detail-badges .work-visibility-badge')?.textContent?.trim()).toBe('隐藏')
     expect(series().textContent).toContain('测试系列说明')
     expect(series().querySelector('[aria-current]')?.textContent).toContain('测试动画')
     expect(series().textContent).toContain('轻小说')
@@ -502,22 +511,28 @@ describe('工作台页面标签', () => {
         '测试系列原作',
       ),
     )
-    expect(document.querySelector('.anime-detail-badges .work-visibility-badge')?.textContent?.trim()).toBe('隐藏')
+    expect(drawer()?.querySelector('.anime-detail-badges .work-visibility-badge')?.textContent?.trim()).toBe('隐藏')
     const tabCount = wrapper.findAll('.workspace-tab').length
     series().querySelector<HTMLButtonElement>('[aria-label="查看动画详情：测试动画"]')!.click()
     await vi.waitFor(() =>
       expect(series()?.querySelector('[aria-current]')?.textContent ?? '').toContain('测试动画'),
     )
     expect(router.currentRoute.value.path).toBe('/admin/anime')
-    expect(wrapper.findAll('.workspace-tab')).toHaveLength(tabCount)
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(tabCount + 1)
 
     series().querySelector<HTMLButtonElement>('[aria-label="下一页系列作品"]')!.click()
     await flushPromises()
     series().querySelector<HTMLButtonElement>('[aria-label="查看动画详情：测试系列续作"]')!.click()
-    await flushPromises()
-    expect(document.querySelector('.anime-detail-title-copy h2')?.textContent).toBe('测试系列续作')
+    await vi.waitFor(() =>
+      expect(drawer()?.querySelector('.anime-detail-title-copy h2')?.textContent).toBe('测试系列续作'),
+    )
     expect(router.currentRoute.value.path).toBe('/admin/anime')
-    expect(wrapper.findAll('.workspace-tab')).toHaveLength(tabCount)
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(tabCount + 2)
+    expect(wrapper.get('[data-linked-row-selected]').text()).toContain('测试系列续作')
+    await originalTab.get('.workspace-tab-main').trigger('click')
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe(originalPath))
+    expect(drawer()?.querySelector('.anime-detail-title-copy h2')?.textContent).toBe('测试动画')
+    expect(series().textContent).toContain('测试系列原作')
     expect(
       vi.mocked(fetch).mock.calls.some(([input]) => String(input).endsWith('/series/7')),
     ).toBe(false)
@@ -544,7 +559,7 @@ describe('工作台页面标签', () => {
     wrapper.unmount()
   })
 
-  it('关联内容在当前标签打开详情并定位到另一页的同名系列', async ({ onTestFinished }) => {
+  it('关联内容新开标签并定位到另一页的同名系列', async ({ onTestFinished }) => {
     stubCatalogRequests(true, true)
     // DOM 测试环境没有实际滚动，记录浏览器会滚动到的元素。
     const scrollDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView')
@@ -571,8 +586,8 @@ describe('工作台页面标签', () => {
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/series'))
     await flushPromises()
 
-    expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
-    expect(wrapper.find('.workspace-tab.active').element).toBe(workspaceTab)
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(3)
+    expect(wrapper.find('.workspace-tab.active').element).not.toBe(workspaceTab)
     expect(wrapper.find('.workspace-tab.active').text()).toContain('系列管理')
     expect(router.currentRoute.value.query.name).toBe('测试动画系列')
     expect(router.currentRoute.value.query.detail).toBe('7')
@@ -604,8 +619,8 @@ describe('工作台页面标签', () => {
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/anime'))
     await flushPromises()
 
-    expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
-    expect(wrapper.find('.workspace-tab.active').element).toBe(workspaceTab)
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(4)
+    expect(wrapper.find('.workspace-tab.active').element).not.toBe(workspaceTab)
     expect(wrapper.find('.workspace-tab.active').text()).toContain('动画管理')
     expect(router.currentRoute.value.query.keyword).toBe('测试动画')
     expect(router.currentRoute.value.query.detail).toBe('15')
@@ -628,7 +643,7 @@ describe('工作台页面标签', () => {
     wrapper.unmount()
   })
 
-  it('动画与公司详情双向跳转时复用当前标签并按名称从第一页搜索', async () => {
+  it('动画与公司详情双向跳转时新开标签并按名称从第一页搜索', async () => {
     stubCatalogRequests(true, false, true)
     await router.push('/admin/dashboard')
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } })
@@ -641,8 +656,8 @@ describe('工作台页面标签', () => {
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/companies'))
     await flushPromises()
 
-    expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
-    expect(wrapper.find('.workspace-tab.active').element).toBe(workspaceTab)
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(3)
+    expect(wrapper.find('.workspace-tab.active').element).not.toBe(workspaceTab)
     expect(router.currentRoute.value.query.name).toBe('测试公司')
     expect((wrapper.find('.companies-search input').element as HTMLInputElement).value).toBe(
       '测试公司',
@@ -666,8 +681,8 @@ describe('工作台页面标签', () => {
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/admin/anime'))
     await flushPromises()
 
-    expect(wrapper.findAll('.workspace-tab')).toHaveLength(2)
-    expect(wrapper.find('.workspace-tab.active').element).toBe(workspaceTab)
+    expect(wrapper.findAll('.workspace-tab')).toHaveLength(4)
+    expect(wrapper.find('.workspace-tab.active').element).not.toBe(workspaceTab)
     expect(router.currentRoute.value.query.keyword).toBe('测试动画')
     expect(
       (wrapper.find('input[placeholder="输入动画名称、别名或系列"]').element as HTMLInputElement)
