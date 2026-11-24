@@ -25,6 +25,7 @@ import {
   updateUser,
 } from '@/api/users'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import type {
   PageResult,
@@ -646,7 +647,7 @@ async function submitAction() {
           ><button class="secondary-button" type="reset">重置</button>
         </div>
       </form>
-      <div class="table-scroll management-table-scroll">
+      <AdminTableScroll class="table-scroll management-table-scroll">
         <table
           v-if="!listError && page.rows.length"
           :inert="loading"
@@ -714,7 +715,7 @@ async function submitAction() {
             </tr>
           </tbody>
         </table>
-      </div>
+      </AdminTableScroll>
       <div
         v-if="listError || !page.rows.length"
         class="empty-state management-list-state"

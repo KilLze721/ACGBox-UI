@@ -81,86 +81,184 @@
 .book-card-grid,
 .anime-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 14px;
   padding: 18px;
 }
-.book-work-card,
-.anime-work-card {
+
+/* 封面和标题承担识别作用，元信息与操作分区排列，长标题可显示两行。 */
+:is(.book-work-card, .anime-work-card) {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: 16px;
+  padding: 14px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 15px;
   background: var(--surface-solid);
 }
-.book-work-card:hover,
-.anime-work-card:hover {
+:is(.book-work-card, .anime-work-card):hover {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
 }
-.book-card-heading,
-.anime-card-heading {
+:is(.book-work-card, .anime-work-card):has(.transfer-card-selection input:checked) {
+  border-color: var(--accent);
+}
+:is(.book-card-heading, .anime-card-heading) {
+  position: relative;
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: start;
   gap: 12px;
 }
-.book-card-meta,
-.anime-card-meta {
+:is(.book-card-heading, .anime-card-heading) .cover {
+  width: 58px;
+  height: 81px;
+  border-radius: 8px;
+  box-shadow: 0 4px 9px color-mix(in srgb, var(--ink) 15%, transparent);
+}
+:is(.book-card-heading, .anime-card-heading) .work-title {
+  display: -webkit-box;
+  margin-inline-end: 26px;
+  max-width: calc(100% - 26px);
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+:is(.book-card-heading, .anime-card-heading) :is(.work-alias, .work-series) {
+  max-width: 100%;
+}
+:is(.book-card-heading, .anime-card-heading) .work-alias {
+  display: block;
+}
+:is(.book-card-heading, .anime-card-heading) .work-series > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.transfer-card-selection {
+  position: absolute;
+  inset-block-start: -3px;
+  inset-inline-end: -3px;
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.transfer-card-selection:hover,
+.transfer-card-selection:has(input:checked) {
+  background: var(--accent-soft);
+}
+.transfer-card-selection input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+:is(.book-card-meta, .anime-card-meta) {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  margin-top: 7px;
+  font-size: 9px;
+}
+:is(.book-card-meta, .anime-card-meta) .status-badge {
+  min-height: 20px;
+  padding: 2px 7px;
+}
+.work-card-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.75fr);
+  gap: 4px 9px;
+  margin-top: 11px;
+  padding: 8px 9px;
+  background: var(--surface-muted);
+  border-radius: 8px;
+}
+.anime-work-card .work-card-facts > :first-child {
+  grid-column: 1 / -1;
+}
+.work-card-facts > span {
+  overflow-wrap: anywhere;
+}
+.anime-work-card .work-card-facts > :last-child,
+.book-work-card .work-card-facts > :nth-child(even) {
+  text-align: end;
+}
+.work-card-facts > span + span {
+  margin-top: 0;
+}
+:is(.book-card-tags, .anime-card-tags) {
+  gap: 4px;
+  margin-top: 10px;
+}
+:is(.book-card-tags, .anime-card-tags):empty {
+  display: none;
+}
+:is(.book-card-tags, .anime-card-tags) .tag {
+  height: auto;
+  min-height: 20px;
+  max-width: 100%;
+  padding-inline: 7px;
+  overflow-wrap: anywhere;
+}
+.work-card-footer {
+  display: grid;
+  gap: 8px;
+  padding-top: 9px;
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+}
+.work-card-utilities {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 10px;
-  margin: 14px 0 10px;
-}
-.book-card-tags,
-.anime-card-tags {
-  gap: 6px;
-  margin-top: 12px;
-}
-.work-card-footer {
-  display: grid;
-  gap: 12px;
-  padding-top: 12px;
-  margin-top: auto;
-  border-top: 1px solid var(--line);
+  gap: 6px 10px;
 }
 .work-card-visibility {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   color: var(--ink-soft);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 650;
 }
-.book-card-actions,
-.anime-card-actions {
-  display: flex;
-  gap: 8px;
+:is(.book-card-actions, .anime-card-actions) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface-muted);
+  border-radius: 9px;
 }
-.book-card-actions .ghost-button,
-.anime-card-actions .ghost-button {
-  flex: 1;
+:is(.book-card-actions, .anime-card-actions) .ghost-button {
   justify-content: center;
   min-height: 32px;
-  padding: 0 8px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 7px;
   font-size: 10px;
+  white-space: nowrap;
 }
-
-.book-card-heading > div,
-.anime-card-heading > div {
-  min-width: 0;
+:is(.book-card-actions, .anime-card-actions) .ghost-button:first-child {
+  color: var(--accent-strong);
+  background: var(--surface-solid);
 }
-.book-card-details,
-.anime-card-details {
+:is(.book-card-actions, .anime-card-actions) .ghost-button:last-child:hover {
+  color: var(--danger);
+}
+:is(.book-card-details, .anime-card-details) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 12px;
-  margin: 12px 0;
+  gap: 10px;
+  margin: 11px 0 12px;
   color: var(--ink-soft);
   font-size: 10px;
 }
@@ -168,24 +266,43 @@
   display: grid;
   min-width: 0;
   align-content: start;
-  gap: 8px;
+  gap: 4px;
+}
+.work-card-relation-group + .work-card-relation-group {
+  padding-inline-start: 9px;
+  border-inline-start: 1px solid var(--line);
+}
+.work-card-relation-group > div {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 3px 5px;
 }
 .work-card-relation-label {
   color: var(--ink-faint);
   font-size: 9px;
   font-weight: 650;
 }
-.book-card-details .company-name,
-.book-card-details .company-role,
-.anime-card-details .company-name,
-.anime-card-details .company-role {
+.work-card-relation-group :is(.company-name, .company-role) {
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.book-card-links,
-.anime-card-links {
+.work-card-relation-group .company-role {
+  margin: 0;
+  padding: 1px 4px;
+  color: var(--ink-soft);
+  background: var(--surface-muted);
+  border-radius: 4px;
+}
+:is(.book-card-links, .anime-card-links) {
   flex-wrap: wrap;
-  margin: 12px 0;
+  justify-content: flex-end;
+  margin-inline-start: auto;
+}
+:is(.book-card-links, .anime-card-links) .external-link {
+  width: 25px;
+  height: 25px;
+  border-radius: 6px;
 }
 @media (max-width: 1240px) {
   .anime-management-page .advanced-grid {

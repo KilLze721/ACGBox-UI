@@ -28,6 +28,7 @@ import type {
   TagMatchMode,
 } from '@/types/api'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import { updateWorkVisibility } from '@/api/workVisibility'
 import { workVisibilityOptions } from '@/config/workVisibility'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
@@ -1394,7 +1395,7 @@ function markCoverBroken(url: string) {
         </div>
       </div>
 
-      <div class="table-scroll">
+      <AdminTableScroll class="table-scroll">
         <table
           v-if="viewMode === 'table' && !errorMessage && page.rows.length"
           class="anime-table"
@@ -1588,10 +1589,16 @@ function markCoverBroken(url: string) {
             :data-work-row="anime.id"
             :data-linked-row-selected="linkedRowId === anime.id ? true : undefined"
           >
-            <label class="transfer-card-selection"
-              ><input v-model="selectedIds" type="checkbox" :value="anime.id" />勾选导出</label
-            >
             <div class="anime-card-heading">
+              <!-- 导出勾选并入标题行，为封面和作品名称留出空间。 -->
+              <label class="transfer-card-selection" title="勾选导出">
+                <input
+                  v-model="selectedIds"
+                  type="checkbox"
+                  :value="anime.id"
+                  :aria-label="`勾选导出 ${anime.name}`"
+                />
+              </label>
               <div class="cover" :style="{ '--cover-gradient': getCoverGradient(anime.id) }">
                 <img
                   v-if="anime.coverImageUrl && !brokenCovers.has(anime.coverImageUrl)"
@@ -1616,22 +1623,22 @@ function markCoverBroken(url: string) {
                   anime.aliasNames.join(' · ') || '暂无别名'
                 }}</span>
                 <span class="work-series">
-                  <AdminIcon name="series" />{{ anime.series?.name || '未归属系列' }}
+                  <AdminIcon name="series" /><span>{{ anime.series?.name || '未归属系列' }}</span>
                 </span>
+                <div class="anime-card-meta">
+                  <span class="status-badge" :class="`status-${anime.status}`">{{
+                    statusNames[anime.status] || '未知'
+                  }}</span>
+                  <span v-if="anime.personalRating !== null" class="rating">
+                    <span class="rating-star">★</span>
+                    <strong>{{ anime.personalRating.toFixed(1) }}</strong
+                    ><span>/10</span>
+                  </span>
+                  <span v-else class="empty-value">未评分</span>
+                </div>
               </div>
             </div>
-            <div class="anime-card-meta">
-              <span class="status-badge" :class="`status-${anime.status}`">{{
-                statusNames[anime.status] || '未知'
-              }}</span>
-              <span v-if="anime.personalRating !== null" class="rating">
-                <span class="rating-star">★</span>
-                <strong>{{ anime.personalRating.toFixed(1) }}</strong
-                ><span>/10</span>
-              </span>
-              <span v-else class="empty-value">未评分</span>
-            </div>
-            <div class="meta-stack">
+            <div class="meta-stack work-card-facts">
               <span>
                 <strong>{{ anime.episodeCount ?? '—' }}</strong> 集 ·
                 {{ anime.broadcastType?.name || '—' }} · {{ anime.adaptationType?.name || '—' }}
@@ -1660,33 +1667,35 @@ function markCoverBroken(url: string) {
                 <span v-if="!anime.companies.length" class="empty-value">暂无公司</span>
               </div>
             </div>
-            <div v-if="anime.externalLinks.length" class="external-links anime-card-links">
-              <a
-                v-for="link in anime.externalLinks"
-                :key="link.url"
-                class="external-link"
-                :href="getSafeExternalUrl(link.url)"
-                target="_blank"
-                rel="noopener noreferrer"
-                :title="link.title || link.url"
-                :aria-label="link.title || link.url"
-                ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
-              >
-            </div>
             <!-- 公开设置与操作按钮集中于卡片底部，保持不同内容长度下的对齐。 -->
             <footer class="work-card-footer">
-              <div class="work-card-visibility">
-                <span>{{ visibilitySaving === anime.id ? '正在保存…' : '公开展示' }}</span>
-                <button
-                  class="work-visibility-toggle"
-                  type="button"
-                  role="switch"
-                  :aria-label="`${anime.name}公开展示`"
-                  :aria-checked="anime.isPublic ?? true"
-                  :aria-busy="visibilitySaving === anime.id"
-                  :disabled="visibilitySaving !== null || loading"
-                  @click="toggleWorkVisibility(anime)"
-                ><span></span></button>
+              <div class="work-card-utilities">
+                <div class="work-card-visibility">
+                  <span>{{ visibilitySaving === anime.id ? '正在保存…' : '公开展示' }}</span>
+                  <button
+                    class="work-visibility-toggle"
+                    type="button"
+                    role="switch"
+                    :aria-label="`${anime.name}公开展示`"
+                    :aria-checked="anime.isPublic ?? true"
+                    :aria-busy="visibilitySaving === anime.id"
+                    :disabled="visibilitySaving !== null || loading"
+                    @click="toggleWorkVisibility(anime)"
+                  ><span></span></button>
+                </div>
+                <div v-if="anime.externalLinks.length" class="external-links anime-card-links">
+                  <a
+                    v-for="link in anime.externalLinks"
+                    :key="link.url"
+                    class="external-link"
+                    :href="getSafeExternalUrl(link.url)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    :title="link.title || link.url"
+                    :aria-label="link.title || link.url"
+                    ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
+                  >
+                </div>
               </div>
               <div class="anime-card-actions">
                 <button
@@ -1771,7 +1780,7 @@ function markCoverBroken(url: string) {
             </button>
           </div>
         </div>
-      </div>
+      </AdminTableScroll>
 
       <div v-if="!errorMessage && page.total" class="pagination" :inert="loading">
         <div class="page-summary">

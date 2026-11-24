@@ -8,6 +8,7 @@ import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, 
 import { useRoute } from 'vue-router'
 import { createRegion, deleteRegions, getRegionById, getRegions, updateRegion } from '@/api/catalog'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import type { NamedOption } from '@/types/api'
 
 type DrawerMode = 'create' | 'edit'
@@ -303,7 +304,7 @@ async function confirmDelete() {
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
       </form>
-      <div class="regions-table-scroll management-table-scroll">
+      <AdminTableScroll class="regions-table-scroll management-table-scroll">
         <table
           v-if="!listError && filteredRegions.length"
           :inert="loading"
@@ -398,7 +399,7 @@ async function confirmDelete() {
             新增地区
           </button>
         </div>
-      </div>
+      </AdminTableScroll>
     </section>
 
     <Teleport to="body">

@@ -4,6 +4,7 @@ import { computed, onActivated, onDeactivated, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getDataQualityPage } from '@/api/dataQuality'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import type {
@@ -324,7 +325,7 @@ onDeactivated(() => request?.abort())
         <p>可以调整检查规则或{{ resultTarget.searchLabel }}后再检查。</p>
       </div>
       <template v-else>
-        <div class="quality-table-wrap">
+        <AdminTableScroll class="quality-table-wrap">
           <table class="anime-table quality-table">
             <thead>
               <tr>
@@ -400,7 +401,7 @@ onDeactivated(() => request?.abort())
               </tr>
             </tbody>
           </table>
-        </div>
+        </AdminTableScroll>
         <div class="pagination">
           <span class="page-summary"
             >共 {{ result.total }} {{ resultTarget.unit }} · {{ result.pageNum }}/{{

@@ -15,6 +15,7 @@ import { deleteBooks, getBookPage, getBookTypes } from '@/api/book'
 import { getAdaptationTypes, getRegions, getTags } from '@/api/catalog'
 import { searchRelatedEntities } from '@/api/relatedEntities'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import { updateWorkVisibility } from '@/api/workVisibility'
 import { workVisibilityOptions } from '@/config/workVisibility'
 import ExternalLinkIcon from '@/components/admin/ExternalLinkIcon.vue'
@@ -1095,7 +1096,7 @@ function safeUrl(value: string | null) {
           </div>
         </div>
       </div>
-      <div class="table-scroll">
+      <AdminTableScroll class="table-scroll">
         <div
           v-if="loading && !page.rows.length"
           class="skeleton-body visible"
@@ -1343,10 +1344,16 @@ function safeUrl(value: string | null) {
             :data-work-row="book.id"
             :data-linked-row-selected="linkedRowId === book.id ? true : undefined"
           >
-            <label class="transfer-card-selection"
-              ><input v-model="selectedIds" type="checkbox" :value="book.id" />勾选导出</label
-            >
             <div class="book-card-heading">
+              <!-- 导出勾选并入标题行，为封面和作品名称留出空间。 -->
+              <label class="transfer-card-selection" title="勾选导出">
+                <input
+                  v-model="selectedIds"
+                  type="checkbox"
+                  :value="book.id"
+                  :aria-label="`勾选导出 ${book.name}`"
+                />
+              </label>
               <div class="cover" :style="{ '--cover-gradient': getCoverGradient(book.id) }">
                 <img
                   v-if="safeUrl(book.coverImageUrl) && !brokenCovers.has(book.coverImageUrl!)"
@@ -1369,21 +1376,21 @@ function safeUrl(value: string | null) {
                   book.aliasNames.join(' · ') || '暂无别名'
                 }}</span
                 ><span class="work-series"
-                  ><AdminIcon name="series" />{{ book.series?.name || '未归属系列' }}</span
+                  ><AdminIcon name="series" /><span>{{ book.series?.name || '未归属系列' }}</span></span
                 >
+                <div class="book-card-meta">
+                  <span class="status-badge" :class="'book-status-' + book.status">{{
+                    bookStatusNames[book.status]
+                  }}</span
+                  ><span v-if="book.personalRating !== null" class="rating"
+                    ><span class="rating-star">★</span
+                    ><strong>{{ book.personalRating.toFixed(1) }}</strong
+                    ><span>/10</span></span
+                  ><span v-else class="empty-value">未评分</span>
+                </div>
               </div>
             </div>
-            <div class="book-card-meta">
-              <span class="status-badge" :class="'book-status-' + book.status">{{
-                bookStatusNames[book.status]
-              }}</span
-              ><span v-if="book.personalRating !== null" class="rating"
-                ><span class="rating-star">★</span
-                ><strong>{{ book.personalRating.toFixed(1) }}</strong
-                ><span>/10</span></span
-              ><span v-else class="empty-value">未评分</span>
-            </div>
-            <div class="meta-stack">
+            <div class="meta-stack work-card-facts">
               <span>
                 <strong>{{ book.volumeCount ?? '—' }}</strong> 卷 ·
                 <strong>{{ book.chapterCount ?? '—' }}</strong> 章
@@ -1413,36 +1420,38 @@ function safeUrl(value: string | null) {
                 <span v-if="!book.companies.length" class="empty-value">暂无公司</span>
               </div>
             </div>
-            <div
-              v-if="book.externalLinks.some((link) => safeUrl(link.url))"
-              class="external-links book-card-links"
-            >
-              <a
-                v-for="link in book.externalLinks.filter((item) => safeUrl(item.url))"
-                :key="link.url"
-                class="external-link"
-                :href="safeUrl(link.url)"
-                target="_blank"
-                rel="noopener noreferrer"
-                :title="link.title || link.url"
-                :aria-label="link.title || link.url"
-                ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
-              >
-            </div>
             <!-- 公开设置与操作按钮集中于卡片底部，保持不同内容长度下的对齐。 -->
             <footer class="work-card-footer">
-              <div class="work-card-visibility">
-                <span>{{ visibilitySaving === book.id ? '正在保存…' : '公开展示' }}</span>
-                <button
-                  class="work-visibility-toggle"
-                  type="button"
-                  role="switch"
-                  :aria-label="`${book.name}公开展示`"
-                  :aria-checked="book.isPublic ?? true"
-                  :aria-busy="visibilitySaving === book.id"
-                  :disabled="visibilitySaving !== null || loading"
-                  @click="toggleWorkVisibility(book)"
-                ><span></span></button>
+              <div class="work-card-utilities">
+                <div class="work-card-visibility">
+                  <span>{{ visibilitySaving === book.id ? '正在保存…' : '公开展示' }}</span>
+                  <button
+                    class="work-visibility-toggle"
+                    type="button"
+                    role="switch"
+                    :aria-label="`${book.name}公开展示`"
+                    :aria-checked="book.isPublic ?? true"
+                    :aria-busy="visibilitySaving === book.id"
+                    :disabled="visibilitySaving !== null || loading"
+                    @click="toggleWorkVisibility(book)"
+                  ><span></span></button>
+                </div>
+                <div
+                  v-if="book.externalLinks.some((link) => safeUrl(link.url))"
+                  class="external-links book-card-links"
+                >
+                  <a
+                    v-for="link in book.externalLinks.filter((item) => safeUrl(item.url))"
+                    :key="link.url"
+                    class="external-link"
+                    :href="safeUrl(link.url)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    :title="link.title || link.url"
+                    :aria-label="link.title || link.url"
+                    ><ExternalLinkIcon :url="link.url" :label="link.title ?? null" /></a
+                  >
+                </div>
               </div>
               <div class="book-card-actions">
                 <button
@@ -1471,7 +1480,7 @@ function safeUrl(value: string | null) {
             </footer>
           </article>
         </div>
-      </div>
+      </AdminTableScroll>
       <footer v-if="!errorMessage && page.total" class="pagination" :inert="loading">
         <div class="page-summary">
           第 <strong>{{ resultRange.match(/\d+–\d+/)?.[0] }}</strong> 条，共

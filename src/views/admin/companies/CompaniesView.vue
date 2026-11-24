@@ -28,6 +28,7 @@ import {
   updateCompany,
 } from '@/api/catalog'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
 import RelatedAnimeNameLink from '@/components/admin/RelatedAnimeNameLink.vue'
@@ -586,7 +587,7 @@ async function confirmDelete() {
           {{ nameSortDirection === 'ASC' ? '名称 A–Z' : '名称 Z–A' }}
         </button>
       </form>
-      <div class="companies-table-scroll management-table-scroll">
+      <AdminTableScroll class="companies-table-scroll management-table-scroll">
         <table
           v-if="!listError && page.rows.length"
           :inert="listLoading"
@@ -712,7 +713,7 @@ async function confirmDelete() {
             新增公司
           </button>
         </div>
-      </div>
+      </AdminTableScroll>
       <footer class="companies-pagination management-pagination" :inert="listLoading">
         <span>第 {{ firstResult }}–{{ lastResult }} 条，共 {{ page.total }} 条</span>
         <div class="companies-page-controls management-page-controls">

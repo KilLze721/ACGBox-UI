@@ -14,6 +14,7 @@ import {
   updateAdaptationType,
 } from '@/api/catalog'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import { notifyCatalogChanged, useCatalogRefresh } from '@/utils/catalogChanges'
 import { parseSortOrder } from '@/utils/sortOrder'
 import type { NamedOption, SortableNamedOption } from '@/types/api'
@@ -339,7 +340,7 @@ async function confirmDelete() {
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
       </form>
-      <div class="adaptation-table-scroll management-table-scroll">
+      <AdminTableScroll class="adaptation-table-scroll management-table-scroll">
         <table
           v-if="!listError && filteredTypes.length"
           :inert="loading"
@@ -436,7 +437,7 @@ async function confirmDelete() {
             新增类型
           </button>
         </div>
-      </div>
+      </AdminTableScroll>
     </section>
 
     <Teleport to="body">

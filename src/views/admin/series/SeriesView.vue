@@ -27,6 +27,7 @@ import {
   updateSeries,
 } from '@/api/series'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
 import RelatedAnimeList from '@/components/admin/RelatedAnimeList.vue'
@@ -514,7 +515,7 @@ function openRelatedBook(book: BookPageItem) {
           {{ nameSortDirection === 'ASC' ? '名称 A–Z' : '名称 Z–A' }}
         </button>
       </form>
-      <div class="series-table-scroll management-table-scroll">
+      <AdminTableScroll class="series-table-scroll management-table-scroll">
         <table
           v-if="!listError && page.rows.length"
           :inert="listLoading"
@@ -636,7 +637,7 @@ function openRelatedBook(book: BookPageItem) {
             新增系列
           </button>
         </div>
-      </div>
+      </AdminTableScroll>
       <footer class="series-pagination management-pagination" :inert="listLoading">
         <span>第 {{ firstResult }}–{{ lastResult }} 条，共 {{ page.total }} 条</span>
         <div class="series-page-controls management-page-controls">

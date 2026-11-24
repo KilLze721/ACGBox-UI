@@ -25,6 +25,7 @@ import {
   updatePerson,
 } from '@/api/persons'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import ArchiveDescription from '@/components/admin/ArchiveDescription.vue'
 import RelatedAnimeList from '@/components/admin/RelatedAnimeList.vue'
@@ -585,7 +586,7 @@ async function confirmDelete() {
         <span>已选 {{ selectedPersons.size }} 位人物 · 跨页保留选择</span
         ><button type="button" @click="selectedPersons.clear()">清空选择</button>
       </div>
-      <div class="persons-table-scroll management-table-scroll">
+      <AdminTableScroll class="persons-table-scroll management-table-scroll">
         <table
           v-if="!listError && page.rows.length"
           :inert="listLoading"
@@ -714,7 +715,7 @@ async function confirmDelete() {
             {{ appliedName ? '清空查询条件' : '新增人物' }}
           </button>
         </div>
-      </div>
+      </AdminTableScroll>
       <footer class="persons-pagination management-pagination" :inert="listLoading">
         <span>{{ pageSummary }}</span>
         <div class="persons-page-controls management-page-controls">

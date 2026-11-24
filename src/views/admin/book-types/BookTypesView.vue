@@ -14,6 +14,7 @@ import {
   updateBookType,
 } from '@/api/book'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import { notifyCatalogChanged, useCatalogRefresh } from '@/utils/catalogChanges'
 import { useModalLayer } from '@/utils/useModalLayer'
 import { parseBookInteger } from '@/utils/bookForm'
@@ -332,7 +333,7 @@ async function confirmDelete() {
         <button class="secondary-button" type="submit">查询</button>
         <button class="ghost-button" type="button" @click="resetSearch">重置</button>
       </form>
-      <div class="broadcast-table-scroll management-table-scroll">
+      <AdminTableScroll class="broadcast-table-scroll management-table-scroll">
         <table
           v-if="!listError && filteredTypes.length"
           :inert="loading"
@@ -429,7 +430,7 @@ async function confirmDelete() {
             新增书籍类型
           </button>
         </div>
-      </div>
+      </AdminTableScroll>
     </section>
 
     <Teleport to="body">

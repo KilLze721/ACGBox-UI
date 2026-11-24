@@ -8,6 +8,7 @@ import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, 
 import { useRoute } from 'vue-router'
 import { createTag, deleteTags, getTagById, getTagPage, updateTag } from '@/api/tags'
 import AdminIcon from '@/components/admin/AdminIcon.vue'
+import AdminTableScroll from '@/components/admin/AdminTableScroll.vue'
 import ArchiveSelect from '@/components/admin/ArchiveSelect.vue'
 import type { NamedOption, PageResult, SortDirection } from '@/types/api'
 import { pageSizeValues, resolvePageSize } from '@/utils/preferences'
@@ -406,7 +407,7 @@ async function confirmDelete() {
           {{ nameSortDirection === 'ASC' ? '名称 A–Z' : '名称 Z–A' }}
         </button>
       </form>
-      <div class="tags-table-scroll management-table-scroll">
+      <AdminTableScroll class="tags-table-scroll management-table-scroll">
         <table
           v-if="!listError && page.rows.length"
           :inert="listLoading"
@@ -498,7 +499,7 @@ async function confirmDelete() {
             新增标签
           </button>
         </div>
-      </div>
+      </AdminTableScroll>
       <footer class="tags-pagination management-pagination" :inert="listLoading">
         <span>第 {{ firstResult }}–{{ lastResult }} 条，共 {{ page.total }} 条</span>
         <div class="tags-page-controls management-page-controls">
