@@ -457,7 +457,7 @@ function text(value: unknown, key: string): string {
           <div>
             <p class="eyebrow">ARCHIVE / DATA TRANSFER</p>
             <h2 id="transferTitle">{{ mode === 'export' ? '导出' : '批量导入' }}{{ label }}</h2>
-            <p>Excel · 仅新增，不覆盖现有作品</p>
+            <p>{{ mode === 'export' ? 'Excel 工作簿' : 'Excel · 仅新增，不覆盖现有作品' }}</p>
           </div>
           <button
             class="ghost-button"
@@ -469,9 +469,12 @@ function text(value: unknown, key: string): string {
           </button>
         </header>
         <div class="transfer-body">
-          <p class="transfer-notice">
-            最多 500 部作品、10000 条关联，文件不超过 5
-            MiB。作品文件不是数据库备份；图片仅保存地址。
+          <!-- 导入配额及文件说明按当前模式展示。 -->
+          <p v-if="mode === 'import'" class="transfer-notice">
+            单次导入最多 500 部作品、10000 条关联，文件不超过 5 MiB。
+          </p>
+          <p v-else class="transfer-notice">
+            导出包含所选范围内的全部作品，图片仅保存地址。
           </p>
           <template v-if="mode === 'export'">
             <label class="scope-choice"
@@ -482,15 +485,14 @@ function text(value: unknown, key: string): string {
                 :disabled="busy || !snapshotIds.length"
               /><span
                 ><strong>已勾选作品 · {{ snapshotIds.length }} 部</strong
-                ><small>仅导出打开窗口时勾选的作品</small></span
+                ><small>导出打开窗口时勾选的全部作品</small></span
               ></label
             >
             <label class="scope-choice"
               ><input v-model="scope" value="FILTERED" type="radio" :disabled="busy" /><span
                 ><strong>{{ snapshotSummary ? '当前筛选结果' : `导出全部${label}` }}</strong
-                ><small
-                  >{{ snapshotSummary || '当前没有筛选条件，将导出全部作品。' }} · 不限当前页</small
-                ></span
+                ><small v-if="snapshotSummary">{{ snapshotSummary }} · 导出全部符合条件的作品</small
+                ><small v-else>当前没有筛选条件，将导出全部作品。</small></span
               ></label
             >
             <p class="transfer-muted">

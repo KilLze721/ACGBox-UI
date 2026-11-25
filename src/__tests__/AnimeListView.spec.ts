@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import AnimeListView from '@/views/admin/anime/AnimeListView.vue'
 import BookListView from '@/views/admin/book/BookListView.vue'
+import WorkDataTransfer from '@/components/admin/WorkDataTransfer.vue'
 import router from '@/router'
 import { notifyCatalogChanged } from '@/utils/catalogChanges'
 
@@ -29,6 +30,79 @@ afterEach(() => {
 })
 
 describe('动画管理分页查询页面', () => {
+  it.each(['ANIME', 'BOOK'] as const)('%s 导出完整所选范围，导入单独显示配额', async (targetType) => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const selectedIds = Array.from({ length: 501 }, (_, index) => index + 1)
+    const fetchFile = vi.fn<(input: string, init?: RequestInit) => Promise<Response>>(
+      async () =>
+        new Response('工作簿', {
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': 'attachment; filename="works.xlsx"',
+          },
+        }),
+    )
+    vi.stubGlobal('fetch', fetchFile)
+    vi.stubGlobal('URL', Object.assign(class extends URL {}, {
+      createObjectURL: () => 'blob:work-export',
+      revokeObjectURL: () => undefined,
+    }))
+    const downloads: string[] = []
+    const clickDownload = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(
+      function (this: HTMLAnchorElement) {
+        downloads.push(this.download)
+      },
+    )
+    onTestFinished(() => clickDownload.mockRestore())
+    await router.push(targetType === 'ANIME' ? '/admin/anime' : '/admin/book')
+    const wrapper = mount(WorkDataTransfer, {
+      attachTo: document.body,
+      global: { plugins: [router] },
+      props: {
+        targetType,
+        selectedIds,
+        filters: { keyword: '系列', pageNum: 2, pageSize: 20 },
+        summary: '系列',
+      },
+    })
+    const dialog = () => document.querySelector<HTMLElement>('.transfer-dialog')!
+    const download = async () => {
+      dialog().querySelector<HTMLButtonElement>('footer .primary-button')!.click()
+      await flushPromises()
+      const [path, request] = fetchFile.mock.calls.slice(-1)[0]!
+      expect(path).toBe(`/api/data-transfer/${targetType === 'ANIME' ? 'anime' : 'book'}/export`)
+      return JSON.parse(String(request?.body))
+    }
+    const close = async () => {
+      dialog().querySelector<HTMLButtonElement>('[aria-label="关闭数据传输"]')!.click()
+      await flushPromises()
+    }
+    const [exportButton, importButton] = wrapper.findAll('.transfer-tools button')
+
+    // 超过旧配额的选择仍完整提交，筛选导出不携带当前分页。
+    await exportButton!.trigger('click')
+    expect(dialog().textContent).toContain('勾选的全部作品')
+    expect(dialog().textContent).not.toMatch(/10000|5 MiB|最多 500/)
+    expect(await download()).toEqual({ targetType, scope: 'SELECTED', ids: selectedIds })
+    dialog().querySelector<HTMLInputElement>('input[value="FILTERED"]')!.click()
+    await flushPromises()
+    expect(dialog().textContent).toContain('导出全部符合条件的作品')
+    expect(await download()).toEqual({ targetType, scope: 'FILTERED', filters: { keyword: '系列' } })
+    await close()
+
+    await wrapper.setProps({ selectedIds: [], summary: '', filters: { pageNum: 1, pageSize: 20 } })
+    await exportButton!.trigger('click')
+    expect(dialog().textContent).toContain('将导出全部作品')
+    expect(await download()).toEqual({ targetType, scope: 'FILTERED', filters: {} })
+    expect(downloads).toEqual(['works.xlsx', 'works.xlsx', 'works.xlsx'])
+    await close()
+
+    await importButton!.trigger('click')
+    expect(dialog().textContent).toContain('单次导入最多 500 部作品、10000 条关联，文件不超过 5 MiB')
+    expect(dialog().textContent).toContain('仅新增，不覆盖现有作品')
+    vi.advanceTimersByTime(1000)
+  })
+
   // 快速公开开关必须保留详情中的完整关联，接口失败时不提前改变显示状态。
   it.each([
     ['anime', '表格', AnimeListView],
